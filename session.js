@@ -74,8 +74,20 @@
     document.addEventListener(evt, onActivity, { passive: true });
   });
 
+  /* Quand l'onglet redevient visible (retour de mise en veille du Mac,
+     changement d'onglet, etc.) on NE veut PAS reset le compteur — sinon
+     le simple fait de rouvrir l'ordi efface 2h d'absence. À la place :
+     on vérifie le timestamp persisté et on force la déconnexion si
+     l'inactivité a dépassé le seuil. */
   document.addEventListener('visibilitychange', () => {
-    if (!document.hidden) onActivity();
+    if (document.hidden) return;
+    if (isMusicPlaying()) return; // exception musique = activité
+    const reference = readPersistedActivity() || lastActivity;
+    if (Date.now() - reference >= INACTIVITY_TIMEOUT) {
+      forceLogout('inactivity_persistent');
+    }
+    // Pas de mise à jour de lastActivity : seule une VRAIE interaction
+    // (souris, clavier, scroll, click) compte comme reset.
   });
 
   /* ── Music detection ────────────────────────────────────────────── */
@@ -185,6 +197,12 @@
       heartbeatTimer = null;
       return;
     }
+
+    // Multi-onglets safety : si un autre onglet LazyPO est actif et a
+    // mis à jour le timestamp localStorage, on l'adopte ici pour ne pas
+    // logger out par erreur cet onglet (qui croit être inactif).
+    const persistedTs = readPersistedActivity();
+    if (persistedTs > lastActivity) lastActivity = persistedTs;
 
     const inactive = Date.now() - lastActivity;
     const age      = Date.now() - sessionStart;
