@@ -32,6 +32,13 @@
   const HEARTBEAT_MS        = 2 * 60 * 1000;        // 2min
   const WARN_BEFORE_MS      = 5 * 60 * 1000;        // warn 5min before timeout
 
+  /* localStorage key for persisted activity — survives tab/browser close.
+     Without this, lastActivity was reset to now() on every page boot, so
+     "2h inactivity" could never trigger if the browser was closed in
+     between. With this, we record the actual last interaction timestamp
+     and check it on boot to enforce the limit across sessions. */
+  const ACTIVITY_KEY = 'lazypo:lastActivity';
+
   /* ── State ──────────────────────────────────────────────────────── */
   let lastActivity   = Date.now();
   let sessionStart   = Date.now();
@@ -40,9 +47,25 @@
   let warnShown      = false;
   let warnEl         = null;
 
+  /* ── localStorage helpers ───────────────────────────────────────── */
+  function persistActivity(ts) {
+    try { localStorage.setItem(ACTIVITY_KEY, String(ts)); } catch (_) {}
+  }
+  function readPersistedActivity() {
+    try {
+      const raw = localStorage.getItem(ACTIVITY_KEY);
+      const n = raw ? parseInt(raw, 10) : 0;
+      return Number.isFinite(n) ? n : 0;
+    } catch (_) { return 0; }
+  }
+  function clearPersistedActivity() {
+    try { localStorage.removeItem(ACTIVITY_KEY); } catch (_) {}
+  }
+
   /* ── Activity tracking ──────────────────────────────────────────── */
   function onActivity() {
     lastActivity = Date.now();
+    persistActivity(lastActivity);
     hideWarning();
   }
 
@@ -140,6 +163,7 @@
   async function forceLogout(reason) {
     clearInterval(heartbeatTimer);
     heartbeatTimer = null;
+    clearPersistedActivity();
 
     if (sessionDbId && window.sb) {
       await window.sb.from('user_sessions')
@@ -310,8 +334,27 @@
     if (!session) return;
 
     injectCSS();
-    sessionStart = Date.now();
-    lastActivity = Date.now();
+
+    /* Enforce inactivity timeout across browser/tab closes by reading the
+       last activity timestamp persisted to localStorage. If the user has
+       been inactive for more than INACTIVITY_TIMEOUT (even with the browser
+       closed in between), force a logout immediately — no chance to use
+       the app on resume. */
+    const persistedTs = readPersistedActivity();
+    const now = Date.now();
+    if (persistedTs > 0) {
+      const inactiveMs = now - persistedTs;
+      if (inactiveMs >= INACTIVITY_TIMEOUT) {
+        await forceLogout('inactivity_persistent');
+        return;
+      }
+      lastActivity = persistedTs;
+    } else {
+      lastActivity = now;
+      persistActivity(lastActivity);
+    }
+
+    sessionStart = now;
 
     await registerSession();
 

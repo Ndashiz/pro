@@ -467,6 +467,9 @@ async function handleLogin(e) {
       await sb.auth.signOut();
       showMsg('Your account is pending approval. You\'ll get access as soon as it\'s approved.', 'success');
     } else {
+      // Reset the inactivity timer on fresh login so session.js doesn't
+      // immediately force-logout on the next page using a stale timestamp.
+      try { localStorage.setItem('lazypo:lastActivity', String(Date.now())); } catch (_) {}
       showMsg('Signed in! Redirecting…', 'success');
       setTimeout(() => window.location.href = REDIRECT_AFTER_LOGIN, 800);
     }

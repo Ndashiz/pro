@@ -378,6 +378,10 @@
   };
 
   window.__authSignOut = async function () {
+    // Clear persisted activity so the next login starts with a fresh timer
+    // (otherwise an old stale timestamp could force-logout immediately on
+    // the next sign-in via session.js boot check).
+    try { localStorage.removeItem('lazypo:lastActivity'); } catch (_) {}
     await window.sb.auth.signOut();
     window.location.href = LOGIN_PAGE;
   };
