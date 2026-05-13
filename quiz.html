@@ -3121,15 +3121,31 @@ let reviewIndex = 0;
 // Use IIFE instead of DOMContentLoaded so it works both on direct load
 // and on SPA navigation (where DOMContentLoaded never re-fires)
 (async () => {
-  await LazyAuth.requireAuth();
-  const { data: { user } } = await window.sb.auth.getUser();
-  if (!user) return;
-  currentUser = user;
-  await Promise.all([loadVocab(), loadProgress()]);
-  renderVocab();
-  renderProgress();
-  updateAvailNote();
-  updateImportBanner();
+  try {
+    // Single auth call: `requireAuth()` already returns the session (which
+    // contains `.user`). Avoid a second `getUser()` round-trip — that one
+    // hits the server and races with Supabase's token refresh on first
+    // page load, returning null even though the local session is valid.
+    const session = await LazyAuth.requireAuth();
+    // `requireAuth()` redirects to /login when no session, so reaching here
+    // with a falsy session would be a bug. Still guard defensively.
+    if (!session || !session.user) {
+      console.error('[quiz init] no session.user after requireAuth — aborting boot');
+      return;
+    }
+    currentUser = session.user;
+    await Promise.all([loadVocab(), loadProgress()]);
+    renderVocab();
+    renderProgress();
+    updateAvailNote();
+    updateImportBanner();
+  } catch (e) {
+    // Surface init failures instead of letting the page silently render
+    // empty with `currentUser === null` (which then crashes every
+    // subsequent interaction in `recordAnswer`, `addWord`, etc.).
+    console.error('[quiz init] failed', e);
+    showToast?.('Erreur de chargement de la page. Recharge dans quelques secondes.');
+  }
 })();
 
 /* ═══════════════════════════════════════════════════════════
