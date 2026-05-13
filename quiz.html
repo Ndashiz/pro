@@ -3036,6 +3036,8 @@ tr.row-selected { background: rgba(59,130,246,.05); }
 <script src="focusfm.js"></script>
 <script src="session.js"></script>
 <script src="demo.js"></script>
+<script src="vocab_import_onboarding.js"></script>
+<script src="vocab_duplicate_modal.js"></script>
 <script>
 window.loadDemoData = async function () {
   if (!currentUser) return;
@@ -3245,13 +3247,23 @@ async function importFromExcel(file) {
   btn.disabled = true;
   btn.textContent = '⏳ Import…';
 
+  // Sentinel for invalid format → triggers the error popup in catch
+  const fmtErr = () => Object.assign(new Error('INVALID_FORMAT'), { code: 'INVALID_FORMAT' });
+
   try {
-    const data  = await file.arrayBuffer();
-    const wb    = XLSX.read(data, { type: 'array' });
+    // ── Parse the workbook (may throw on corrupt / non-spreadsheet files) ──
+    let wb;
+    try {
+      const data = await file.arrayBuffer();
+      wb = XLSX.read(data, { type: 'array' });
+    } catch (parseErr) {
+      console.warn('[Import Excel] parse error:', parseErr);
+      throw fmtErr();
+    }
     const ws    = wb.Sheets[wb.SheetNames[0]];
     const rows  = XLSX.utils.sheet_to_json(ws, { defval: '' });
 
-    if (!rows.length) { showToast('Fichier vide'); return; }
+    if (!rows.length) throw fmtErr();
 
     // ── Upsert vocabulary rows ──────────────────────────────────
     const vocabPayload = rows
@@ -3267,13 +3279,73 @@ async function importFromExcel(file) {
         is_system:          r.is_system == 1 || r.is_system === true || r.is_system === 'true',
       }));
 
+    // Required columns missing → format error popup (with retry)
+    if (vocabPayload.length === 0) throw fmtErr();
+
     const CHUNK = 100;
     let vocabInserted = 0;
-    for (let i = 0; i < vocabPayload.length; i += CHUNK) {
+    let dupUpdated = 0;
+    let dupSkipped = 0;
+
+    // ── Duplicate detection (same source_word + language_pair) ──
+    // Only ask the user when at least one duplicate would be created. Rows
+    // whose `id` matches an existing row are handled by the upsert anyway.
+    let toInsert = vocabPayload;
+    if (window.vocabDuplicate) {
+      const { duplicates, fresh } = window.vocabDuplicate.findDuplicatesBulk(vocabPayload, vocab);
+      if (duplicates.length > 0) {
+        const choice = await new Promise(resolve => {
+          window.vocabDuplicate.showBulkPrompt({
+            duplicates,
+            freshCount: fresh.length,
+            onApplyAll: () => resolve('applyAll'),
+            onSkipAll:  () => resolve('skipAll'),
+            onPerItem:  () => resolve('perItem'),
+            onCancel:   () => resolve('cancel'),
+          });
+        });
+        if (choice === 'cancel') {
+          showToast('Import annulé.');
+          return;
+        }
+
+        // Build the list of patches to apply to existing rows
+        let patches = [];
+        if (choice === 'applyAll') {
+          patches = duplicates
+            .map(d => ({ id: d.existing.id, patch: window.vocabDuplicate.mergeForUpdate(d.existing, d.incoming) }))
+            .filter(x => Object.keys(x.patch).length > 0);
+          dupSkipped = duplicates.length - patches.length; // identical rows
+        } else if (choice === 'skipAll') {
+          patches = [];
+          dupSkipped = duplicates.length;
+        } else if (choice === 'perItem') {
+          const decisions = await window.vocabDuplicate.runPerItemChain(duplicates);
+          decisions.forEach((patch, id) => patches.push({ id, patch }));
+          dupSkipped = duplicates.length - decisions.size;
+        }
+
+        // Apply patches one by one (small N, no need to chunk)
+        for (const u of patches) {
+          if (!Object.keys(u.patch).length) continue;
+          const { error: upErr } = await window.sb.from('vocabulary')
+            .update({ ...u.patch, updated_at: new Date().toISOString() })
+            .eq('id', u.id)
+            .eq('user_id', currentUser.id);
+          if (upErr) { console.warn('[Import] duplicate update error', upErr); continue; }
+          dupUpdated++;
+        }
+
+        // Only the fresh rows go through the insert/upsert loop below
+        toInsert = fresh;
+      }
+    }
+
+    for (let i = 0; i < toInsert.length; i += CHUNK) {
       const { error } = await window.sb.from('vocabulary')
-        .upsert(vocabPayload.slice(i, i + CHUNK), { onConflict: 'id' });
+        .upsert(toInsert.slice(i, i + CHUNK), { onConflict: 'id' });
       if (error) throw error;
-      vocabInserted += Math.min(CHUNK, vocabPayload.length - i);
+      vocabInserted += Math.min(CHUNK, toInsert.length - i);
     }
 
     // ── Upsert progress if scoring columns present ──────────────
@@ -3316,14 +3388,43 @@ async function importFromExcel(file) {
     renderProgress();
     updateAvailNote();
     updateImportBanner();
+    const dupBits = [];
+    if (dupUpdated) dupBits.push(`${dupUpdated} doublon${dupUpdated > 1 ? 's' : ''} fusionné${dupUpdated > 1 ? 's' : ''}`);
+    if (dupSkipped) dupBits.push(`${dupSkipped} ignoré${dupSkipped > 1 ? 's' : ''}`);
+    const dupSuffix = dupBits.length ? ` · ${dupBits.join(', ')}` : '';
     const msg = hasSM2
-      ? `✅ ${vocabInserted} mots + ${progressInserted} scores mis à jour`
-      : `✅ ${vocabInserted} mots importés`;
-    showToast(msg);
+      ? `✅ ${vocabInserted} mots + ${progressInserted} scores mis à jour${dupSuffix}`
+      : `✅ ${vocabInserted} mots importés${dupSuffix}`;
+
+    // ── First-import celebration (premier import réussi) ──────────
+    if (
+      window.vocabImport &&
+      !window.vocabImport.hasCompletedFirstImport() &&
+      vocabInserted > 0
+    ) {
+      window.vocabImport.markFirstImportComplete();
+      const xpOk = await window.vocabImport.awardFirstImportXp();
+      window.vocabImport.celebrateFirstImport({
+        wordCount: vocabInserted,
+        xp: xpOk ? window.vocabImport.FIRST_IMPORT_XP_BONUS : 0,
+      });
+    } else {
+      showToast(msg);
+    }
 
   } catch (e) {
-    console.error('[Import Excel]', e);
-    showToast('Erreur import : ' + (e.message || e));
+    if (e && e.code === 'INVALID_FORMAT') {
+      if (window.vocabImport) {
+        window.vocabImport.showFormatError(() => {
+          document.getElementById('xlsx-file-input').click();
+        });
+      } else {
+        showToast('⚠ Format invalide — colonnes source_word + target_translation requises');
+      }
+    } else {
+      console.error('[Import Excel]', e);
+      showToast('Erreur import : ' + (e.message || e));
+    }
   } finally {
     btn.disabled = false;
     btn.textContent = '📤 Importer Excel';
@@ -3567,18 +3668,56 @@ document.getElementById('btn-add-word').addEventListener('click', submitAddWord)
   });
 });
 
-function submitAddWord() {
-  const source   = document.getElementById('add-source').value.trim();
-  const target   = document.getElementById('add-target').value.trim();
-  const example  = document.getElementById('add-example').value.trim();
-  const tips     = document.getElementById('add-tips').value.trim();
-  if (!source || !target) { showToast('Please fill in source word and translation'); return; }
-  addWord({ source_word: source, target_translation: target, language_pair: selectedLang, example_sentence: example || null, ...(tips ? { tips } : {}) });
+function clearAddWordForm() {
   document.getElementById('add-source').value  = '';
   document.getElementById('add-target').value  = '';
   document.getElementById('add-example').value = '';
   document.getElementById('add-tips').value    = '';
   document.getElementById('add-source').focus();
+}
+
+async function submitAddWord() {
+  const source   = document.getElementById('add-source').value.trim();
+  const target   = document.getElementById('add-target').value.trim();
+  const example  = document.getElementById('add-example').value.trim();
+  const tips     = document.getElementById('add-tips').value.trim();
+  if (!source || !target) { showToast('Please fill in source word and translation'); return; }
+
+  const incoming = {
+    source_word:        source,
+    target_translation: target,
+    language_pair:      selectedLang,
+    example_sentence:   example || null,
+    tips:               tips || null,
+  };
+
+  // ── Duplicate detection (same source_word + language_pair, case-insensitive) ──
+  const existing = window.vocabDuplicate
+    ? window.vocabDuplicate.findDuplicate(incoming, vocab)
+    : null;
+
+  if (existing) {
+    window.vocabDuplicate.showPrompt({
+      existing,
+      incoming,
+      onUpdate: async (patch) => {
+        await updateWord(existing.id, patch);
+        clearAddWordForm();
+      },
+      onKeep: () => {
+        clearAddWordForm();
+        showToast('Original conservé — aucun doublon créé.');
+      },
+      onCancel: () => {
+        // Don't clear: let the user adjust their input.
+        document.getElementById('add-source').focus();
+      },
+    });
+    return;
+  }
+
+  await addWord(incoming);
+  clearAddWordForm();
 }
 
 /* ═══════════════════════════════════════════════════════════
@@ -5204,7 +5343,12 @@ document.getElementById('btn-dismiss-banner')?.addEventListener('click', () => {
 document.getElementById('btn-export-xl').addEventListener('click', exportToExcel);
 
 document.getElementById('btn-import-xl').addEventListener('click', () => {
-  document.getElementById('xlsx-file-input').click();
+  const openPicker = () => document.getElementById('xlsx-file-input').click();
+  if (window.vocabImport && !window.vocabImport.hasCompletedFirstImport()) {
+    window.vocabImport.maybeShowFormatInfo(openPicker);
+  } else {
+    openPicker();
+  }
 });
 
 document.getElementById('xlsx-file-input').addEventListener('change', e => {
