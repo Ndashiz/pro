@@ -2185,6 +2185,262 @@ tr.row-selected { background: rgba(59,130,246,.05); }
   .qz-question-word { font-size: 30px; }
   .qz-setup-card, .qz-question-card { padding: 24px 18px; }
 }
+
+/* ═══════════════════════════════════════════════
+   PLAYER PROFILE POPUP
+═══════════════════════════════════════════════ */
+
+/* Clickable affordance on avatars + names. */
+.pp-clickable { cursor: pointer; transition: background .15s ease; }
+.pp-clickable:hover { background: rgba(255,255,255,.03); }
+
+/* ── Overlay backdrop ── */
+.pp-overlay {
+  position: fixed; inset: 0; z-index: 9000;
+  background: rgba(8,10,14,.78);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: flex; align-items: center; justify-content: center;
+  padding: 24px 16px;
+  animation: pp-fade-in .18s ease both;
+}
+@keyframes pp-fade-in { from { opacity: 0; } to { opacity: 1; } }
+
+/* ── Modal card ── */
+.pp-modal {
+  position: relative;
+  width: 100%; max-width: 640px;
+  max-height: 90vh; overflow-y: auto;
+  background: linear-gradient(180deg, #14171c 0%, #0e1116 100%);
+  border: 1px solid var(--border2);
+  border-radius: 16px;
+  box-shadow: 0 24px 64px rgba(0,0,0,.6), 0 0 0 1px rgba(255,255,255,.03);
+  padding: 28px;
+  animation: pp-slide-in .24s cubic-bezier(.2,.7,.3,1.2) both;
+}
+@keyframes pp-slide-in {
+  from { opacity: 0; transform: translateY(12px) scale(.97); }
+  to   { opacity: 1; transform: translateY(0)    scale(1); }
+}
+
+/* ── Close button ── */
+.pp-close {
+  position: absolute; top: 14px; right: 14px;
+  width: 32px; height: 32px; border-radius: 50%;
+  border: 1px solid var(--border2);
+  background: var(--surface2);
+  color: var(--muted);
+  font-size: 14px; line-height: 1;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  transition: color .15s, background .15s, border-color .15s, transform .15s;
+}
+.pp-close:hover {
+  color: var(--text);
+  background: var(--surface);
+  border-color: var(--accent);
+  transform: rotate(90deg);
+}
+
+/* ── Loading skeleton ── */
+.pp-loading {
+  padding: 60px 0; text-align: center;
+  color: var(--muted); font-size: 14px;
+}
+
+/* ── Header (avatar + name + meta) ── */
+.pp-header {
+  display: flex; align-items: center; gap: 18px;
+  margin-bottom: 24px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--border);
+}
+.pp-avatar {
+  width: 72px; height: 72px; border-radius: 50%;
+  background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; overflow: hidden; position: relative;
+  box-shadow: 0 0 0 3px rgba(96,165,250,.18), 0 8px 24px rgba(59,130,246,.25);
+}
+.pp-avatar img {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%; object-fit: cover;
+}
+.pp-avatar-initial {
+  font-size: 28px; font-weight: 700; color: #fff;
+  font-family: 'DM Sans', sans-serif; line-height: 1;
+  position: relative; z-index: 1;
+}
+.pp-header-info { flex: 1; min-width: 0; }
+.pp-name {
+  font-size: 22px; font-weight: 700; color: var(--text);
+  margin-bottom: 6px; word-break: break-word;
+}
+.pp-tagline {
+  display: flex; flex-wrap: wrap; gap: 12px;
+  font-size: 13px; color: var(--muted);
+}
+.pp-tagline-item {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-weight: 500;
+}
+.pp-rank-medal { font-size: 15px; }
+.pp-streak-fire { font-size: 14px; }
+
+/* ── Stats grid (4 cards) ── */
+.pp-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px; margin-bottom: 24px;
+}
+.pp-stat-card {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 10px;
+  text-align: center;
+  transition: border-color .15s, transform .15s;
+}
+.pp-stat-card:hover { border-color: var(--border2); transform: translateY(-1px); }
+.pp-stat-val {
+  font-size: 20px; font-weight: 700; color: var(--text);
+  font-family: 'DM Mono', monospace;
+  margin-bottom: 4px;
+}
+.pp-stat-lbl {
+  font-size: 10.5px; color: var(--muted);
+  text-transform: uppercase; letter-spacing: .06em;
+}
+.pp-stat-val.accent { color: var(--accent2); }
+.pp-stat-val.success { color: var(--success); }
+
+/* ── Section title ── */
+.pp-section {
+  margin-top: 24px;
+}
+.pp-section-title {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 13px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: .06em;
+  color: var(--muted);
+  margin-bottom: 12px;
+}
+
+/* ── XP daily breakdown ── */
+.pp-xp-list {
+  display: flex; flex-direction: column; gap: 6px;
+}
+.pp-xp-day {
+  display: grid;
+  grid-template-columns: 70px 1fr 70px;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.pp-xp-day-date {
+  font-family: 'DM Mono', monospace;
+  font-size: 12px; color: var(--muted);
+  text-transform: capitalize;
+}
+.pp-xp-day-bar-wrap {
+  height: 8px; background: rgba(255,255,255,.04);
+  border-radius: 4px; overflow: hidden;
+}
+.pp-xp-day-bar {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent) 0%, var(--accent2) 100%);
+  border-radius: 4px;
+  transition: width .4s ease;
+}
+.pp-xp-day-val {
+  font-family: 'DM Mono', monospace;
+  font-size: 12px; font-weight: 600;
+  text-align: right; color: var(--accent2);
+}
+.pp-xp-day.zero .pp-xp-day-val { color: var(--muted); }
+.pp-xp-empty {
+  padding: 20px; text-align: center;
+  color: var(--muted); font-size: 13px;
+}
+
+/* ── Sessions list ── */
+.pp-session-list {
+  display: flex; flex-direction: column; gap: 8px;
+}
+.pp-session {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 14px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+.pp-session-icon {
+  width: 32px; height: 32px; border-radius: 8px;
+  background: rgba(59,130,246,.12);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 15px; flex-shrink: 0;
+}
+.pp-session-icon.verbes { background: rgba(139,92,246,.12); }
+.pp-session-main { flex: 1; min-width: 0; }
+.pp-session-mode {
+  font-size: 13px; font-weight: 600; color: var(--text);
+  margin-bottom: 2px;
+}
+.pp-session-date {
+  font-size: 11px; color: var(--muted);
+  font-family: 'DM Mono', monospace;
+}
+.pp-session-score {
+  font-family: 'DM Mono', monospace;
+  font-size: 13px; font-weight: 600;
+  text-align: right;
+}
+.pp-session-pct {
+  font-size: 11px; margin-top: 2px;
+}
+.pp-session-pct.good { color: var(--success); }
+.pp-session-pct.mid  { color: #f59e0b; }
+.pp-session-pct.bad  { color: var(--danger); }
+.pp-session-challenge {
+  padding: 6px 10px;
+  border: 1px solid var(--accent);
+  background: rgba(59,130,246,.08);
+  color: var(--accent2);
+  border-radius: 6px;
+  font-size: 11px; font-weight: 600;
+  cursor: pointer;
+  transition: background .15s, transform .15s;
+  font-family: 'DM Sans', sans-serif;
+  white-space: nowrap;
+}
+.pp-session-challenge:hover { background: rgba(59,130,246,.18); transform: translateY(-1px); }
+.pp-session-empty {
+  padding: 20px; text-align: center;
+  color: var(--muted); font-size: 13px;
+}
+
+/* ── Footer "me" badge ── */
+.pp-me-badge {
+  display: inline-block;
+  padding: 3px 8px; border-radius: 20px;
+  background: rgba(59,130,246,.15);
+  color: var(--accent2);
+  font-size: 10px; font-weight: 700;
+  letter-spacing: .05em; text-transform: uppercase;
+  margin-left: 8px;
+  vertical-align: middle;
+}
+
+/* ── Mobile adjustments ── */
+@media (max-width: 640px) {
+  .pp-modal { padding: 22px 18px; }
+  .pp-stats-grid { grid-template-columns: repeat(2, 1fr); }
+  .pp-avatar { width: 56px; height: 56px; }
+  .pp-avatar-initial { font-size: 22px; }
+  .pp-name { font-size: 18px; }
+}
 </style>
 </head>
 <body>
@@ -3062,6 +3318,18 @@ tr.row-selected { background: rgba(59,130,246,.05); }
   </section>
 
 </main>
+
+<!-- ═══════════════════════════════════════════════
+     PLAYER PROFILE OVERLAY — popup full-screen
+     Triggered by clicking any feed/leaderboard/comment
+     avatar+name. Renders stats, XP history, sessions.
+═══════════════════════════════════════════════ -->
+<div id="pp-overlay" class="pp-overlay" style="display:none" role="dialog" aria-modal="true" aria-labelledby="pp-name">
+  <div class="pp-modal" role="document">
+    <button class="pp-close" id="pp-close" aria-label="Fermer">✕</button>
+    <div id="pp-content" class="pp-content"></div>
+  </div>
+</div>
 
 <div id="qz-toast"></div>
 
@@ -6596,7 +6864,7 @@ function renderLeaderboard(rows) {
   const renderRow = (r, i) => {
     const isMe  = currentUser && r.user_id === currentUser.id;
     const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : String(i + 1);
-    return `<div class="lb-row${isMe ? ' lb-me' : ''}"${isMe ? ' id="lb-me-row"' : ''}>
+    return `<div class="lb-row pp-clickable${isMe ? ' lb-me' : ''}"${isMe ? ' id="lb-me-row"' : ''} data-pp-uid="${escHtml(r.user_id || '')}">
       <div class="lb-rank">${medal}</div>
       <div class="lb-player">
         <div class="lb-player-name">${escHtml(r.display_name)}${isMe ? ' <span style="font-size:10px;color:var(--accent);font-family:sans-serif">moi</span>' : ''}</div>
@@ -6613,9 +6881,8 @@ function renderLeaderboard(rows) {
     html += renderRow(rows[meIdx], meIdx);
   }
   container.innerHTML = html;
-  // Click on own row → XP breakdown
-  const meRow = container.querySelector('#lb-me-row');
-  if (meRow) meRow.addEventListener('click', showXpBreakdown);
+  // (Click on any row, incl. own, is now handled by the global pp-clickable
+  // delegation — it opens the unified Player Profile popup for that user.)
 }
 
 function renderWeeklyCountdown() {
@@ -6783,15 +7050,17 @@ function buildFeedItem(s) {
 
     <!-- Top row: avatar + name + date + menu -->
     <div class="feed-item-top">
-      <div class="feed-avatar-wrap">
-        ${avatarHtml}
-      </div>
-      <div class="feed-item-info">
-        <div class="feed-name">${escHtml(name)}</div>
-        <div class="feed-action-line">
-          <span>${modeIcon} ${modeLabel}</span>
-          <span>·</span>
-          <span>${dateStr}</span>
+      <div class="pp-clickable" data-pp-uid="${escHtml(s.user_id || '')}" style="display:flex;align-items:center;gap:12px;flex:1;min-width:0;padding:4px;margin:-4px;border-radius:8px;">
+        <div class="feed-avatar-wrap">
+          ${avatarHtml}
+        </div>
+        <div class="feed-item-info">
+          <div class="feed-name">${escHtml(name)}</div>
+          <div class="feed-action-line">
+            <span>${modeIcon} ${modeLabel}</span>
+            <span>·</span>
+            <span>${dateStr}</span>
+          </div>
         </div>
       </div>
       <button class="feed-menu-btn" title="Options">···</button>
@@ -6860,14 +7129,14 @@ function renderComments(sid, comments, itemEl) {
     const initial   = (c.display_name || '?')[0].toUpperCase();
     const bgColor   = commentAvatarColor(c.display_name);
     const avatarHtml = c.avatar_url
-      ? `<div class="feed-comment-avatar"><img src="${escHtml(c.avatar_url)}" alt="${escHtml(initial)}"></div>`
-      : `<div class="feed-comment-avatar" style="background:${bgColor}">${escHtml(initial)}</div>`;
+      ? `<div class="feed-comment-avatar pp-clickable" data-pp-uid="${escHtml(c.user_id || '')}"><img src="${escHtml(c.avatar_url)}" alt="${escHtml(initial)}"></div>`
+      : `<div class="feed-comment-avatar pp-clickable" data-pp-uid="${escHtml(c.user_id || '')}" style="background:${bgColor}">${escHtml(initial)}</div>`;
     return `
     <div class="feed-comment-item">
       ${avatarHtml}
       <div class="feed-comment-body">
         <div class="feed-comment-meta">
-          <span class="feed-comment-author">${escHtml(c.display_name)}</span>
+          <span class="feed-comment-author pp-clickable" data-pp-uid="${escHtml(c.user_id || '')}">${escHtml(c.display_name)}</span>
           <span class="feed-comment-time">${feedFormatDate(c.created_at)}</span>
         </div>
         <div class="feed-comment-text">${escHtml(c.content)}</div>
@@ -6926,15 +7195,16 @@ async function submitComment(sid, commentsEl) {
   if (empty && empty.textContent.includes('premier')) empty.remove();
   const bgColor = commentAvatarColor(name);
   const initial = (name || '?')[0].toUpperCase();
+  const ppUid = currentUser?.id || '';
   const avatarHtml = multiAvatarUrl
-    ? `<div class="feed-comment-avatar"><img src="${escHtml(multiAvatarUrl)}" alt="${escHtml(initial)}"></div>`
-    : `<div class="feed-comment-avatar" style="background:${bgColor}">${escHtml(initial)}</div>`;
+    ? `<div class="feed-comment-avatar pp-clickable" data-pp-uid="${escHtml(ppUid)}"><img src="${escHtml(multiAvatarUrl)}" alt="${escHtml(initial)}"></div>`
+    : `<div class="feed-comment-avatar pp-clickable" data-pp-uid="${escHtml(ppUid)}" style="background:${bgColor}">${escHtml(initial)}</div>`;
   const frag = document.createElement('div');
   frag.className = 'feed-comment-item';
   frag.innerHTML = `${avatarHtml}
     <div class="feed-comment-body">
       <div class="feed-comment-meta">
-        <span class="feed-comment-author">${escHtml(name)}</span>
+        <span class="feed-comment-author pp-clickable" data-pp-uid="${escHtml(ppUid)}">${escHtml(name)}</span>
         <span class="feed-comment-time">À l'instant</span>
       </div>
       <div class="feed-comment-text">${escHtml(content)}</div>
@@ -7309,6 +7579,294 @@ function multiLoadMyStats() {
     </div>`).join('');
   document.getElementById('ms-vs').innerHTML = `<div class="multi-vs-title">Moi vs Moyenne globale</div>${vsHtml}`;
 }
+
+/* ═══════════════════════════════════════════════════════════
+   PLAYER PROFILE POPUP — click on any avatar/name in
+   feed / leaderboard / comments to open this user's profile.
+═══════════════════════════════════════════════════════════ */
+
+const PP_RULE_LABELS = {
+  streak_milestone:    '🔥 Streak milestone',
+  five_word:           '📝 5 mots ajoutés',
+  quiz_perfect:        '💯 Quiz parfait',
+  quiz_long:           '📏 Quiz 20+ questions',
+  mastery:             '🏆 Mots maîtrisés',
+  recovery:            '💪 Récupération',
+  diversity_modes:     '🔀 Diversité modes',
+  diversity_directions:'↔️ Diversité directions',
+  social_comment:      '💬 Commentaire social',
+};
+
+let __ppCurrentUid = null;     // user being viewed (for click-outside guard)
+let __ppLastFocus  = null;     // restore focus on close
+
+function ppFormatShortDate(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  return d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+}
+
+function ppFormatLongDate(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  return d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+function ppPctClass(pct) {
+  return pct >= 75 ? 'good' : pct >= 50 ? 'mid' : 'bad';
+}
+
+function ppAvgScore(sessions, withinDays) {
+  let pool = sessions;
+  if (withinDays) {
+    const cutoff = Date.now() - withinDays * 86400000;
+    pool = sessions.filter(s => new Date(s.created_at).getTime() >= cutoff);
+  }
+  const totals = pool.reduce((acc, s) => {
+    acc.score += s.score || 0; acc.total += s.total || 0; return acc;
+  }, { score: 0, total: 0 });
+  return totals.total > 0 ? Math.round(totals.score / totals.total * 100) : 0;
+}
+
+async function openPlayerProfile(uid) {
+  if (!uid) return;
+  __ppCurrentUid = uid;
+  __ppLastFocus  = document.activeElement;
+
+  const overlay = document.getElementById('pp-overlay');
+  const content = document.getElementById('pp-content');
+  if (!overlay || !content) return;
+
+  // Show overlay with loading state; lock body scroll
+  overlay.style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+  content.innerHTML = `<div class="pp-loading">⏳ Chargement du profil…</div>`;
+  document.getElementById('pp-close')?.focus();
+
+  try {
+    // Fetch all in parallel
+    const [stateRes, logsRes, sessionsRes] = await Promise.all([
+      window.sb.from('user_xp_state').select('*').eq('user_id', uid).maybeSingle(),
+      window.sb.from('xp_daily_log').select('*').eq('user_id', uid)
+        .order('date', { ascending: false }).limit(14),
+      window.sb.from('quiz_sessions').select('*').eq('user_id', uid)
+        .order('created_at', { ascending: false }).limit(20),
+    ]);
+
+    // If user changed while loading (rapid clicks), bail out
+    if (__ppCurrentUid !== uid) return;
+
+    const state    = stateRes?.data || {};
+    const logs     = logsRes?.data   || [];
+    const sessions = sessionsRes?.data || [];
+
+    // Derived metrics
+    const totalXp = state.total_xp || 0;
+    const streak  = state.current_streak_days || 0;
+    const last7   = Date.now() - 7 * 86400000;
+    const weekly  = logs.filter(l => new Date(l.date).getTime() >= last7)
+                        .reduce((s, l) => s + (l.xp_earned || 0), 0);
+    const games   = sessions.length;
+    const avg7    = ppAvgScore(sessions, 7);
+    const avg30   = ppAvgScore(sessions, 30);
+    const avgAll  = ppAvgScore(sessions, 0);
+
+    // Rank: use cached lbData if present
+    let rank = (typeof lbData !== 'undefined' && Array.isArray(lbData))
+      ? lbData.findIndex(r => r.user_id === uid) + 1
+      : 0;
+    const rankLabel = rank > 0
+      ? (rank === 1 ? '🥇 1er' : rank === 2 ? '🥈 2e' : rank === 3 ? '🥉 3e' : `#${rank}`)
+      : '—';
+
+    // Identity: pull from sessions (always has display_name/avatar) — fall
+    // back to "Joueur" / initial if user has zero sessions yet.
+    const displayName = sessions[0]?.display_name || 'Joueur';
+    const avatarUrl   = sessions[0]?.avatar_url;
+    const initial     = (displayName[0] || '?').toUpperCase();
+    const isMe        = currentUser && currentUser.id === uid;
+
+    // Build header
+    const avatarBlock = avatarUrl
+      ? `<div class="pp-avatar"><img src="${escHtml(avatarUrl)}" alt=""></div>`
+      : `<div class="pp-avatar"><span class="pp-avatar-initial">${escHtml(initial)}</span></div>`;
+
+    const headerHtml = `
+      <div class="pp-header">
+        ${avatarBlock}
+        <div class="pp-header-info">
+          <div class="pp-name" id="pp-name">
+            ${escHtml(displayName)}
+            ${isMe ? '<span class="pp-me-badge">moi</span>' : ''}
+          </div>
+          <div class="pp-tagline">
+            <span class="pp-tagline-item">
+              <span class="pp-rank-medal">🏆</span>
+              ${rankLabel === '—' ? '<span style="color:var(--muted)">Hors classement</span>' : `Rang ${rankLabel}`}
+            </span>
+            ${streak > 0 ? `<span class="pp-tagline-item"><span class="pp-streak-fire">🔥</span>${streak} jour${streak !== 1 ? 's' : ''}</span>` : ''}
+            <span class="pp-tagline-item">🎮 ${games} session${games !== 1 ? 's' : ''}</span>
+          </div>
+        </div>
+      </div>`;
+
+    // Stats grid (4 cards)
+    const statsHtml = `
+      <div class="pp-stats-grid">
+        <div class="pp-stat-card">
+          <div class="pp-stat-val accent">${totalXp.toLocaleString('fr-FR')}</div>
+          <div class="pp-stat-lbl">XP total</div>
+        </div>
+        <div class="pp-stat-card">
+          <div class="pp-stat-val">${weekly.toLocaleString('fr-FR')}</div>
+          <div class="pp-stat-lbl">XP 7 jours</div>
+        </div>
+        <div class="pp-stat-card">
+          <div class="pp-stat-val ${avgAll >= 75 ? 'success' : ''}">${avgAll}%</div>
+          <div class="pp-stat-lbl">Moy. all-time</div>
+        </div>
+        <div class="pp-stat-card">
+          <div class="pp-stat-val">${avg7}%</div>
+          <div class="pp-stat-lbl">Moy. 7 jours</div>
+        </div>
+      </div>
+      <div class="pp-stats-grid" style="grid-template-columns:repeat(2,1fr);margin-top:-12px;margin-bottom:24px;">
+        <div class="pp-stat-card">
+          <div class="pp-stat-val">${avg30}%</div>
+          <div class="pp-stat-lbl">Moy. 30 jours</div>
+        </div>
+        <div class="pp-stat-card">
+          <div class="pp-stat-val">${games}</div>
+          <div class="pp-stat-lbl">Parties jouées</div>
+        </div>
+      </div>`;
+
+    // XP daily breakdown (last 14 days) — bar scaled to local max
+    const maxXp = Math.max(1, ...logs.map(l => l.xp_earned || 0));
+    const xpHtml = logs.length
+      ? `<div class="pp-xp-list">
+          ${logs.map(l => {
+            const earned = l.xp_earned || 0;
+            const w      = Math.max(2, Math.round(earned / maxXp * 100));
+            return `<div class="pp-xp-day ${earned === 0 ? 'zero' : ''}">
+              <div class="pp-xp-day-date">${ppFormatShortDate(l.date)}</div>
+              <div class="pp-xp-day-bar-wrap">
+                <div class="pp-xp-day-bar" style="width:${w}%"></div>
+              </div>
+              <div class="pp-xp-day-val">+${earned} XP</div>
+            </div>`;
+          }).join('')}
+         </div>`
+      : `<div class="pp-xp-empty">Aucun XP gagné sur les 14 derniers jours.</div>`;
+
+    // Sessions history (last 20)
+    const sessionsHtml = sessions.length
+      ? `<div class="pp-session-list">
+          ${sessions.map(s => {
+            const pct       = s.total > 0 ? Math.round((s.score / s.total) * 100) : 0;
+            const isVerbes  = s.mode === 'verbes';
+            const modeIcon  = isVerbes ? '🔤' : '📚';
+            const modeLabel = isVerbes ? 'Verbes NL' : 'Vocabulaire';
+            const modeCls   = isVerbes ? 'verbes' : '';
+            const hasSnap   = Array.isArray(s.words)    && s.words.length    > 0;
+            const hasIds    = Array.isArray(s.word_ids) && s.word_ids.length > 0;
+            const challenge = (hasSnap || hasIds) && !isMe
+              ? `<button class="pp-session-challenge"
+                   data-words="${hasSnap ? escHtml(JSON.stringify(s.words)) : ''}"
+                   data-wids="${hasIds  ? escHtml(JSON.stringify(s.word_ids)) : ''}">🎯 Challenge</button>`
+              : '';
+            return `<div class="pp-session">
+              <div class="pp-session-icon ${modeCls}">${modeIcon}</div>
+              <div class="pp-session-main">
+                <div class="pp-session-mode">${modeLabel}</div>
+                <div class="pp-session-date">${ppFormatLongDate(s.created_at)}</div>
+              </div>
+              <div>
+                <div class="pp-session-score">${s.score} / ${s.total}</div>
+                <div class="pp-session-pct ${ppPctClass(pct)}">${pct}%</div>
+              </div>
+              ${challenge}
+            </div>`;
+          }).join('')}
+         </div>`
+      : `<div class="pp-session-empty">Aucune session pour le moment.</div>`;
+
+    content.innerHTML = `
+      ${headerHtml}
+      ${statsHtml}
+      <div class="pp-section">
+        <div class="pp-section-title">📊 XP — 14 derniers jours</div>
+        ${xpHtml}
+      </div>
+      <div class="pp-section">
+        <div class="pp-section-title">📜 Dernières sessions</div>
+        ${sessionsHtml}
+      </div>`;
+
+    // Wire up challenge buttons inside the modal
+    content.querySelectorAll('.pp-session-challenge').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        let words = [], wids = [];
+        try { words = JSON.parse(btn.dataset.words || '[]'); } catch (_) {}
+        try { wids  = JSON.parse(btn.dataset.wids  || '[]'); } catch (_) {}
+        closePlayerProfile();
+        // launchChallengeQuiz handles missing snapshot gracefully (uses word_ids fallback)
+        launchChallengeQuiz(words, wids, { originalUserId: uid, originalName: displayName });
+      });
+    });
+
+  } catch (err) {
+    console.error('[player-profile]', err);
+    content.innerHTML = `<div class="pp-loading" style="color:var(--danger)">
+      Impossible de charger le profil. ${escHtml(err?.message || '')}
+    </div>`;
+  }
+}
+
+function closePlayerProfile() {
+  const overlay = document.getElementById('pp-overlay');
+  if (!overlay) return;
+  overlay.style.display = 'none';
+  document.body.style.overflow = '';
+  __ppCurrentUid = null;
+  if (__ppLastFocus && typeof __ppLastFocus.focus === 'function') {
+    try { __ppLastFocus.focus(); } catch (_) {}
+  }
+}
+
+/* ── Wiring ── */
+(function wirePlayerProfile() {
+  // Single delegated click handler — catches every element marked
+  // [data-pp-uid] regardless of where in the DOM it lives. Buttons inside
+  // (challenge, react, comment toggle, menu) stopPropagation isn't needed
+  // because we explicitly bail when the click target is a <button>.
+  document.addEventListener('click', (e) => {
+    if (!e.target) return;
+    // Ignore clicks on buttons / form inputs (challenge, reactions, etc.)
+    if (e.target.closest('button, input, textarea, select, a')) return;
+    const target = e.target.closest('[data-pp-uid]');
+    if (!target) return;
+    const uid = target.dataset.ppUid;
+    if (!uid) return;
+    openPlayerProfile(uid);
+  });
+
+  // Close on backdrop click (but not when clicking inside the modal)
+  document.getElementById('pp-overlay')?.addEventListener('click', (e) => {
+    if (e.target.id === 'pp-overlay') closePlayerProfile();
+  });
+
+  // Close button
+  document.getElementById('pp-close')?.addEventListener('click', closePlayerProfile);
+
+  // ESC closes the popup
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape') return;
+    const overlay = document.getElementById('pp-overlay');
+    if (overlay && overlay.style.display !== 'none') closePlayerProfile();
+  });
+})();
 </script>
 </body>
 </html>
