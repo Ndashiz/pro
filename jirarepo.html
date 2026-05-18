@@ -253,6 +253,7 @@
       copyCount: typeof q.copyCount === 'number' ? q.copyCount : 0,
       lastUsedAt: q.lastUsedAt || null,
       jiraLink: q.jiraLink || null,
+      _synced: q._synced === true,
     };
   }
 
@@ -512,6 +513,7 @@
       copyCount: 0,
       lastUsedAt: null,
       jiraLink,
+      _synced: false,
     };
     const queries = readQueries();
     queries.push(newQuery);
@@ -552,6 +554,7 @@
     navigator.clipboard.writeText(q.query).then(() => {
       q.copyCount = (q.copyCount || 0) + 1;
       q.lastUsedAt = new Date().toISOString();
+      q._synced = false;
       writeQueries(queries);
       showStatus('Copied!');
       pushUpsert(q);
@@ -574,7 +577,7 @@
     if (!isValidJiraLink(jiraLink)) { alert('Jira link must be a valid http(s) URL.'); return; }
     const queries = readQueries();
     if (!queries[index]) return;
-    queries[index] = { ...queries[index], name, query, tag, jiraLink };
+    queries[index] = { ...queries[index], name, query, tag, jiraLink, _synced: false };
     if (!queries[index].id) queries[index].id = newId();
     writeQueries(queries);
     editingIndex = null;
@@ -584,12 +587,12 @@
   }
 
   // ═══════════════════════════════════════════════════════════
-  //  Supabase sync (realtime + initial migration)
+  //  Supabase sync (realtime + bulletproof reconcile)
   // ═══════════════════════════════════════════════════════════
-  const MIGRATION_FLAG_PREFIX = 'jiraQueriesSynced_v1:';
   let currentUserId = null;
   let realtimeChannel = null;
   let pullDebounce = null;
+  let reconcileInFlight = false;
 
   function readLocal(){
     const raw = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
@@ -644,12 +647,16 @@
   }
 
   async function pushUpsert(q){
-    if (!currentUserId || !window.sb || isDemoActive() || !q) return;
+    if (!currentUserId || !window.sb || isDemoActive() || !q || !q.id) return;
     try {
       const { error } = await window.sb
         .from('jira_queries')
         .upsert(toRemoteRow(q, currentUserId), { onConflict: 'id' });
-      if (error) console.warn('[jira sync] upsert failed', error);
+      if (error) { console.warn('[jira sync] upsert failed', error); return; }
+      // Mark as synced in localStorage (no UI re-render needed)
+      const raw = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+      const i = raw.findIndex(x => x.id === q.id);
+      if (i >= 0) { raw[i]._synced = true; localStorage.setItem(STORAGE_KEY, JSON.stringify(raw)); }
     } catch (e) { console.warn('[jira sync] upsert error', e); }
   }
 
@@ -665,38 +672,73 @@
     } catch (e) { console.warn('[jira sync] delete error', e); }
   }
 
-  async function migrateLocalIfNeeded(){
-    const flag = MIGRATION_FLAG_PREFIX + currentUserId;
-    if (localStorage.getItem(flag) === 'true') return;
-    const local = readLocal();
-    if (local.length === 0) {
-      localStorage.setItem(flag, 'true');
-      return;
-    }
-    const withIds = local.map(q => ({
-      ...q,
-      id: q.id || newId(),
-      createdAt: q.createdAt || new Date().toISOString(),
-    }));
-    const rows = withIds.map(q => toRemoteRow(q, currentUserId));
+  // The single source of truth for sync. Bulletproof:
+  //  • Pull failure → touch nothing.
+  //  • Local queries without IDs (legacy) → assigned IDs and pushed up.
+  //  • Local queries marked _synced=false → pushed up; on success marked synced.
+  //  • Local queries marked _synced=true but missing from remote → were deleted
+  //    remotely, dropped locally.
+  //  • Local queries marked _synced=false AND missing from remote → kept locally
+  //    (pending push, e.g. transient network error). Will retry next reconcile.
+  //  • Empty remote with un-pushed local data NEVER causes a wipe.
+  async function reconcile(){
+    if (!currentUserId || !window.sb || reconcileInFlight) return;
+    reconcileInFlight = true;
     try {
-      const { error } = await window.sb
-        .from('jira_queries')
-        .upsert(rows, { onConflict: 'id' });
-      if (error) { console.warn('[jira sync] migration failed', error); return; }
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(withIds));
-      localStorage.setItem(flag, 'true');
-    } catch (e) { console.warn('[jira sync] migration error', e); }
+      // 1. Assign IDs and createdAt to any legacy local queries (force them
+      //    to be unsynced so they get pushed up).
+      const rawLocal = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+      let mutated = false;
+      for (const q of rawLocal) {
+        if (!q.id) { q.id = newId(); q._synced = false; mutated = true; }
+        if (!q.createdAt) { q.createdAt = new Date().toISOString(); mutated = true; }
+      }
+      if (mutated) localStorage.setItem(STORAGE_KEY, JSON.stringify(rawLocal));
+
+      // 2. Pull canonical state from Supabase.
+      const remote = await pullRemote();
+      if (remote === null) return; // pull failed — leave local untouched
+
+      // 3. Push up any unsynced local queries.
+      const local = rawLocal.map(normalize);
+      const unsynced = local.filter(q => q._synced === false);
+      const pushedOk = new Set();
+      if (unsynced.length > 0) {
+        const rows = unsynced.map(q => toRemoteRow(q, currentUserId));
+        try {
+          const { error } = await window.sb
+            .from('jira_queries')
+            .upsert(rows, { onConflict: 'id' });
+          if (error) console.warn('[jira sync] reconcile upsert failed', error);
+          else for (const q of unsynced) pushedOk.add(q.id);
+        } catch (e) { console.warn('[jira sync] reconcile upsert error', e); }
+      }
+
+      // 4. Build the final state:
+      //    - Start from remote (canonical), mark _synced=true
+      //    - Add successfully-pushed unsynced queries that weren't yet in remote
+      //    - Keep unsynced-and-failed-to-push queries (pending retry)
+      const remoteIds = new Set(remote.map(r => r.id));
+      const finalState = remote.map(r => ({ ...r, _synced: true }));
+      for (const q of unsynced) {
+        if (remoteIds.has(q.id)) continue; // already in remote, dedup
+        if (pushedOk.has(q.id)) {
+          finalState.push({ ...q, _synced: true });
+        } else {
+          finalState.push({ ...q, _synced: false }); // retry later
+        }
+      }
+
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(finalState));
+      if (!isDemoActive()) loadQueries();
+    } finally {
+      reconcileInFlight = false;
+    }
   }
 
-  function schedulePull(){
+  function scheduleReconcile(){
     clearTimeout(pullDebounce);
-    pullDebounce = setTimeout(async () => {
-      const remote = await pullRemote();
-      if (!remote) return;
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(remote));
-      if (!isDemoActive()) loadQueries();
-    }, 250);
+    pullDebounce = setTimeout(reconcile, 250);
   }
 
   function subscribeRealtime(){
@@ -705,7 +747,7 @@
       .channel(`jira:${currentUserId}`)
       .on('postgres_changes',
         { event: '*', schema: 'public', table: 'jira_queries', filter: `user_id=eq.${currentUserId}` },
-        () => schedulePull()
+        () => scheduleReconcile()
       )
       .subscribe();
   }
@@ -715,33 +757,13 @@
     if (!window.sb) return;
     currentUserId = await getUserId();
     if (!currentUserId) return;
-
-    await migrateLocalIfNeeded();
-
-    const remote = await pullRemote();
-    if (!remote) { subscribeRealtime(); return; }
-
-    // Race-safety: if the user added queries while initSync was running,
-    // those local rows aren't in remote yet — push them up so they aren't lost.
-    const remoteIds = new Set(remote.map(r => r.id));
-    const localOnly = readLocal().filter(q => q.id && !remoteIds.has(q.id));
-    if (localOnly.length > 0) {
-      const rows = localOnly.map(q => toRemoteRow(q, currentUserId));
-      try { await window.sb.from('jira_queries').upsert(rows, { onConflict: 'id' }); }
-      catch (e) { console.warn('[jira sync] catch-up failed', e); }
-      const merged = [...remote, ...localOnly];
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
-    } else {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(remote));
-    }
-
-    if (!isDemoActive()) loadQueries();
+    await reconcile();
     subscribeRealtime();
   }
 
-  // Safety net: pull when tab regains focus (in case realtime dropped)
+  // Safety net: re-reconcile when tab regains focus (in case realtime dropped)
   document.addEventListener('visibilitychange', () => {
-    if (!document.hidden && currentUserId && !isDemoActive()) schedulePull();
+    if (!document.hidden && currentUserId && !isDemoActive()) scheduleReconcile();
   });
 
   // auth.js may not have created window.sb by the time this script runs.
