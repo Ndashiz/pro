@@ -1,210 +1,138 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="en">
 <head>
 <script>if(location.protocol==="http:"&&location.hostname!=="localhost"&&location.hostname!=="127.0.0.1")location.replace("https:"+location.href.slice(5));</script>
 <script src="auth-gate.js"></script>
 <meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests">
-  <link href="https://fonts.googleapis.com/css2?family=Permanent+Marker&display=swap" rel="stylesheet">
   <meta charset="UTF-8">
   <title>Jira Query Saver</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@400;500&family=Permanent+Marker&display=swap" rel="stylesheet">
   <style>
-    body {
-      font-family: 'Segoe UI', sans-serif;
-      background: linear-gradient(135deg, #667eea, #764ba2);
-      margin: 0;
-      padding: 0;
-      color: #333;
+    :root{
+      --navy:#002060; --navy-border:#0a3575;
+      --bg:#0f172a; --card:#1e293b; --card-border:#334155; --card-hover:#243047;
+      --input-bg:#0f172a;
+      --text:#e2e8f0; --text-muted:#94a3b8; --text-dim:#64748b;
+      --blue:#3b82f6; --blue-light:#60a5fa; --blue-pale:#93c5fd;
+      --green:#10b981; --green-light:#34d399; --green-pale:#6ee7b7;
+      --amber:#f59e0b; --amber-light:#fbbf24;
+      --red:#ef4444; --red-light:#f87171;
+      --purple:#8b5cf6;
     }
 
-    .container {
-      max-width: 1000px;
-      margin: 40px auto;
-      background: white;
-      border-radius: 16px;
-      padding: 24px;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+    *{box-sizing:border-box}
+    html,body{margin:0;padding:0;min-height:100%;font-family:'DM Sans',system-ui,sans-serif;background:var(--bg);color:var(--text)}
+
+    /* HEADER (aligned with sprintplanner / livenote) */
+    .header{display:flex;align-items:center;gap:20px;position:sticky;top:0;z-index:100;background:var(--navy);border-bottom:3px solid var(--navy-border);padding:14px 28px;color:#fff}
+    .logo-wrap{display:flex;flex-direction:column}
+    .logo{font-family:'Permanent Marker',cursive;font-size:26px;color:#fff;transform:rotate(-1.5deg);letter-spacing:1px;line-height:1;text-shadow:3px 3px 0 rgba(59,130,246,.4),-1px -1px 0 rgba(255,255,255,.1)}
+    .logo span{color:var(--blue-light)}
+    .subtitle{font-size:12px;color:var(--blue-pale);margin-top:4px}
+    .spacer{flex:1}
+    .header-actions{display:flex;gap:10px;align-items:center}
+    .status-pill{background:rgba(16,185,129,.15);color:var(--green-pale);font-size:13px;font-weight:500;padding:5px 14px;border-radius:20px;white-space:nowrap;opacity:0;transform:translateY(-4px);transition:opacity .3s,transform .3s;pointer-events:none}
+    .status-pill.show{opacity:1;transform:translateY(0)}
+
+    .btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:500;border:none;cursor:pointer;white-space:nowrap;transition:background .2s,border-color .2s,transform .1s;line-height:1;font-family:inherit}
+    .btn-primary{background:var(--blue);color:#fff;border:1px solid transparent}
+    .btn-primary:hover{background:#2563eb}
+    .btn-ghost{background:transparent;color:#fff;border:1px solid rgba(255,255,255,.25)}
+    .btn-ghost:hover{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.4)}
+    .btn-secondary{background:transparent;color:var(--text);border:1px solid var(--card-border)}
+    .btn-secondary:hover{background:var(--card-hover);border-color:var(--blue)}
+    .btn-danger{background:transparent;color:var(--red-light);border:1px solid rgba(248,113,113,.3)}
+    .btn-danger:hover{background:rgba(248,113,113,.12)}
+    .btn-success{background:transparent;color:var(--green-light);border:1px solid rgba(52,211,153,.3)}
+    .btn-success:hover{background:rgba(52,211,153,.12)}
+    .btn svg{width:14px;height:14px}
+
+    /* MAIN */
+    .container{max-width:1100px;margin:32px auto;padding:0 28px}
+    .page-title{display:flex;align-items:center;gap:12px;margin-bottom:24px}
+    .page-icon{width:44px;height:44px;border-radius:12px;background:rgba(59,130,246,.15);border:1px solid rgba(96,165,250,.25);display:flex;align-items:center;justify-content:center;font-size:22px}
+    .page-title h1{font-size:24px;font-weight:700;margin:0}
+    .page-title p{font-size:13px;color:var(--text-muted);margin:2px 0 0}
+
+    /* STATS */
+    .stats{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin-bottom:24px}
+    @media (max-width:560px){.stats{grid-template-columns:1fr}}
+    .stat-card{background:var(--card);border:1px solid var(--card-border);border-radius:12px;padding:16px 20px;display:flex;align-items:center;gap:14px;transition:border-color .2s}
+    .stat-card:hover{border-color:var(--blue)}
+    .stat-icon{width:44px;height:44px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+    .stat-icon.blue{background:rgba(59,130,246,.15);color:var(--blue-light)}
+    .stat-icon.green{background:rgba(16,185,129,.15);color:var(--green-light)}
+    .stat-icon svg{width:22px;height:22px}
+    .stat-content{display:flex;flex-direction:column;min-width:0}
+    .stat-label{font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px}
+    .stat-value{font-size:22px;font-weight:700;color:var(--text);line-height:1.2;margin-top:2px}
+    .stat-hint{font-size:11px;color:var(--text-dim);margin-top:2px;font-family:'DM Mono',monospace}
+
+    /* FORM */
+    .form-card{background:var(--card);border:1px solid var(--card-border);border-radius:12px;padding:20px;margin-bottom:32px}
+    .form-card h2{font-size:13px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin:0 0 14px}
+    .form-grid{display:grid;grid-template-columns:1fr 2fr auto auto;gap:10px;align-items:start}
+    @media (max-width:768px){.form-grid{grid-template-columns:1fr}}
+    .form-grid input, .form-grid textarea, .form-grid select{background:var(--input-bg);border:1px solid var(--card-border);border-radius:8px;padding:10px 14px;color:var(--text);font-size:14px;font-family:inherit;outline:none;transition:border-color .2s}
+    .form-grid input:focus, .form-grid textarea:focus, .form-grid select:focus{border-color:var(--blue)}
+    .form-grid textarea{font-family:'DM Mono',monospace;font-size:13px;resize:vertical;min-height:42px}
+    .form-grid .btn{align-self:stretch}
+
+    /* SORT TOGGLE */
+    .sort-bar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:18px;flex-wrap:wrap}
+    .sort-label{font-size:12px;color:var(--text-muted);font-weight:500}
+    .sort-toggle{display:inline-flex;background:var(--card);border:1px solid var(--card-border);border-radius:10px;padding:3px;gap:2px}
+    .sort-btn{background:transparent;border:none;color:var(--text-muted);font-family:inherit;font-size:12px;font-weight:600;padding:6px 12px;border-radius:7px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:background .2s,color .2s}
+    .sort-btn:hover{color:var(--text)}
+    .sort-btn.active{background:var(--blue);color:#fff}
+    .sort-btn svg{width:13px;height:13px}
+
+    /* GROUPS */
+    .group{margin-bottom:32px}
+    .group-header{display:flex;align-items:center;gap:10px;margin-bottom:14px;padding-bottom:8px;border-bottom:1px solid var(--card-border)}
+    .group-header h2{font-size:15px;font-weight:600;margin:0}
+    .group-count{font-size:12px;color:var(--text-dim);background:var(--input-bg);border:1px solid var(--card-border);border-radius:10px;padding:2px 8px}
+
+    .query-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:14px}
+
+    .card{background:var(--card);border:1px solid var(--card-border);border-radius:12px;padding:16px;transition:border-color .2s,transform .1s;display:flex;flex-direction:column;gap:10px}
+    .card:hover{border-color:var(--blue);transform:translateY(-2px)}
+    .card-header{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+    .tag{display:inline-block;padding:3px 8px;border-radius:6px;font-size:11px;font-weight:600;letter-spacing:.3px}
+    .tag.DPnxt{background:rgba(59,130,246,.15);color:var(--blue-light);border:1px solid rgba(59,130,246,.3)}
+    .tag.CLM{background:rgba(16,185,129,.15);color:var(--green-light);border:1px solid rgba(16,185,129,.3)}
+    .tag.PB{background:rgba(239,68,68,.15);color:var(--red-light);border:1px solid rgba(239,68,68,.3)}
+    .copy-chip{margin-left:auto;display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;color:var(--amber-light);background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.25);border-radius:10px;padding:2px 8px}
+    .copy-chip svg{width:11px;height:11px}
+
+    .card h3{margin:0;font-size:15px;font-weight:600;color:var(--text);word-break:break-word}
+    .card .jql{font-family:'DM Mono',monospace;font-size:12px;color:var(--text-muted);background:var(--input-bg);border:1px solid var(--card-border);border-radius:8px;padding:10px 12px;white-space:pre-wrap;word-break:break-word;max-height:160px;overflow:auto;line-height:1.5}
+
+    .card-footer{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:auto;padding-top:6px;border-top:1px dashed var(--card-border)}
+    .meta{font-size:11px;color:var(--text-dim);display:flex;align-items:center;gap:4px;font-family:'DM Mono',monospace}
+    .meta svg{width:11px;height:11px}
+    .actions{display:flex;gap:6px}
+    .actions .btn{padding:6px 10px;font-size:12px}
+
+    /* INLINE EDIT */
+    .edit-form{display:flex;flex-direction:column;gap:8px}
+    .edit-form input, .edit-form textarea, .edit-form select{background:var(--input-bg);border:1px solid var(--card-border);border-radius:8px;padding:8px 10px;color:var(--text);font-size:13px;font-family:inherit;outline:none;transition:border-color .2s;width:100%}
+    .edit-form input:focus, .edit-form textarea:focus, .edit-form select:focus{border-color:var(--blue)}
+    .edit-form textarea{font-family:'DM Mono',monospace;font-size:12px;min-height:90px;resize:vertical}
+    .edit-form .edit-actions{display:flex;gap:6px;justify-content:flex-end}
+
+    /* EMPTY STATE */
+    .empty{text-align:center;padding:60px 20px;color:var(--text-muted)}
+    .empty-icon{font-size:48px;margin-bottom:12px;opacity:.4}
+    .empty h3{font-size:16px;margin:0 0 6px;color:var(--text)}
+    .empty p{font-size:13px;margin:0}
+
+    @media (max-width:480px){
+      .header{padding:10px 16px}
+      .logo{font-size:20px}
+      .container{padding:0 16px;margin:20px auto}
     }
-
-    h1 {
-      text-align: center;
-      margin-bottom: 20px;
-    }
-
-    .form {
-      display: flex;
-      gap: 10px;
-      margin-bottom: 20px;
-      flex-wrap: wrap;
-    }
-
-    input, textarea, select {
-      padding: 10px;
-      border-radius: 8px;
-      border: 1px solid #ccc;
-      font-size: 14px;
-    }
-
-    input { flex: 1; }
-    textarea { flex: 2; resize: vertical; min-height: 60px; }
-
-    button {
-      background: #667eea;
-      color: white;
-      border: none;
-      border-radius: 8px;
-      padding: 10px 16px;
-      cursor: pointer;
-      transition: 0.2s;
-    }
-
-    button:hover { background: #5a67d8; }
-
-    .tag {
-      display: inline-block;
-      padding: 4px 8px;
-      border-radius: 6px;
-      font-size: 12px;
-      margin-bottom: 8px;
-      color: white;
-    }
-
-    .DPnxt { background: #3182ce; }
-    .CLM { background: #38a169; }
-    .PB { background: #e53e3e; }
-
-    .group {
-      margin-bottom: 25px;
-    }
-
-    .group h2 {
-      margin-bottom: 10px;
-      border-bottom: 2px solid #eee;
-      padding-bottom: 5px;
-    }
-
-    .query-list {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-      gap: 15px;
-    }
-
-    .card {
-      background: #f7f9fc;
-      padding: 15px;
-      border-radius: 12px;
-      transition: transform 0.2s, box-shadow 0.2s;
-    }
-
-    .card:hover {
-      transform: translateY(-5px);
-      box-shadow: 0 8px 20px rgba(0,0,0,0.15);
-    }
-
-    .card h3 { margin: 0 0 10px; font-size: 16px; }
-
-    .card p {
-      font-size: 13px;
-      white-space: pre-wrap;
-      color: #555;
-    }
-
-    .actions {
-      margin-top: 10px;
-      display: flex;
-      justify-content: space-between;
-    }
-
-    .small-btn {
-      font-size: 12px;
-      padding: 6px 10px;
-    }
-
-    .delete { background: #e53e3e; }
-    .delete:hover { background: #c53030; }
-
-    .copy { background: #38a169; }
-    .copy:hover { background: #2f855a; }
-  
-
-    /* HEADER */
-    .header {
-      display: flex;
-      align-items: center;
-      gap: 20px;
-      position: sticky;
-      top: 0;
-      z-index: 100;
-      background: #002060;
-      border-bottom: 3px solid #0a3575;
-      padding: 14px 28px;
-      color: white;
-    }
-
-    .logo-wrap { display: flex; flex-direction: column; }
-
-    .logo {
-      font-family: 'Permanent Marker', cursive;
-      font-size: 26px;
-      color: #fff;
-      transform: rotate(-1.5deg);
-      letter-spacing: 1px;
-      line-height: 1;
-      text-shadow: 3px 3px 0 rgba(59,130,246,.4), -1px -1px 0 rgba(255,255,255,.1);
-    }
-
-    .logo span { color: #60a5fa; }
-
-    .subtitle {
-      font-size: 12px;
-      color: #93c5fd;
-    }
-
-    .spacer { flex: 1; }
-
-    .actions {
-      display: flex;
-      gap: 8px;
-      align-items: center;
-    }
-
-    .header-btn {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      background: #1e3a8a;
-      border-radius: 8px;
-      padding: 8px 12px;
-      font-size: 13px;
-    }
-
-    .header-btn svg {
-      width: 13px;
-      height: 13px;
-    }
-
-    .status {
-      background: rgba(16,185,129,0.2);
-      color: #6ee7b7;
-      padding: 4px 10px;
-      border-radius: 20px;
-      font-size: 12px;
-      display: none;
-    }
-
-    /* RESPONSIVE */
-    @media (max-width: 768px) {
-      .header { padding: 10px 16px; flex-wrap: wrap; }
-      .logo { font-size: 20px; }
-      .header-btn { font-size: 12px; padding: 6px 10px; }
-    }
-
-    @media (max-width: 480px) {
-      .header { padding: 8px 12px; }
-      .logo { font-size: 18px; }
-      .header-btn svg { display: none; }
-    }
-
   </style>
 </head>
 <body>
@@ -214,32 +142,75 @@
     <div class="logo">LazyPO <span>✦</span></div>
     <div class="subtitle">Jira Query Manager</div>
   </div>
-
   <div class="spacer"></div>
-
-  <div class="actions">
-    <div id="status" class="status">Sauvegardé</div>
-    <button class="header-btn" onclick="focusForm()">
-      <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" fill="none"/></svg>
-      Ajouter
+  <div class="header-actions">
+    <div id="status" class="status-pill">Saved</div>
+    <button class="btn btn-ghost" onclick="focusForm()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+      New query
     </button>
   </div>
 </header>
 
 <div class="container">
-  <h1>💾 Jira Query Saver</h1>
+  <div class="page-title">
+    <div class="page-icon">💾</div>
+    <div>
+      <h1>Jira Query Saver</h1>
+      <p>Save your favorite JQL queries, group them by project and copy them in one click.</p>
+    </div>
+  </div>
 
-  <div class="form">
-    <input type="text" id="name" placeholder="Nom de la query" />
-    <textarea id="query" placeholder="Ta JQL ici..."></textarea>
+  <div class="stats" id="stats">
+    <div class="stat-card">
+      <div class="stat-icon blue">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 7v10a2 2 0 002 2h7M16 3H6a2 2 0 00-2 2v10"/></svg>
+      </div>
+      <div class="stat-content">
+        <div class="stat-label">Total usage</div>
+        <div class="stat-value" id="totalUsage">0</div>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon green">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+      </div>
+      <div class="stat-content">
+        <div class="stat-label">Time saved</div>
+        <div class="stat-value" id="totalSaved">0 min</div>
+      </div>
+    </div>
+  </div>
 
-    <select id="tag">
-      <option value="DPnxt">DPnxt</option>
-      <option value="CLM">CLM</option>
-      <option value="PB">PB</option>
-    </select>
+  <div class="form-card">
+    <h2>Add a query</h2>
+    <div class="form-grid">
+      <input type="text" id="name" placeholder="Name (e.g. Open bugs)" />
+      <textarea id="query" placeholder="Your JQL here..."></textarea>
+      <select id="tag">
+        <option value="DPnxt">DPnxt</option>
+        <option value="CLM">CLM</option>
+        <option value="PB">PB</option>
+      </select>
+      <button class="btn btn-primary" onclick="addQuery()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+        Add
+      </button>
+    </div>
+  </div>
 
-    <button onclick="addQuery()">Ajouter</button>
+  <div class="sort-bar" id="sortBar" style="display:none">
+    <span class="sort-label">Sort by</span>
+    <div class="sort-toggle">
+      <button class="sort-btn active" id="sortUsage" onclick="setSort('usage')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18M7 14l4-4 4 4 6-6"/></svg>
+        Most used
+      </button>
+      <button class="sort-btn" id="sortRecent" onclick="setSort('recent')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+        Recently used
+      </button>
+    </div>
   </div>
 
   <div id="groups"></div>
@@ -247,93 +218,290 @@
 
 <script>
   const groupsEl = document.getElementById('groups');
-
   const TAG_ORDER = ['DPnxt', 'CLM', 'PB'];
+  const STORAGE_KEY = 'jiraQueries';
+  const SORT_KEY = 'jiraQueriesSort';
 
-  function loadQueries() {
-    const queries = JSON.parse(localStorage.getItem('jiraQueries') || '[]');
+  let editingIndex = null;
+  let sortMode = localStorage.getItem(SORT_KEY) === 'recent' ? 'recent' : 'usage';
 
+  function readQueries(){
+    const raw = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+    return raw.map(q => ({
+      name: q.name || '',
+      query: q.query || '',
+      tag: q.tag || 'DPnxt',
+      createdAt: q.createdAt || null,
+      copyCount: typeof q.copyCount === 'number' ? q.copyCount : 0,
+      lastUsedAt: q.lastUsedAt || null,
+    }));
+  }
+
+  function sortIndexed(arr){
+    const copy = arr.slice();
+    if (sortMode === 'recent') {
+      copy.sort((a, b) => {
+        const ta = a.q.lastUsedAt ? Date.parse(a.q.lastUsedAt) : (a.q.createdAt ? Date.parse(a.q.createdAt) : 0);
+        const tb = b.q.lastUsedAt ? Date.parse(b.q.lastUsedAt) : (b.q.createdAt ? Date.parse(b.q.createdAt) : 0);
+        return tb - ta;
+      });
+    } else {
+      copy.sort((a, b) => (b.q.copyCount || 0) - (a.q.copyCount || 0));
+    }
+    return copy;
+  }
+
+  function setSort(mode){
+    if (mode !== 'usage' && mode !== 'recent') return;
+    sortMode = mode;
+    localStorage.setItem(SORT_KEY, mode);
+    document.getElementById('sortUsage').classList.toggle('active', mode === 'usage');
+    document.getElementById('sortRecent').classList.toggle('active', mode === 'recent');
+    loadQueries();
+  }
+
+  function writeQueries(queries){
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(queries));
+  }
+
+  function formatDate(iso){
+    if(!iso) return '—';
+    try {
+      const d = new Date(iso);
+      return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+    } catch { return '—'; }
+  }
+
+  function el(tag, props = {}, children = []){
+    const e = document.createElement(tag);
+    Object.entries(props).forEach(([k,v]) => {
+      if (k === 'class') e.className = v;
+      else if (k === 'text') e.textContent = v;
+      else if (k.startsWith('on')) e.addEventListener(k.slice(2).toLowerCase(), v);
+      else e.setAttribute(k, v);
+    });
+    (Array.isArray(children) ? children : [children]).forEach(c => {
+      if (c == null) return;
+      e.appendChild(typeof c === 'string' ? document.createTextNode(c) : c);
+    });
+    return e;
+  }
+
+  const MINUTES_PER_COPY = 2;
+
+  function formatDuration(totalMinutes){
+    if (totalMinutes <= 0) return '0 min';
+    const h = Math.floor(totalMinutes / 60);
+    const m = totalMinutes % 60;
+    if (h === 0) return `${m} min`;
+    if (m === 0) return `${h}h`;
+    return `${h}h ${m}min`;
+  }
+
+  function refreshStats(queries){
+    const total = queries.reduce((sum, q) => sum + (q.copyCount || 0), 0);
+    const minutes = total * MINUTES_PER_COPY;
+    document.getElementById('totalUsage').textContent = total.toLocaleString('en-US');
+    document.getElementById('totalSaved').textContent = formatDuration(minutes);
+  }
+
+  function loadQueries(){
+    const queries = readQueries();
+    refreshStats(queries);
     groupsEl.innerHTML = '';
 
-    TAG_ORDER.forEach(tag => {
-      const groupQueries = queries.filter(q => q.tag === tag);
-      if (groupQueries.length === 0) return;
+    const sortBar = document.getElementById('sortBar');
+    sortBar.style.display = queries.length === 0 ? 'none' : 'flex';
+    document.getElementById('sortUsage').classList.toggle('active', sortMode === 'usage');
+    document.getElementById('sortRecent').classList.toggle('active', sortMode === 'recent');
 
-      const groupDiv = document.createElement('div');
-      groupDiv.className = 'group';
-
-      groupDiv.innerHTML = `<h2>${tag}</h2>`;
-
-      const list = document.createElement('div');
-      list.className = 'query-list';
-
-      groupQueries.forEach((q, index) => {
-        const realIndex = queries.indexOf(q);
-
-        const card = document.createElement('div');
-        card.className = 'card';
-
-        card.innerHTML = `
-          <span class="tag ${q.tag}">${q.tag}</span>
-          <h3>${q.name}</h3>
-          <p>${q.query}</p>
-          <div class="actions">
-            <button class="small-btn copy" onclick="copyQuery(${realIndex})">Copier</button>
-            <button class="small-btn delete" onclick="deleteQuery(${realIndex})">Supprimer</button>
-          </div>
-        `;
-
-        list.appendChild(card);
-      });
-
-      groupDiv.appendChild(list);
-      groupsEl.appendChild(groupDiv);
-    });
-  }
-
-  function showStatus() {
-    const s = document.getElementById('status');
-    s.style.display = 'inline-block';
-    setTimeout(() => s.style.display = 'none', 1500);
-  }
-
-  function focusForm() {
-    document.getElementById('name').focus();
-  }
-
-  function addQuery() {
-    const name = document.getElementById('name').value.trim();
-    const query = document.getElementById('query').value.trim();
-    const tag = document.getElementById('tag').value;
-
-    if (!name || !query) {
-      alert('Remplis les champs !');
+    if (queries.length === 0) {
+      groupsEl.appendChild(el('div', { class: 'empty' }, [
+        el('div', { class: 'empty-icon', text: '🗂️' }),
+        el('h3', { text: 'No saved queries yet' }),
+        el('p', { text: 'Add your first JQL using the form above.' }),
+      ]));
       return;
     }
 
-    const queries = JSON.parse(localStorage.getItem('jiraQueries') || '[]');
-    queries.push({ name, query, tag });
-    localStorage.setItem('jiraQueries', JSON.stringify(queries));
-    showStatus();
+    TAG_ORDER.forEach(tag => {
+      const indexed = sortIndexed(
+        queries
+          .map((q, i) => ({ q, i }))
+          .filter(x => x.q.tag === tag)
+      );
+      if (indexed.length === 0) return;
+
+      const list = el('div', { class: 'query-list' });
+      indexed.forEach(({ q, i }) => {
+        list.appendChild(editingIndex === i ? buildEditCard(q, i) : buildCard(q, i));
+      });
+
+      groupsEl.appendChild(el('div', { class: 'group' }, [
+        el('div', { class: 'group-header' }, [
+          el('h2', { text: tag }),
+          el('span', { class: 'group-count', text: `${indexed.length} ${indexed.length > 1 ? 'queries' : 'query'}` }),
+
+        ]),
+        list,
+      ]));
+    });
+  }
+
+  function buildCard(q, index){
+    const copyChip = el('span', { class: 'copy-chip' }, [
+      svgIcon('M8 7v10a2 2 0 002 2h7M16 3H6a2 2 0 00-2 2v10'),
+      document.createTextNode(`${q.copyCount}×`),
+    ]);
+
+    const header = el('div', { class: 'card-header' }, [
+      el('span', { class: `tag ${q.tag}`, text: q.tag }),
+      copyChip,
+    ]);
+
+    const footer = el('div', { class: 'card-footer' }, [
+      el('span', { class: 'meta' }, [
+        svgIcon('M8 2v3M16 2v3M3 9h18M5 5h14a2 2 0 012 2v12a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2z'),
+        document.createTextNode(`Added ${formatDate(q.createdAt)}`),
+      ]),
+      el('div', { class: 'actions' }, [
+        el('button', { class: 'btn btn-success', onclick: () => copyQuery(index) }, [
+          svgIcon('M8 7v10a2 2 0 002 2h7M16 3H6a2 2 0 00-2 2v10'),
+          document.createTextNode('Copy'),
+        ]),
+        el('button', { class: 'btn btn-secondary', onclick: () => startEdit(index) }, [
+          svgIcon('M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z'),
+          document.createTextNode('Edit'),
+        ]),
+        el('button', { class: 'btn btn-danger', onclick: () => deleteQuery(index) }, [
+          svgIcon('M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14z'),
+        ]),
+      ]),
+    ]);
+
+    return el('div', { class: 'card' }, [
+      header,
+      el('h3', { text: q.name }),
+      el('div', { class: 'jql', text: q.query }),
+      footer,
+    ]);
+  }
+
+  function buildEditCard(q, index){
+    const nameInput = el('input', { type: 'text', value: q.name, placeholder: 'Name' });
+    const queryInput = el('textarea', { placeholder: 'JQL' });
+    queryInput.value = q.query;
+    const tagSelect = el('select');
+    TAG_ORDER.forEach(t => {
+      const opt = el('option', { value: t, text: t });
+      if (t === q.tag) opt.selected = true;
+      tagSelect.appendChild(opt);
+    });
+
+    const save = () => saveEdit(index, nameInput.value.trim(), queryInput.value.trim(), tagSelect.value);
+
+    return el('div', { class: 'card' }, [
+      el('div', { class: 'card-header' }, [
+        el('span', { class: `tag ${q.tag}`, text: 'Editing' }),
+      ]),
+      el('div', { class: 'edit-form' }, [
+        nameInput,
+        queryInput,
+        tagSelect,
+        el('div', { class: 'edit-actions' }, [
+          el('button', { class: 'btn btn-secondary', onclick: cancelEdit }, [document.createTextNode('Cancel')]),
+          el('button', { class: 'btn btn-primary', onclick: save }, [document.createTextNode('Save')]),
+        ]),
+      ]),
+    ]);
+  }
+
+  function svgIcon(path){
+    const ns = 'http://www.w3.org/2000/svg';
+    const svg = document.createElementNS(ns, 'svg');
+    svg.setAttribute('viewBox', '0 0 24 24');
+    svg.setAttribute('fill', 'none');
+    svg.setAttribute('stroke', 'currentColor');
+    svg.setAttribute('stroke-width', '2');
+    svg.setAttribute('stroke-linecap', 'round');
+    svg.setAttribute('stroke-linejoin', 'round');
+    const p = document.createElementNS(ns, 'path');
+    p.setAttribute('d', path);
+    svg.appendChild(p);
+    return svg;
+  }
+
+  function showStatus(msg){
+    const s = document.getElementById('status');
+    if (msg) s.textContent = msg;
+    s.classList.add('show');
+    clearTimeout(showStatus._t);
+    showStatus._t = setTimeout(() => s.classList.remove('show'), 1500);
+  }
+
+  function focusForm(){
+    document.getElementById('name').focus();
+    document.getElementById('name').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+
+  function addQuery(){
+    const name = document.getElementById('name').value.trim();
+    const query = document.getElementById('query').value.trim();
+    const tag = document.getElementById('tag').value;
+    if (!name || !query) { alert('Please fill in both name and JQL.'); return; }
+
+    const queries = readQueries();
+    queries.push({ name, query, tag, createdAt: new Date().toISOString(), copyCount: 0 });
+    writeQueries(queries);
+    showStatus('Saved');
 
     document.getElementById('name').value = '';
     document.getElementById('query').value = '';
-
     loadQueries();
   }
 
-  function deleteQuery(index) {
-    const queries = JSON.parse(localStorage.getItem('jiraQueries') || '[]');
+  function deleteQuery(index){
+    const queries = readQueries();
+    if (!confirm(`Delete query "${queries[index]?.name || ''}"?`)) return;
     queries.splice(index, 1);
-    localStorage.setItem('jiraQueries', JSON.stringify(queries));
-    showStatus();
+    writeQueries(queries);
+    if (editingIndex === index) editingIndex = null;
+    showStatus('Deleted');
     loadQueries();
   }
 
-  function copyQuery(index) {
-    const queries = JSON.parse(localStorage.getItem('jiraQueries') || '[]');
-    navigator.clipboard.writeText(queries[index].query);
-    alert('Query copiée !');
+  function copyQuery(index){
+    const queries = readQueries();
+    const q = queries[index];
+    if (!q) return;
+    navigator.clipboard.writeText(q.query).then(() => {
+      q.copyCount = (q.copyCount || 0) + 1;
+      q.lastUsedAt = new Date().toISOString();
+      writeQueries(queries);
+      showStatus('Copied!');
+      loadQueries();
+    }).catch(() => alert('Copy failed.'));
+  }
+
+  function startEdit(index){
+    editingIndex = index;
+    loadQueries();
+  }
+
+  function cancelEdit(){
+    editingIndex = null;
+    loadQueries();
+  }
+
+  function saveEdit(index, name, query, tag){
+    if (!name || !query) { alert('Name and JQL are required.'); return; }
+    const queries = readQueries();
+    if (!queries[index]) return;
+    queries[index] = { ...queries[index], name, query, tag };
+    writeQueries(queries);
+    editingIndex = null;
+    showStatus('Updated');
+    loadQueries();
   }
 
   loadQueries();
@@ -347,13 +515,15 @@
 <script>
 /* ── Demo Mode ── */
 window.loadDemoData = function () {
+  const now = Date.now();
+  const day = 86400000;
   var demo = [
-    { name: 'Open bugs — current sprint',  query: 'project = DPNXT AND issuetype = Bug AND sprint in openSprints() AND status != Done ORDER BY priority DESC', tag: 'DPnxt' },
-    { name: 'My open tickets',             query: 'assignee = currentUser() AND status not in (Done, Closed) ORDER BY updated DESC',                           tag: 'DPnxt' },
-    { name: 'Blockers this sprint',        query: 'project = DPNXT AND priority = Blocker AND sprint in openSprints() ORDER BY created ASC',                   tag: 'DPnxt' },
-    { name: 'CLM — all open',              query: 'project = CLM AND status not in (Done, Closed, Cancelled) ORDER BY priority ASC',                           tag: 'CLM'   },
-    { name: 'CLM — updated this week',     query: 'project = CLM AND updated >= -7d ORDER BY updated DESC',                                                    tag: 'CLM'   },
-    { name: 'PB backlog by rank',          query: 'project = PB AND status = "Backlog" AND issuetype = Story ORDER BY rank ASC',                               tag: 'PB'    },
+    { name: 'Open bugs — current sprint', query: 'project = DPNXT AND issuetype = Bug AND sprint in openSprints() AND status != Done ORDER BY priority DESC', tag: 'DPnxt', createdAt: new Date(now - 14*day).toISOString(), copyCount: 12, lastUsedAt: new Date(now - 1*day).toISOString() },
+    { name: 'My open tickets',            query: 'assignee = currentUser() AND status not in (Done, Closed) ORDER BY updated DESC',                           tag: 'DPnxt', createdAt: new Date(now - 30*day).toISOString(), copyCount: 47, lastUsedAt: new Date(now - 3*day).toISOString() },
+    { name: 'Blockers this sprint',       query: 'project = DPNXT AND priority = Blocker AND sprint in openSprints() ORDER BY created ASC',                   tag: 'DPnxt', createdAt: new Date(now - 7*day).toISOString(),  copyCount: 3,  lastUsedAt: new Date(now - 5*day).toISOString() },
+    { name: 'CLM — all open',             query: 'project = CLM AND status not in (Done, Closed, Cancelled) ORDER BY priority ASC',                           tag: 'CLM',   createdAt: new Date(now - 21*day).toISOString(), copyCount: 8,  lastUsedAt: new Date(now - 4*day).toISOString() },
+    { name: 'CLM — updated this week',    query: 'project = CLM AND updated >= -7d ORDER BY updated DESC',                                                    tag: 'CLM',   createdAt: new Date(now - 2*day).toISOString(),  copyCount: 1,  lastUsedAt: new Date(now - 1*day).toISOString() },
+    { name: 'PB backlog by rank',         query: 'project = PB AND status = "Backlog" AND issuetype = Story ORDER BY rank ASC',                               tag: 'PB',    createdAt: new Date(now - 60*day).toISOString(), copyCount: 22, lastUsedAt: new Date(now - 10*day).toISOString() },
   ];
   localStorage.setItem('jiraQueries', JSON.stringify(demo));
   if (typeof loadQueries === 'function') loadQueries();
