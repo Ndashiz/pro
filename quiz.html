@@ -3300,7 +3300,7 @@ tr.row-selected { background: rgba(59,130,246,.05); }
         <div class="lb-card">
           <div class="lb-card-hdr">
             <div class="lb-card-title">🏆 Classement</div>
-            <div id="lb-weekly-countdown" class="lb-countdown"></div>
+            <div class="lb-countdown">All-time</div>
           </div>
           <div id="lb-rows"></div>
         </div>
@@ -6821,17 +6821,21 @@ document.addEventListener('DOMContentLoaded', function () {
    LEADERBOARD
 ───────────────────────────────── */
 async function multiLoadLeaderboard() {
-  const dateMinus7 = new Date(Date.now() - 7*24*60*60*1000).toISOString().slice(0,10);
-  const [{ data: logs }, { data: sessions }] = await Promise.all([
-    window.sb.from('xp_daily_log').select('user_id, xp_earned').gte('date', dateMinus7),
+  // ALL-TIME leaderboard — pas de reset, pas de fenêtre temporelle.
+  // Source de vérité : user_xp.total_xp (1 ligne par user, accumulé pour
+  //   toujours). Pour les utilisateurs qui ont des sessions mais aucune
+  //   ligne user_xp (pas encore déclenché de règle XP), on les inclut
+  //   quand même avec total_xp = 0 — sinon ils n'apparaîtraient jamais.
+  const [{ data: xpRows }, { data: sessions }] = await Promise.all([
+    window.sb.from('user_xp').select('user_id, total_xp'),
     window.sb.from('quiz_sessions').select('user_id, display_name, score, total').order('created_at', { ascending: false }).limit(500),
   ]);
   // Name map
   const nameMap = {};
   for (const s of (sessions || [])) { if (!nameMap[s.user_id]) nameMap[s.user_id] = s.display_name; }
-  // Weekly XP
+  // All-time XP map
   const xpMap = {};
-  for (const l of (logs || [])) { xpMap[l.user_id] = (xpMap[l.user_id] || 0) + (l.xp_earned || 0); }
+  for (const r of (xpRows || [])) { xpMap[r.user_id] = r.total_xp || 0; }
   // Session stats
   const aggMap = {};
   for (const s of (sessions || [])) {
@@ -6840,20 +6844,21 @@ async function multiLoadLeaderboard() {
     aggMap[s.user_id].totalScore    += s.score;
     aggMap[s.user_id].totalPossible += s.total;
   }
-  lbData = Object.keys(xpMap).map(uid => {
+  // Union of all users seen — XP earners AND session-only players
+  const allUids = new Set([...Object.keys(xpMap), ...Object.keys(aggMap)]);
+  lbData = [...allUids].map(uid => {
     const agg = aggMap[uid] || { games:0, totalScore:0, totalPossible:0 };
     const avg = agg.totalPossible > 0 ? Math.round(agg.totalScore / agg.totalPossible * 100) : 0;
-    return { user_id: uid, display_name: nameMap[uid] || 'Joueur', weekly_xp: xpMap[uid], avg, games: agg.games };
-  }).sort((a,b) => b.weekly_xp - a.weekly_xp || b.avg - a.avg);
+    return { user_id: uid, display_name: nameMap[uid] || 'Joueur', total_xp: xpMap[uid] || 0, avg, games: agg.games };
+  }).sort((a,b) => b.total_xp - a.total_xp || b.avg - a.avg);
   renderLeaderboard(lbData);
-  renderWeeklyCountdown();
 }
 
 function renderLeaderboard(rows) {
   const container = document.getElementById('lb-rows');
   if (!container) return;
   if (!rows.length) {
-    container.innerHTML = `<div class="lb-no-data">Aucune activité cette semaine.<br><small>Joue un quiz pour apparaître !</small></div>`;
+    container.innerHTML = `<div class="lb-no-data">Aucune activité encore.<br><small>Joue un quiz pour apparaître !</small></div>`;
     return;
   }
   const TOP_N = 5;
@@ -6870,7 +6875,7 @@ function renderLeaderboard(rows) {
         <div class="lb-player-name">${escHtml(r.display_name)}${isMe ? ' <span style="font-size:10px;color:var(--accent);font-family:sans-serif">moi</span>' : ''}</div>
         <div class="lb-player-avg">${r.avg}% · ${r.games} partie${r.games !== 1 ? 's' : ''}</div>
       </div>
-      <div class="lb-player-xp">${(r.weekly_xp || 0).toLocaleString()} XP</div>
+      <div class="lb-player-xp">${(r.total_xp || 0).toLocaleString()} XP</div>
     </div>`;
   };
 
@@ -6883,21 +6888,6 @@ function renderLeaderboard(rows) {
   container.innerHTML = html;
   // (Click on any row, incl. own, is now handled by the global pp-clickable
   // delegation — it opens the unified Player Profile popup for that user.)
-}
-
-function renderWeeklyCountdown() {
-  const now = new Date();
-  const nextMonday = new Date(now);
-  nextMonday.setUTCHours(0,0,0,0);
-  const dow = nextMonday.getUTCDay(); // 0=Sun,1=Mon,...
-  const daysUntil = (8 - dow) % 7 || 7;
-  nextMonday.setUTCDate(nextMonday.getUTCDate() + daysUntil);
-  const diff = nextMonday - now;
-  const d = Math.floor(diff / 86400000);
-  const h = Math.floor((diff % 86400000) / 3600000);
-  const m = Math.floor((diff % 3600000) / 60000);
-  const el = document.getElementById('lb-weekly-countdown');
-  if (el) el.textContent = `Reset dans ${d}j ${h}h ${m}m`;
 }
 
 /* ─────────────────────────────────
