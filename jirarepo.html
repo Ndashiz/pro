@@ -89,14 +89,24 @@
     .demo-banner b{color:#fbbf24;font-weight:600}
     .demo-banner .demo-hint{color:var(--text-muted);margin-left:auto;font-size:12px}
 
-    /* SORT TOGGLE */
-    .sort-bar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:18px;flex-wrap:wrap}
+    /* SORT + FILTER TOOLBAR */
+    .sort-bar{display:flex;align-items:center;gap:18px;margin-bottom:18px;flex-wrap:wrap}
+    .sort-bar > .group{display:inline-flex;align-items:center;gap:8px;margin-bottom:0}
     .sort-label{font-size:12px;color:var(--text-muted);font-weight:500}
     .sort-toggle{display:inline-flex;background:var(--card);border:1px solid var(--card-border);border-radius:10px;padding:3px;gap:2px}
     .sort-btn{background:transparent;border:none;color:var(--text-muted);font-family:inherit;font-size:12px;font-weight:600;padding:6px 12px;border-radius:7px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:background .2s,color .2s}
     .sort-btn:hover{color:var(--text)}
     .sort-btn.active{background:var(--blue);color:#fff}
     .sort-btn svg{width:13px;height:13px}
+
+    /* Tag-tinted active state for filter buttons */
+    .filter-btn.active[data-tag="all"]{background:var(--blue);color:#fff}
+    .filter-btn.active[data-tag="DPnxt"]{background:rgba(59,130,246,.85);color:#fff}
+    .filter-btn.active[data-tag="CLM"]{background:rgba(16,185,129,.85);color:#fff}
+    .filter-btn.active[data-tag="PB"]{background:rgba(239,68,68,.85);color:#fff}
+
+    .results-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;padding-bottom:8px;border-bottom:1px solid var(--card-border)}
+    .results-count{font-size:12px;color:var(--text-dim)}
 
     /* GROUPS */
     .group{margin-bottom:32px}
@@ -217,16 +227,27 @@
   </div>
 
   <div class="sort-bar" id="sortBar" style="display:none">
-    <span class="sort-label">Sort by</span>
-    <div class="sort-toggle">
-      <button class="sort-btn active" id="sortUsage" onclick="setSort('usage')">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18M7 14l4-4 4 4 6-6"/></svg>
-        Most used
-      </button>
-      <button class="sort-btn" id="sortRecent" onclick="setSort('recent')">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
-        Recently used
-      </button>
+    <div class="group">
+      <span class="sort-label">Filter</span>
+      <div class="sort-toggle">
+        <button class="sort-btn filter-btn active" data-tag="all"   id="filterAll"   onclick="setFilter('all')">All</button>
+        <button class="sort-btn filter-btn"        data-tag="DPnxt" id="filterDPnxt" onclick="setFilter('DPnxt')">DPnxt</button>
+        <button class="sort-btn filter-btn"        data-tag="CLM"   id="filterCLM"   onclick="setFilter('CLM')">CLM</button>
+        <button class="sort-btn filter-btn"        data-tag="PB"    id="filterPB"    onclick="setFilter('PB')">PB</button>
+      </div>
+    </div>
+    <div class="group">
+      <span class="sort-label">Sort by</span>
+      <div class="sort-toggle">
+        <button class="sort-btn active" id="sortUsage" onclick="setSort('usage')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18M7 14l4-4 4 4 6-6"/></svg>
+          Most used
+        </button>
+        <button class="sort-btn" id="sortRecent" onclick="setSort('recent')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+          Recently used
+        </button>
+      </div>
     </div>
   </div>
 
@@ -238,9 +259,14 @@
   const TAG_ORDER = ['DPnxt', 'CLM', 'PB'];
   const STORAGE_KEY = 'jiraQueries';
   const SORT_KEY = 'jiraQueriesSort';
+  const FILTER_KEY = 'jiraQueriesFilter';
 
   let editingIndex = null;
   let sortMode = localStorage.getItem(SORT_KEY) === 'recent' ? 'recent' : 'usage';
+  let filterMode = (() => {
+    const v = localStorage.getItem(FILTER_KEY);
+    return (v === 'DPnxt' || v === 'CLM' || v === 'PB') ? v : 'all';
+  })();
   let demoQueries = null;
 
   function normalize(q){
@@ -308,6 +334,17 @@
     loadQueries();
   }
 
+  function setFilter(tag){
+    if (tag !== 'all' && !TAG_ORDER.includes(tag)) return;
+    filterMode = tag;
+    localStorage.setItem(FILTER_KEY, tag);
+    ['all', ...TAG_ORDER].forEach(t => {
+      const id = t === 'all' ? 'filterAll' : 'filter' + t;
+      document.getElementById(id)?.classList.toggle('active', t === tag);
+    });
+    loadQueries();
+  }
+
   function writeQueries(queries){
     if (isDemoActive()) { demoQueries = queries.map(normalize); return; }
     localStorage.setItem(STORAGE_KEY, JSON.stringify(queries));
@@ -367,6 +404,10 @@
     sortBar.style.display = queries.length === 0 ? 'none' : 'flex';
     document.getElementById('sortUsage').classList.toggle('active', sortMode === 'usage');
     document.getElementById('sortRecent').classList.toggle('active', sortMode === 'recent');
+    ['all', ...TAG_ORDER].forEach(t => {
+      const id = t === 'all' ? 'filterAll' : 'filter' + t;
+      document.getElementById(id)?.classList.toggle('active', t === filterMode);
+    });
 
     if (queries.length === 0) {
       groupsEl.appendChild(el('div', { class: 'empty' }, [
@@ -377,28 +418,34 @@
       return;
     }
 
-    TAG_ORDER.forEach(tag => {
-      const indexed = sortIndexed(
-        queries
-          .map((q, i) => ({ q, i }))
-          .filter(x => x.q.tag === tag)
-      );
-      if (indexed.length === 0) return;
+    const indexed = sortIndexed(
+      queries
+        .map((q, i) => ({ q, i }))
+        .filter(x => filterMode === 'all' || x.q.tag === filterMode)
+    );
 
-      const list = el('div', { class: 'query-list' });
-      indexed.forEach(({ q, i }) => {
-        list.appendChild(editingIndex === i ? buildEditCard(q, i) : buildCard(q, i));
-      });
+    const countLabel = filterMode === 'all'
+      ? `${indexed.length} ${indexed.length === 1 ? 'query' : 'queries'}`
+      : `${indexed.length} ${indexed.length === 1 ? 'query' : 'queries'} · filtered by ${filterMode}`;
 
-      groupsEl.appendChild(el('div', { class: 'group' }, [
-        el('div', { class: 'group-header' }, [
-          el('h2', { text: tag }),
-          el('span', { class: 'group-count', text: `${indexed.length} ${indexed.length > 1 ? 'queries' : 'query'}` }),
+    groupsEl.appendChild(el('div', { class: 'results-header' }, [
+      el('span', { class: 'results-count', text: countLabel }),
+    ]));
 
-        ]),
-        list,
+    if (indexed.length === 0) {
+      groupsEl.appendChild(el('div', { class: 'empty' }, [
+        el('div', { class: 'empty-icon', text: '🔍' }),
+        el('h3', { text: `No queries tagged ${filterMode}` }),
+        el('p', { text: 'Try another filter or add a new query.' }),
       ]));
+      return;
+    }
+
+    const list = el('div', { class: 'query-list' });
+    indexed.forEach(({ q, i }) => {
+      list.appendChild(editingIndex === i ? buildEditCard(q, i) : buildCard(q, i));
     });
+    groupsEl.appendChild(list);
   }
 
   function buildCard(q, index){
