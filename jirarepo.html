@@ -46,6 +46,8 @@
     .btn-danger:hover{background:rgba(248,113,113,.12)}
     .btn-success{background:transparent;color:var(--green-light);border:1px solid rgba(52,211,153,.3)}
     .btn-success:hover{background:rgba(52,211,153,.12)}
+    .btn-jira{background:transparent;color:#7c9eff;border:1px solid rgba(124,158,255,.35)}
+    .btn-jira:hover{background:rgba(124,158,255,.12);border-color:#7c9eff}
     .btn svg{width:14px;height:14px}
 
     /* MAIN */
@@ -73,6 +75,7 @@
     .form-card{background:var(--card);border:1px solid var(--card-border);border-radius:12px;padding:20px;margin-bottom:32px}
     .form-card h2{font-size:13px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin:0 0 14px}
     .form-grid{display:grid;grid-template-columns:1fr 2fr auto auto;gap:10px;align-items:start}
+    .form-grid .full-row{grid-column:1 / -1}
     @media (max-width:768px){.form-grid{grid-template-columns:1fr}}
     .form-grid input, .form-grid textarea, .form-grid select{background:var(--input-bg);border:1px solid var(--card-border);border-radius:8px;padding:10px 14px;color:var(--text);font-size:14px;font-family:inherit;outline:none;transition:border-color .2s}
     .form-grid input:focus, .form-grid textarea:focus, .form-grid select:focus{border-color:var(--blue)}
@@ -203,6 +206,7 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
         Add
       </button>
+      <input type="url" id="jiraLink" class="full-row" placeholder="Jira link (optional) — e.g. https://yourcompany.atlassian.net/issues/?jql=..." />
     </div>
   </div>
 
@@ -241,13 +245,30 @@
 
   function normalize(q){
     return {
+      id: q.id || null,
       name: q.name || '',
       query: q.query || '',
       tag: q.tag || 'DPnxt',
       createdAt: q.createdAt || null,
       copyCount: typeof q.copyCount === 'number' ? q.copyCount : 0,
       lastUsedAt: q.lastUsedAt || null,
+      jiraLink: q.jiraLink || null,
     };
+  }
+
+  function isValidJiraLink(s){
+    if (!s) return true;
+    try {
+      const u = new URL(s);
+      return u.protocol === 'http:' || u.protocol === 'https:';
+    } catch { return false; }
+  }
+
+  function newId(){
+    if (window.crypto && typeof crypto.randomUUID === 'function') return crypto.randomUUID();
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+      const r = Math.random()*16|0; return (c==='x' ? r : (r&0x3|0x8)).toString(16);
+    });
   }
 
   function isDemoActive(){ return demoQueries !== null; }
@@ -309,22 +330,25 @@
     return e;
   }
 
-  const MINUTES_PER_COPY = 2;
+  const SECONDS_PER_COPY = 109; // 1 min 49 s
 
-  function formatDuration(totalMinutes){
-    if (totalMinutes <= 0) return '0 min';
-    const h = Math.floor(totalMinutes / 60);
-    const m = totalMinutes % 60;
-    if (h === 0) return `${m} min`;
-    if (m === 0) return `${h}h`;
-    return `${h}h ${m}min`;
+  function formatDuration(totalSeconds){
+    if (totalSeconds <= 0) return '0s';
+    const h = Math.floor(totalSeconds / 3600);
+    const m = Math.floor((totalSeconds % 3600) / 60);
+    const s = totalSeconds % 60;
+    const parts = [];
+    if (h > 0) parts.push(`${h}h`);
+    if (m > 0) parts.push(`${m}min`);
+    if (s > 0 && h === 0) parts.push(`${s}s`);
+    return parts.join(' ');
   }
 
   function refreshStats(queries){
     const total = queries.reduce((sum, q) => sum + (q.copyCount || 0), 0);
-    const minutes = total * MINUTES_PER_COPY;
+    const seconds = total * SECONDS_PER_COPY;
     document.getElementById('totalUsage').textContent = total.toLocaleString('en-US');
-    document.getElementById('totalSaved').textContent = formatDuration(minutes);
+    document.getElementById('totalSaved').textContent = formatDuration(seconds);
   }
 
   function loadQueries(){
@@ -392,6 +416,10 @@
           svgIcon('M8 7v10a2 2 0 002 2h7M16 3H6a2 2 0 00-2 2v10'),
           document.createTextNode('Copy'),
         ]),
+        q.jiraLink ? el('button', { class: 'btn btn-jira', title: q.jiraLink, onclick: () => openJira(index) }, [
+          svgIcon('M10 14L21 3M21 3h-7M21 3v7M5 5h6M5 12h4M5 19h14a2 2 0 002-2v-4'),
+          document.createTextNode('Jira'),
+        ]) : null,
         el('button', { class: 'btn btn-secondary', onclick: () => startEdit(index) }, [
           svgIcon('M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z'),
           document.createTextNode('Edit'),
@@ -420,8 +448,9 @@
       if (t === q.tag) opt.selected = true;
       tagSelect.appendChild(opt);
     });
+    const jiraInput = el('input', { type: 'url', placeholder: 'Jira link (optional)', value: q.jiraLink || '' });
 
-    const save = () => saveEdit(index, nameInput.value.trim(), queryInput.value.trim(), tagSelect.value);
+    const save = () => saveEdit(index, nameInput.value.trim(), queryInput.value.trim(), tagSelect.value, jiraInput.value.trim() || null);
 
     return el('div', { class: 'card' }, [
       el('div', { class: 'card-header' }, [
@@ -431,6 +460,7 @@
         nameInput,
         queryInput,
         tagSelect,
+        jiraInput,
         el('div', { class: 'edit-actions' }, [
           el('button', { class: 'btn btn-secondary', onclick: cancelEdit }, [document.createTextNode('Cancel')]),
           el('button', { class: 'btn btn-primary', onclick: save }, [document.createTextNode('Save')]),
@@ -471,26 +501,48 @@
     const name = document.getElementById('name').value.trim();
     const query = document.getElementById('query').value.trim();
     const tag = document.getElementById('tag').value;
+    const jiraLink = document.getElementById('jiraLink').value.trim() || null;
     if (!name || !query) { alert('Please fill in both name and JQL.'); return; }
+    if (!isValidJiraLink(jiraLink)) { alert('Jira link must be a valid http(s) URL.'); return; }
 
+    const newQuery = {
+      id: newId(),
+      name, query, tag,
+      createdAt: new Date().toISOString(),
+      copyCount: 0,
+      lastUsedAt: null,
+      jiraLink,
+    };
     const queries = readQueries();
-    queries.push({ name, query, tag, createdAt: new Date().toISOString(), copyCount: 0 });
+    queries.push(newQuery);
     writeQueries(queries);
     showStatus('Saved');
+    pushUpsert(newQuery);
 
     document.getElementById('name').value = '';
     document.getElementById('query').value = '';
+    document.getElementById('jiraLink').value = '';
     loadQueries();
   }
 
   function deleteQuery(index){
     const queries = readQueries();
     if (!confirm(`Delete query "${queries[index]?.name || ''}"?`)) return;
+    const deletedId = queries[index]?.id || null;
     queries.splice(index, 1);
     writeQueries(queries);
     if (editingIndex === index) editingIndex = null;
     showStatus('Deleted');
+    pushDelete(deletedId);
     loadQueries();
+  }
+
+  function openJira(index){
+    const queries = readQueries();
+    const q = queries[index];
+    if (!q || !q.jiraLink) return;
+    if (!isValidJiraLink(q.jiraLink)) { alert('Invalid Jira link on this query.'); return; }
+    window.open(q.jiraLink, '_blank', 'noopener,noreferrer');
   }
 
   function copyQuery(index){
@@ -502,6 +554,7 @@
       q.lastUsedAt = new Date().toISOString();
       writeQueries(queries);
       showStatus('Copied!');
+      pushUpsert(q);
       loadQueries();
     }).catch(() => alert('Copy failed.'));
   }
@@ -516,18 +569,187 @@
     loadQueries();
   }
 
-  function saveEdit(index, name, query, tag){
+  function saveEdit(index, name, query, tag, jiraLink){
     if (!name || !query) { alert('Name and JQL are required.'); return; }
+    if (!isValidJiraLink(jiraLink)) { alert('Jira link must be a valid http(s) URL.'); return; }
     const queries = readQueries();
     if (!queries[index]) return;
-    queries[index] = { ...queries[index], name, query, tag };
+    queries[index] = { ...queries[index], name, query, tag, jiraLink };
+    if (!queries[index].id) queries[index].id = newId();
     writeQueries(queries);
     editingIndex = null;
     showStatus('Updated');
+    pushUpsert(queries[index]);
     loadQueries();
   }
 
-  loadQueries();
+  // ═══════════════════════════════════════════════════════════
+  //  Supabase sync (realtime + initial migration)
+  // ═══════════════════════════════════════════════════════════
+  const MIGRATION_FLAG_PREFIX = 'jiraQueriesSynced_v1:';
+  let currentUserId = null;
+  let realtimeChannel = null;
+  let pullDebounce = null;
+
+  function readLocal(){
+    const raw = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+    return raw.map(normalize);
+  }
+
+  async function getUserId(){
+    if (!window.sb) return null;
+    try {
+      const { data: { session } } = await window.sb.auth.getSession();
+      return session?.user?.id || null;
+    } catch { return null; }
+  }
+
+  function fromRemoteRow(r){
+    return normalize({
+      id: r.id,
+      name: r.name,
+      query: r.query,
+      tag: r.tag,
+      createdAt: r.created_at,
+      copyCount: r.copy_count,
+      lastUsedAt: r.last_used_at,
+      jiraLink: r.jira_link,
+    });
+  }
+
+  function toRemoteRow(q, userId){
+    return {
+      id: q.id || newId(),
+      user_id: userId,
+      name: q.name,
+      query: q.query,
+      tag: q.tag,
+      copy_count: q.copyCount || 0,
+      created_at: q.createdAt || new Date().toISOString(),
+      last_used_at: q.lastUsedAt || null,
+      jira_link: q.jiraLink || null,
+    };
+  }
+
+  async function pullRemote(){
+    if (!currentUserId || !window.sb) return null;
+    try {
+      const { data, error } = await window.sb
+        .from('jira_queries')
+        .select('*')
+        .eq('user_id', currentUserId);
+      if (error) { console.warn('[jira sync] pull failed', error); return null; }
+      return data.map(fromRemoteRow);
+    } catch (e) { console.warn('[jira sync] pull error', e); return null; }
+  }
+
+  async function pushUpsert(q){
+    if (!currentUserId || !window.sb || isDemoActive() || !q) return;
+    try {
+      const { error } = await window.sb
+        .from('jira_queries')
+        .upsert(toRemoteRow(q, currentUserId), { onConflict: 'id' });
+      if (error) console.warn('[jira sync] upsert failed', error);
+    } catch (e) { console.warn('[jira sync] upsert error', e); }
+  }
+
+  async function pushDelete(id){
+    if (!currentUserId || !window.sb || isDemoActive() || !id) return;
+    try {
+      const { error } = await window.sb
+        .from('jira_queries')
+        .delete()
+        .eq('id', id)
+        .eq('user_id', currentUserId);
+      if (error) console.warn('[jira sync] delete failed', error);
+    } catch (e) { console.warn('[jira sync] delete error', e); }
+  }
+
+  async function migrateLocalIfNeeded(){
+    const flag = MIGRATION_FLAG_PREFIX + currentUserId;
+    if (localStorage.getItem(flag) === 'true') return;
+    const local = readLocal();
+    if (local.length === 0) {
+      localStorage.setItem(flag, 'true');
+      return;
+    }
+    const withIds = local.map(q => ({
+      ...q,
+      id: q.id || newId(),
+      createdAt: q.createdAt || new Date().toISOString(),
+    }));
+    const rows = withIds.map(q => toRemoteRow(q, currentUserId));
+    try {
+      const { error } = await window.sb
+        .from('jira_queries')
+        .upsert(rows, { onConflict: 'id' });
+      if (error) { console.warn('[jira sync] migration failed', error); return; }
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(withIds));
+      localStorage.setItem(flag, 'true');
+    } catch (e) { console.warn('[jira sync] migration error', e); }
+  }
+
+  function schedulePull(){
+    clearTimeout(pullDebounce);
+    pullDebounce = setTimeout(async () => {
+      const remote = await pullRemote();
+      if (!remote) return;
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(remote));
+      if (!isDemoActive()) loadQueries();
+    }, 250);
+  }
+
+  function subscribeRealtime(){
+    if (!window.sb || !currentUserId || realtimeChannel) return;
+    realtimeChannel = window.sb
+      .channel(`jira:${currentUserId}`)
+      .on('postgres_changes',
+        { event: '*', schema: 'public', table: 'jira_queries', filter: `user_id=eq.${currentUserId}` },
+        () => schedulePull()
+      )
+      .subscribe();
+  }
+
+  async function initSync(){
+    loadQueries();
+    if (!window.sb) return;
+    currentUserId = await getUserId();
+    if (!currentUserId) return;
+
+    await migrateLocalIfNeeded();
+
+    const remote = await pullRemote();
+    if (!remote) { subscribeRealtime(); return; }
+
+    // Race-safety: if the user added queries while initSync was running,
+    // those local rows aren't in remote yet — push them up so they aren't lost.
+    const remoteIds = new Set(remote.map(r => r.id));
+    const localOnly = readLocal().filter(q => q.id && !remoteIds.has(q.id));
+    if (localOnly.length > 0) {
+      const rows = localOnly.map(q => toRemoteRow(q, currentUserId));
+      try { await window.sb.from('jira_queries').upsert(rows, { onConflict: 'id' }); }
+      catch (e) { console.warn('[jira sync] catch-up failed', e); }
+      const merged = [...remote, ...localOnly];
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
+    } else {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(remote));
+    }
+
+    if (!isDemoActive()) loadQueries();
+    subscribeRealtime();
+  }
+
+  // Safety net: pull when tab regains focus (in case realtime dropped)
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden && currentUserId && !isDemoActive()) schedulePull();
+  });
+
+  // auth.js may not have created window.sb by the time this script runs.
+  // Wait until it's ready (auth.js loads after this inline script).
+  (function waitForSb(){
+    if (window.sb) { initSync(); return; }
+    setTimeout(waitForSb, 100);
+  })();
 </script>
 
 <script src="popup.js"></script>
