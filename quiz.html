@@ -7646,7 +7646,7 @@ async function openPlayerProfile(uid) {
   try {
     // Fetch all in parallel
     const [stateRes, logsRes, sessionsRes] = await Promise.all([
-      window.sb.from('user_xp_state').select('*').eq('user_id', uid).maybeSingle(),
+      window.sb.from('user_xp').select('*').eq('user_id', uid).maybeSingle(),
       window.sb.from('xp_daily_log').select('*').eq('user_id', uid)
         .order('date', { ascending: false }).limit(14),
       window.sb.from('quiz_sessions').select('*').eq('user_id', uid)

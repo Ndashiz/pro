@@ -6,19 +6,19 @@
 --  Idempotent : peut être ré-exécuté sans risque.
 --
 --  Tables concernées :
---    - user_xp_state    : total_xp, current_streak_days …
---    - xp_daily_log     : breakdown XP jour-par-jour
+--    - user_xp        : total_xp, current_streak_days …
+--    - xp_daily_log   : breakdown XP jour-par-jour
 --
 --  (quiz_sessions / quiz_session_comments / profiles sont déjà
 --   publiquement lisibles puisque le feed multi les affiche.)
 -- ═══════════════════════════════════════════════════════════════
 
--- ─── user_xp_state : public read ─────────────────────────────────
-alter table public.user_xp_state enable row level security;
+-- ─── user_xp : public read ───────────────────────────────────────
+alter table public.user_xp enable row level security;
 
-drop policy if exists "user_xp_state_public_read" on public.user_xp_state;
-create policy "user_xp_state_public_read"
-  on public.user_xp_state
+drop policy if exists "user_xp_public_read" on public.user_xp;
+create policy "user_xp_public_read"
+  on public.user_xp
   for select
   using (true);
 
@@ -37,8 +37,8 @@ create policy "xp_daily_log_public_read"
 
 
 -- ─── Vérifications ───────────────────────────────────────────────
--- Doit renvoyer 2 lignes : user_xp_state_public_read + xp_daily_log_public_read
+-- Doit renvoyer 2 lignes : user_xp_public_read + xp_daily_log_public_read
 select schemaname, tablename, policyname, cmd
 from   pg_policies
-where  tablename in ('user_xp_state', 'xp_daily_log')
+where  tablename in ('user_xp', 'xp_daily_log')
   and  policyname like '%_public_read';
