@@ -251,10 +251,15 @@
       tag: q.tag || 'DPnxt',
       createdAt: q.createdAt || null,
       copyCount: typeof q.copyCount === 'number' ? q.copyCount : 0,
+      jiraClickCount: typeof q.jiraClickCount === 'number' ? q.jiraClickCount : 0,
       lastUsedAt: q.lastUsedAt || null,
       jiraLink: q.jiraLink || null,
       _synced: q._synced === true,
     };
+  }
+
+  function usageCount(q){
+    return (q.copyCount || 0) + (q.jiraClickCount || 0);
   }
 
   function isValidJiraLink(s){
@@ -289,7 +294,7 @@
         return tb - ta;
       });
     } else {
-      copy.sort((a, b) => (b.q.copyCount || 0) - (a.q.copyCount || 0));
+      copy.sort((a, b) => usageCount(b.q) - usageCount(a.q));
     }
     return copy;
   }
@@ -346,7 +351,7 @@
   }
 
   function refreshStats(queries){
-    const total = queries.reduce((sum, q) => sum + (q.copyCount || 0), 0);
+    const total = queries.reduce((sum, q) => sum + usageCount(q), 0);
     const seconds = total * SECONDS_PER_COPY;
     document.getElementById('totalUsage').textContent = total.toLocaleString('en-US');
     document.getElementById('totalSaved').textContent = formatDuration(seconds);
@@ -397,9 +402,9 @@
   }
 
   function buildCard(q, index){
-    const copyChip = el('span', { class: 'copy-chip' }, [
+    const copyChip = el('span', { class: 'copy-chip', title: `${q.copyCount || 0} copies · ${q.jiraClickCount || 0} Jira opens` }, [
       svgIcon('M8 7v10a2 2 0 002 2h7M16 3H6a2 2 0 00-2 2v10'),
-      document.createTextNode(`${q.copyCount}×`),
+      document.createTextNode(`${usageCount(q)}×`),
     ]);
 
     const header = el('div', { class: 'card-header' }, [
@@ -545,6 +550,12 @@
     if (!q || !q.jiraLink) return;
     if (!isValidJiraLink(q.jiraLink)) { alert('Invalid Jira link on this query.'); return; }
     window.open(q.jiraLink, '_blank', 'noopener,noreferrer');
+    q.jiraClickCount = (q.jiraClickCount || 0) + 1;
+    q.lastUsedAt = new Date().toISOString();
+    q._synced = false;
+    writeQueries(queries);
+    pushUpsert(q);
+    loadQueries();
   }
 
   function copyQuery(index){
@@ -615,6 +626,7 @@
       tag: r.tag,
       createdAt: r.created_at,
       copyCount: r.copy_count,
+      jiraClickCount: r.jira_click_count,
       lastUsedAt: r.last_used_at,
       jiraLink: r.jira_link,
     });
@@ -628,6 +640,7 @@
       query: q.query,
       tag: q.tag,
       copy_count: q.copyCount || 0,
+      jira_click_count: q.jiraClickCount || 0,
       created_at: q.createdAt || new Date().toISOString(),
       last_used_at: q.lastUsedAt || null,
       jira_link: q.jiraLink || null,

@@ -18,6 +18,7 @@ create table if not exists public.jira_queries (
 
 -- Add column if upgrading from an earlier version of this schema
 alter table public.jira_queries add column if not exists jira_link text;
+alter table public.jira_queries add column if not exists jira_click_count int not null default 0;
 
 create index if not exists jira_queries_user_id_idx on public.jira_queries (user_id);
 
