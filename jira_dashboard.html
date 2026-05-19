@@ -1640,30 +1640,75 @@ function exportHTMLCopy(){
 }
 
 function buildExportHTML(){
-  // Snapshot the page WITHOUT current Jira data — purely the empty app.
-  // We clone the current document, reset state markers, and strip dynamic
-  // sections that contain user data.
+  // Snapshot the page WITHOUT current Jira data — purely the empty app
+  // ready to receive a CSV/XLSX. The exported file must be openable by
+  // double-click from the filesystem (file://), with NO LazyPO/sidebar/
+  // auth/supabase dependencies, NO action buttons that don't apply
+  // standalone, and a clean topbar.
   const doc = document.documentElement.cloneNode(true);
-  // Strip auth scripts (the exported file is a standalone offline build)
-  doc.querySelectorAll('script[src*="auth"], script[src*="popup"], script[src*="sidebar"], script[src*="focusfm"], script[src*="supabase"]').forEach(s => s.remove());
-  // Remove the auth-gate inline check
+
+  // 1. Strip all script dependencies on the LazyPO host environment.
+  //    auth.js / auth-gate.js / popup.js / sidebar.js / focusfm.js /
+  //    supabase-js / demo.js — none of these make sense offline.
+  doc.querySelectorAll(
+    'script[src*="auth"], script[src*="popup"], script[src*="sidebar"],' +
+    ' script[src*="focusfm"], script[src*="supabase"], script[src*="demo"]'
+  ).forEach(s => s.remove());
   doc.querySelectorAll('script').forEach(s => {
     if (s.textContent && s.textContent.includes('LazyAuth.requireModule')) s.remove();
   });
-  // Reset dashboard markup to its initial empty state
+
+  // 2. Strip every sidebar element (sb-burger, sb-overlay, sb-nav,
+  //    sb-item, sb-icon, sb-label, sb-shell, sb-rail, sb-panel,
+  //    sb-backdrop, …). sidebar.js injects these at runtime; the live
+  //    DOM still has them when we clone.
+  doc.querySelectorAll('[class^="sb-"], [class*=" sb-"]').forEach(el => el.remove());
+
+  // 3. Strip the floating demo FAB if it's been injected.
+  doc.querySelectorAll('#_lazypo_demo_fab').forEach(el => el.remove());
+
+  // 4. Reset dashboard markup to its initial empty state.
   const dash = doc.querySelector('#dashboard');
   if (dash) dash.classList.add('hidden');
   const drop = doc.querySelector('#dropZone');
   if (drop) drop.classList.remove('hidden');
   const tb = doc.querySelector('#topbarFilename');
   if (tb) tb.textContent = '';
-  const replaceBtn = doc.querySelector('#btnReplace');
-  if (replaceBtn) replaceBtn.classList.add('hidden');
-  // Strip back-link to Jira hub (the export is standalone)
-  doc.querySelectorAll('a.back-link, a.logo-wrap').forEach(a => {
-    a.removeAttribute('href');
-    a.style.cursor = 'default';
+
+  // 5. Strip the "Back to Jira" link (no hub to return to standalone)
+  //    and downgrade the logo anchor into a plain div so it doesn't try
+  //    to navigate anywhere.
+  doc.querySelectorAll('a.back-link').forEach(a => a.remove());
+  doc.querySelectorAll('a.logo-wrap').forEach(a => {
+    // doc here is documentElement (HTMLElement), not Document — use the
+    // live document.createElement for the replacement node.
+    const replacement = document.createElement('div');
+    replacement.className = a.className;
+    replacement.innerHTML = a.innerHTML;
+    replacement.style.cssText = (a.style.cssText || '') + ';cursor:default;text-decoration:none;color:inherit;';
+    a.parentNode.replaceChild(replacement, a);
   });
+
+  // 6. Strip every action-bar export trigger that depends on the live
+  //    host page (Export HTML dropdown, Export PDF, Export PPTX, sync
+  //    status pill, status pill, PDF tip).
+  doc.querySelectorAll('#exportHtmlDropdown').forEach(el => el.remove());
+  doc.querySelectorAll('[onclick*="exportPDF"], [onclick*="exportPPTX"], [onclick*="exportHTML"]').forEach(el => el.remove());
+  doc.querySelectorAll('#syncStatus, #status, #pdfHint').forEach(el => el.remove());
+  // #btnReplace is referenced by the inline script (ingestRows) — we
+  // can't delete it without breaking the file pipeline. Hide it with
+  // inline CSS instead so the JS reference still resolves.
+  const replaceBtn = doc.querySelector('#btnReplace');
+  if (replaceBtn) replaceBtn.style.setProperty('display', 'none', 'important');
+
+  // 7. Inject a small "standalone" badge in the topbar so the user
+  //    knows this is the offline copy.
+  const topbar = doc.querySelector('.topbar');
+  if (topbar) {
+    const status = doc.querySelector('.topbar-status');
+    if (status) status.textContent = 'Standalone · offline mode';
+  }
+
   return '<!DOCTYPE html>\n' + doc.outerHTML;
 }
 
