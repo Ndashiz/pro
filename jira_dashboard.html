@@ -1,0 +1,1078 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<script>if(location.protocol==="http:"&&location.hostname!=="localhost"&&location.hostname!=="127.0.0.1")location.replace("https:"+location.href.slice(5));</script>
+<script src="auth-gate.js"></script>
+<meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests">
+  <meta charset="UTF-8">
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <title>LazyPO — Jira Dashboard Builder</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@400;500&family=Permanent+Marker&display=swap" rel="stylesheet">
+  <style>
+    :root{
+      --navy:#002060; --navy-border:#0a3575;
+      --bg:#0c0c0c; --surface:#161616; --surface2:#1c1c1c;
+      --border:#222; --border2:#2a2a2a;
+      --accent:#3b82f6; --accent2:#60a5fa; --accent3:#93c5fd;
+      --text:#f0f0f0; --muted:#6b6b6b; --faint:#2e2e2e;
+      --green:#10b981; --green-light:#34d399; --green-pale:#6ee7b7;
+      --amber:#f59e0b; --amber-light:#fbbf24;
+      --red:#ef4444; --red-light:#f87171;
+      --purple:#8b5cf6; --purple-light:#a78bfa;
+    }
+
+    *{box-sizing:border-box}
+    html,body{margin:0;padding:0;min-height:100vh;font-family:'DM Sans',system-ui,sans-serif;background:var(--bg);color:var(--text)}
+    body{display:flex;flex-direction:column;position:relative;overflow-x:hidden}
+    .main-bg{position:fixed;inset:0;z-index:0;pointer-events:none;background:radial-gradient(ellipse 60% 50% at 50% 20%,rgba(20,40,80,.5) 0%,transparent 70%),radial-gradient(ellipse 40% 40% at 85% 80%,rgba(30,58,110,.15) 0%,transparent 60%)}
+
+    /* HEADER */
+    .header{display:flex;align-items:center;gap:20px;position:sticky;top:0;z-index:100;background:var(--navy);border-bottom:3px solid var(--navy-border);padding:14px 28px;color:#fff}
+    .logo-wrap{display:flex;flex-direction:column;text-decoration:none}
+    .logo{font-family:'Permanent Marker',cursive;font-size:26px;color:#fff;transform:rotate(-1.5deg);letter-spacing:1px;line-height:1;text-shadow:3px 3px 0 rgba(59,130,246,.4),-1px -1px 0 rgba(255,255,255,.1)}
+    .logo span{color:var(--accent2)}
+    .subtitle{font-size:12px;color:var(--accent3);margin-top:4px}
+    .spacer{flex:1}
+    .back-link{display:inline-flex;align-items:center;gap:6px;color:#fff;text-decoration:none;font-size:13px;padding:8px 14px;border-radius:8px;border:1px solid rgba(255,255,255,.2);transition:background .2s,border-color .2s}
+    .back-link:hover{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.4)}
+    .back-link svg{width:14px;height:14px}
+
+    /* PAGE */
+    .container{max-width:1200px;margin:32px auto;padding:0 28px;position:relative;z-index:1;flex:1;width:100%}
+
+    /* TOP BAR */
+    .topbar{display:flex;align-items:center;gap:14px;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px 18px;margin-bottom:18px;flex-wrap:wrap}
+    .topbar-title{display:flex;align-items:center;gap:10px;font-weight:600;font-size:15px}
+    .topbar-icon{width:30px;height:30px;border-radius:8px;background:rgba(59,130,246,.15);border:1px solid rgba(96,165,250,.25);display:flex;align-items:center;justify-content:center;font-size:15px;color:var(--accent2)}
+    .topbar-status{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:500;padding:4px 10px;border-radius:100px;background:rgba(16,185,129,.1);color:var(--green-light);border:1px solid rgba(16,185,129,.25);font-family:'DM Mono',monospace}
+    .topbar-status::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--green-light)}
+    .topbar-spacer{flex:1}
+    .topbar-filename{font-family:'DM Mono',monospace;font-size:12px;color:var(--muted)}
+
+    /* BUTTONS */
+    .btn{display:inline-flex;align-items:center;gap:7px;padding:9px 14px;border-radius:8px;font-size:13px;font-weight:500;border:1px solid var(--border2);background:transparent;color:var(--text);cursor:pointer;font-family:inherit;transition:background .2s,border-color .2s,color .2s;white-space:nowrap}
+    .btn:hover:not(:disabled){background:var(--surface2);border-color:var(--accent)}
+    .btn:disabled{opacity:.4;cursor:not-allowed}
+    .btn-primary{background:var(--accent);color:#fff;border-color:transparent}
+    .btn-primary:hover:not(:disabled){background:#2563eb}
+    .btn-danger{color:var(--red-light)}
+    .btn-danger:hover:not(:disabled){border-color:var(--red);background:rgba(248,113,113,.08)}
+    .btn svg{width:14px;height:14px}
+
+    /* DROPZONE */
+    .file-card{background:var(--surface);border:2px dashed var(--border2);border-radius:14px;padding:48px 24px;text-align:center;transition:border-color .2s,background .2s;cursor:pointer}
+    .file-card.dragover{border-color:var(--accent);background:rgba(59,130,246,.05)}
+    .file-card.loaded{border-style:solid;border-color:rgba(16,185,129,.4);background:rgba(16,185,129,.04);cursor:default;text-align:left;padding:20px 24px;display:flex;align-items:center;gap:18px;flex-wrap:wrap}
+    .file-card-icon{font-size:34px;color:var(--accent2)}
+    .file-card.loaded .file-card-icon{font-size:24px;color:var(--green-light)}
+    .file-card-title{font-size:16px;font-weight:600;margin:0 0 6px}
+    .file-card-meta{font-size:12px;color:var(--muted);font-family:'DM Mono',monospace}
+    .file-card.loaded .file-card-info{flex:1}
+    .file-card-status{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--green-light);font-family:'DM Mono',monospace}
+    .file-card-status::before{content:'✓';font-size:14px}
+
+    /* ACTION BAR */
+    .action-bar{display:flex;align-items:center;gap:10px;margin-bottom:18px;flex-wrap:wrap}
+    .view-toggle{display:inline-flex;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:3px;gap:2px}
+    .view-btn{padding:7px 14px;font-size:13px;font-weight:600;color:var(--muted);background:transparent;border:none;border-radius:7px;cursor:pointer;font-family:inherit;transition:background .2s,color .2s}
+    .view-btn:hover{color:var(--text)}
+    .view-btn.active{background:var(--accent);color:#fff}
+    .pi-summary{display:inline-flex;align-items:center;gap:8px;padding:8px 14px;background:rgba(59,130,246,.08);border:1px solid rgba(59,130,246,.2);border-radius:10px;font-size:12px;color:var(--accent3);font-family:'DM Mono',monospace}
+    .action-bar-spacer{flex:1}
+    .export-group{display:inline-flex;position:relative}
+    .export-group .btn:not(:last-child){border-top-right-radius:0;border-bottom-right-radius:0;border-right:none}
+    .export-group .btn:not(:first-child){border-top-left-radius:0;border-bottom-left-radius:0}
+
+    /* DROPDOWN */
+    .dropdown{position:relative}
+    .dropdown-menu{position:absolute;top:calc(100% + 6px);right:0;background:var(--surface);border:1px solid var(--border2);border-radius:10px;padding:6px;min-width:240px;box-shadow:0 12px 32px rgba(0,0,0,.5);z-index:50;display:none}
+    .dropdown.open .dropdown-menu{display:block}
+    .dropdown-item{display:flex;flex-direction:column;gap:2px;padding:9px 12px;border-radius:7px;cursor:pointer;transition:background .15s}
+    .dropdown-item:hover{background:var(--surface2)}
+    .dropdown-item-title{font-size:13px;font-weight:600;color:var(--text)}
+    .dropdown-item-desc{font-size:11px;color:var(--muted);font-family:'DM Mono',monospace}
+    .dropdown-footer{padding:8px 12px;font-size:10px;color:var(--muted);border-top:1px solid var(--border);margin-top:4px;font-family:'DM Mono',monospace}
+
+    /* CARDS */
+    .card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px}
+    .card-header{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:14px}
+    .card-title{font-size:14px;font-weight:600;color:var(--text);margin:0}
+    .card-sub{font-size:12px;color:var(--muted);margin:2px 0 0;line-height:1.4}
+    .card-total{font-size:11px;color:var(--muted);font-family:'DM Mono',monospace;text-align:right;white-space:nowrap}
+
+    /* PROGRESS */
+    .progress-card{margin-bottom:18px}
+    .progress-bar{height:18px;background:rgba(255,255,255,.04);border-radius:9px;overflow:hidden;position:relative}
+    .progress-fill{height:100%;background:linear-gradient(90deg,var(--green),var(--green-light));border-radius:9px;transition:width .6s ease}
+    .progress-label{display:flex;justify-content:space-between;align-items:center;margin-top:8px;font-size:12px;color:var(--muted);font-family:'DM Mono',monospace}
+    .progress-label .pct{font-size:14px;font-weight:700;color:var(--green-light);font-family:inherit}
+
+    /* GRID */
+    .grid-2{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin-bottom:18px}
+    @media (max-width:760px){.grid-2{grid-template-columns:1fr}}
+
+    /* BARS */
+    .bars{display:flex;flex-direction:column;gap:10px}
+    .bar-row{display:grid;grid-template-columns:1fr auto;align-items:center;gap:10px}
+    .bar-row .bar-label{font-size:13px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+    .bar-row .bar-value{font-size:13px;font-weight:600;color:var(--text);font-family:'DM Mono',monospace}
+    .bar-track{grid-column:1 / -1;height:7px;background:rgba(255,255,255,.04);border-radius:4px;overflow:hidden}
+    .bar-fill{height:100%;border-radius:4px;transition:width .6s ease}
+    .bar-purple .bar-fill{background:var(--purple-light)}
+    .bar-blue .bar-fill{background:var(--accent2)}
+    .bar-green .bar-fill{background:var(--green-light)}
+    .bar-amber .bar-fill{background:var(--amber-light)}
+    .bar-gray .bar-fill{background:#71717a}
+
+    .bar-row.warn .bar-label{color:var(--amber-light)}
+    .bar-row.warn .bar-value{color:var(--amber-light)}
+    .bar-row.warn .bar-fill{background:var(--amber-light)}
+    .warn-divider{margin:10px 0 4px;height:1px;border-top:1px dashed var(--amber);opacity:.4}
+    .warn-note{font-size:11px;color:var(--muted);margin-top:6px;font-style:italic}
+
+    /* QUICK WINS */
+    .quickwin-big{font-size:48px;font-weight:700;color:var(--green-light);line-height:1;margin:6px 0 4px}
+    .quickwin-sub{font-size:12px;color:var(--muted);font-family:'DM Mono',monospace}
+    .quickwin-pct{font-size:13px;color:var(--text);margin-top:8px}
+
+    /* STATUS LIST */
+    .status-list{display:flex;flex-direction:column;gap:0}
+    .status-row{display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--border);font-size:13px}
+    .status-row:last-child{border-bottom:none}
+    .status-row .status-label{color:var(--text)}
+    .status-row .status-count{font-weight:600;font-family:'DM Mono',monospace}
+    .status-row.muted{color:var(--muted);font-style:italic}
+    .status-row.muted .status-label{color:var(--muted)}
+    .status-row.muted .status-count{color:var(--muted)}
+
+    /* PI CONFIG */
+    .pi-config{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px;margin-bottom:18px}
+    .pi-form{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;align-items:end}
+    @media (max-width:760px){.pi-form{grid-template-columns:1fr}}
+    .field{display:flex;flex-direction:column;gap:5px}
+    .field label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;font-family:'DM Mono',monospace}
+    .field input,.field select{background:var(--bg);border:1px solid var(--border2);border-radius:8px;padding:9px 12px;color:var(--text);font-size:13px;font-family:inherit;outline:none;transition:border-color .2s}
+    .field input:focus,.field select:focus{border-color:var(--accent)}
+    .field-row{grid-column:1 / -1;font-size:11px;color:var(--muted);font-family:'DM Mono',monospace}
+
+    /* SPRINT TIMELINE */
+    .sprint-timeline{display:grid;gap:6px;margin:10px 0 18px;grid-auto-flow:column;grid-auto-columns:minmax(60px,1fr)}
+    .sprint-pill{background:rgba(255,255,255,.04);border:1px solid var(--border);padding:9px 6px;border-radius:8px;text-align:center;font-size:11px;color:var(--muted);font-family:'DM Mono',monospace}
+    .sprint-pill.current{background:rgba(59,130,246,.12);border-color:var(--accent);color:var(--accent2);font-weight:600}
+
+    /* EPIC LIST */
+    .epic-list{display:flex;flex-direction:column;gap:10px}
+    .epic-row{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center}
+    .epic-row .epic-name{font-size:13px;font-weight:600;color:var(--text);margin-bottom:3px}
+    .epic-row .epic-meta{font-size:11px;color:var(--muted);font-family:'DM Mono',monospace;display:flex;gap:10px;flex-wrap:wrap}
+    .epic-progress-wrap{display:flex;align-items:center;gap:10px;min-width:180px}
+    .epic-progress-bar{flex:1;height:7px;background:rgba(255,255,255,.05);border-radius:4px;overflow:hidden}
+    .epic-progress-fill{height:100%;border-radius:4px;transition:width .6s ease}
+    .epic-progress-pct{font-size:12px;font-weight:600;font-family:'DM Mono',monospace;min-width:42px;text-align:right}
+    .epic-row .fill-success .epic-progress-fill,.fill-success{background:var(--green-light)}
+    .epic-row .fill-success .epic-progress-pct,.epic-row.epic-success .epic-progress-pct{color:var(--green-light)}
+    .epic-row.epic-success .epic-progress-fill{background:var(--green-light)}
+    .epic-row.epic-info .epic-progress-fill{background:var(--accent2)}
+    .epic-row.epic-info .epic-progress-pct{color:var(--accent2)}
+    .epic-row.epic-warn .epic-progress-fill{background:var(--amber-light)}
+    .epic-row.epic-warn .epic-progress-pct{color:var(--amber-light)}
+    .epic-row.epic-low .epic-progress-fill{background:#71717a}
+    .epic-row.epic-low .epic-progress-pct{color:#a1a1aa}
+
+    /* HINT */
+    .hint{margin-top:18px;padding:11px 16px;background:rgba(59,130,246,.06);border:1px solid rgba(59,130,246,.2);border-radius:10px;font-size:12px;color:var(--accent3)}
+    .hint code{background:rgba(255,255,255,.05);padding:2px 6px;border-radius:4px;font-family:'DM Mono',monospace;font-size:11px;color:var(--accent3)}
+
+    /* TOAST */
+    .toast{position:fixed;bottom:24px;left:50%;transform:translate(-50%,20px);background:var(--surface2);border:1px solid var(--border2);color:var(--text);padding:11px 18px;border-radius:10px;font-size:13px;box-shadow:0 12px 32px rgba(0,0,0,.5);opacity:0;transition:opacity .25s,transform .25s;pointer-events:none;z-index:200}
+    .toast.show{opacity:1;transform:translate(-50%,0)}
+    .toast.ok{border-color:rgba(52,211,153,.4);color:var(--green-light)}
+    .toast.err{border-color:rgba(248,113,113,.4);color:var(--red-light)}
+
+    /* ERROR */
+    .error-banner{padding:11px 16px;background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.3);border-radius:10px;color:var(--red-light);font-size:13px;margin-bottom:14px}
+
+    /* HIDDEN */
+    .hidden{display:none !important}
+
+    @media (max-width:480px){
+      .header{padding:10px 16px}
+      .logo{font-size:20px}
+      .container{padding:0 16px;margin:20px auto}
+      .file-card{padding:32px 16px}
+    }
+
+    /* PRINT (PDF export) */
+    @media print {
+      .header,.back-link,.action-bar,.file-card,.dropdown-menu,.hint,.toast,.pi-config{display:none !important}
+      body{background:#fff;color:#000}
+      .card,.epic-row{background:#fafafa;border-color:#ccc;color:#000;break-inside:avoid}
+      .card-title,.bar-row .bar-label,.bar-row .bar-value,.epic-row .epic-name{color:#000}
+      .container{margin:0;padding:0;max-width:none}
+    }
+  </style>
+</head>
+<body>
+
+<div class="main-bg"></div>
+
+<header class="header">
+  <a href="jira.html" class="logo-wrap">
+    <div class="logo">LazyPO <span>✦</span></div>
+    <div class="subtitle">Jira › Dashboard Builder</div>
+  </a>
+  <div class="spacer"></div>
+  <a href="jira.html" class="back-link">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+    Back to Jira
+  </a>
+</header>
+
+<div class="container">
+
+  <div class="topbar">
+    <div class="topbar-title">
+      <div class="topbar-icon">📊</div>
+      Jira Dashboard Builder
+    </div>
+    <span class="topbar-status">Local · no data sent</span>
+    <div class="topbar-spacer"></div>
+    <span id="topbarFilename" class="topbar-filename"></span>
+    <button id="btnReplace" class="btn hidden" onclick="document.getElementById('fileInput').click()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0114.5-7M21 12a9 9 0 01-14.5 7M21 4v5h-5M3 20v-5h5"/></svg>
+      Replace
+    </button>
+  </div>
+
+  <div id="errorBanner" class="error-banner hidden"></div>
+
+  <div id="dropZone" class="file-card">
+    <div class="file-card-icon">📥</div>
+    <h2 class="file-card-title">Drop your Jira export here</h2>
+    <p class="file-card-meta">CSV or XLSX · processed locally · never uploaded</p>
+    <button class="btn btn-primary" style="margin-top:14px" onclick="document.getElementById('fileInput').click()">
+      Choose a file
+    </button>
+    <input type="file" id="fileInput" accept=".csv,.xlsx,.xls,text/csv" style="display:none" />
+  </div>
+
+  <div id="dashboard" class="hidden">
+
+    <div class="file-card loaded">
+      <div class="file-card-icon">📄</div>
+      <div class="file-card-info">
+        <div class="file-card-title" id="loadedTitle"></div>
+        <div class="file-card-meta" id="loadedMeta"></div>
+      </div>
+      <span class="file-card-status">Parsed</span>
+    </div>
+
+    <div class="action-bar">
+      <div class="view-toggle">
+        <button class="view-btn active" id="viewGlobal" onclick="setView('global')">Global view</button>
+        <button class="view-btn" id="viewSprint" onclick="setView('sprint')">Sprint view</button>
+      </div>
+      <span id="piSummary" class="pi-summary hidden"></span>
+      <div class="action-bar-spacer"></div>
+      <button class="btn" onclick="exportPDF()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6M12 18v-6M9 15l3 3 3-3"/></svg>
+        Export PDF
+      </button>
+      <div class="dropdown" id="exportHtmlDropdown">
+        <button class="btn btn-primary" onclick="toggleDropdown('exportHtmlDropdown', event)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+          Export HTML
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        <div class="dropdown-menu">
+          <div class="dropdown-item" onclick="exportHTMLDownload()">
+            <span class="dropdown-item-title">Download the file</span>
+            <span class="dropdown-item-desc">jira_dashboard.html</span>
+          </div>
+          <div class="dropdown-item" onclick="exportHTMLCopy()">
+            <span class="dropdown-item-title">Copy the code</span>
+            <span class="dropdown-item-desc">instant copy</span>
+          </div>
+          <div class="dropdown-footer">No data embedded · runs offline</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- GLOBAL VIEW -->
+    <div id="globalView">
+
+      <div class="card progress-card">
+        <div class="card-header">
+          <div>
+            <h3 class="card-title">Global progress</h3>
+            <p class="card-sub">All tickets · epics excluded</p>
+          </div>
+          <span id="progressTotal" class="card-total"></span>
+        </div>
+        <div class="progress-bar"><div id="progressFill" class="progress-fill" style="width:0%"></div></div>
+        <div class="progress-label">
+          <span id="progressRatio"></span>
+          <span id="progressPct" class="pct">0%</span>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-header">
+            <h3 class="card-title">Tickets by business line</h3>
+            <span id="blTotal" class="card-total"></span>
+          </div>
+          <div id="blBars" class="bars"></div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <h3 class="card-title">Tickets by analyst</h3>
+            <span id="anaTotal" class="card-total"></span>
+          </div>
+          <div id="anaBars" class="bars"></div>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-header">
+            <h3 class="card-title">Tickets by release (FixVersion)</h3>
+            <span id="relTotal" class="card-total"></span>
+          </div>
+          <div id="relBars" class="bars"></div>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:16px">
+          <div class="card">
+            <div class="card-header">
+              <h3 class="card-title">Quick wins</h3>
+            </div>
+            <div id="quickWinValue" class="quickwin-big">0</div>
+            <div class="quickwin-sub">tickets · label = QW</div>
+            <div id="quickWinPct" class="quickwin-pct">0% of total backlog</div>
+          </div>
+          <div class="card">
+            <div class="card-header">
+              <h3 class="card-title">Status breakdown</h3>
+            </div>
+            <div id="statusList" class="status-list"></div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- SPRINT VIEW -->
+    <div id="sprintView" class="hidden">
+      <div class="pi-config">
+        <div class="card-header">
+          <div>
+            <h3 class="card-title">Program Increment</h3>
+            <p class="card-sub">Dates are persisted in localStorage · FixVersion → Sprint mapping is in-memory only</p>
+          </div>
+        </div>
+        <div class="pi-form">
+          <div class="field">
+            <label for="piStart">Start date</label>
+            <input type="date" id="piStart" />
+          </div>
+          <div class="field">
+            <label for="piEnd">End date</label>
+            <input type="date" id="piEnd" />
+          </div>
+          <div class="field">
+            <label>Sprint length</label>
+            <select id="piSprintLength">
+              <option value="14" selected>14 days (2 weeks)</option>
+              <option value="7">7 days (1 week)</option>
+              <option value="21">21 days (3 weeks)</option>
+            </select>
+          </div>
+          <div id="piMappingRow" class="field-row"></div>
+        </div>
+        <div id="piMapping" class="bars" style="margin-top:14px"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <h3 class="card-title">Sprint timeline</h3>
+            <p class="card-sub">Current sprint is highlighted in blue</p>
+          </div>
+          <span id="sprintCount" class="card-total"></span>
+        </div>
+        <div id="sprintTimeline" class="sprint-timeline"></div>
+      </div>
+
+      <div class="card" style="margin-top:18px">
+        <div class="card-header">
+          <div>
+            <h3 class="card-title">Epics in this PI</h3>
+            <p class="card-sub">Progress = stories Done / total stories of the epic</p>
+          </div>
+          <span id="epicCount" class="card-total"></span>
+        </div>
+        <div id="epicList" class="epic-list"></div>
+      </div>
+    </div>
+
+    <div class="hint" id="pdfHint">
+      Tip: the PDF export name includes a timestamp (<code>jira_dashboard_YYYY-MM-DD_HHhMM.pdf</code>) — perfect to archive and compare weekly snapshots.
+    </div>
+
+  </div>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<!-- LIBS -->
+<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/html2pdf.js@0.10.1/dist/html2pdf.bundle.min.js"></script>
+
+<script>
+/* ═════════════════════════════════════════════════════════
+   Jira Dashboard Builder — Vanilla JS app
+   100% client-side. No data leaves the browser.
+═════════════════════════════════════════════════════════ */
+
+const PI_STORAGE_KEY = 'jiraDashboardPI_v1';
+
+const STATE = {
+  fileName: null,
+  rows: [],          // normalized rows
+  view: 'global',    // 'global' | 'sprint'
+  pi: {
+    start: null,
+    end: null,
+    sprintLength: 14,
+  },
+  fxToSprint: {},    // { 'FixVersion' : sprintIndex }
+};
+
+/* ── Column detection — Jira exports vary wildly ── */
+const COL_ALIASES = {
+  key:       ['issue key', 'key', 'issue id'],
+  type:      ['issue type', 'type', 'issuetype'],
+  summary:   ['summary', 'title'],
+  status:    ['status', 'state'],
+  assignee:  ['assignee', 'assigned to', 'owner'],
+  component: ['component', 'component/s', 'components'],
+  labels:    ['labels', 'label'],
+  fixVersion:['fix version', 'fix version/s', 'fixversion', 'fix versions', 'fix-version'],
+  sprint:    ['sprint', 'sprint name'],
+  epicLink:  ['epic link', 'parent', 'parent key', 'epic'],
+  epicName:  ['epic name', 'parent summary'],
+};
+
+function findColumn(headers, aliases){
+  const lower = headers.map(h => (h || '').toString().toLowerCase().trim());
+  // Try exact match first
+  for (const alias of aliases) {
+    const idx = lower.indexOf(alias);
+    if (idx >= 0) return headers[idx];
+  }
+  // Then "starts with"
+  for (const alias of aliases) {
+    const idx = lower.findIndex(h => h.startsWith(alias));
+    if (idx >= 0) return headers[idx];
+  }
+  return null;
+}
+
+function findAllColumns(headers, aliases){
+  // Some Jira exports repeat the same column name (e.g., multiple "Labels" columns).
+  const lower = headers.map(h => (h || '').toString().toLowerCase().trim());
+  const matches = [];
+  headers.forEach((h, i) => {
+    for (const alias of aliases) {
+      if (lower[i] === alias || lower[i].startsWith(alias)) { matches.push(h); break; }
+    }
+  });
+  return matches;
+}
+
+/* ── Normalize a single row from raw parsed data ── */
+function normalizeRow(raw, headers){
+  // Resolve "single value" columns
+  const get = (k) => {
+    const col = findColumn(headers, COL_ALIASES[k]);
+    return col ? (raw[col] || '').toString().trim() : '';
+  };
+  // Resolve "multi value" columns (collect from all matching column headers)
+  const getMulti = (k) => {
+    const cols = findAllColumns(headers, COL_ALIASES[k]);
+    const vals = [];
+    cols.forEach(c => {
+      const v = (raw[c] || '').toString().trim();
+      if (v) vals.push(...v.split(/[,;]\s*/).map(x => x.trim()).filter(Boolean));
+    });
+    return [...new Set(vals)];
+  };
+
+  return {
+    key:        get('key'),
+    type:       get('type') || 'Story',
+    summary:    get('summary'),
+    status:     get('status') || 'Unknown',
+    assignee:   get('assignee') || 'Unassigned',
+    components: getMulti('component'),
+    labels:     getMulti('labels'),
+    fixVersions:getMulti('fixVersion'),
+    sprints:    getMulti('sprint'),
+    epicLink:   get('epicLink'),
+    epicName:   get('epicName'),
+  };
+}
+
+/* ── Status classification ── */
+const DONE_STATUSES   = new Set(['done', 'closed', 'resolved', 'completed', 'shipped', 'released']);
+const INPROG_STATUSES = new Set(['in progress', 'in-progress', 'in development', 'in dev', 'in review', 'review', 'testing', 'qa', 'doing']);
+
+function isDone(s)   { return DONE_STATUSES.has((s||'').toLowerCase().trim()); }
+function isInProg(s) { return INPROG_STATUSES.has((s||'').toLowerCase().trim()); }
+function isTodo(s)   { return !isDone(s) && !isInProg(s); }
+
+/* ── Business line mapping ── */
+function businessLine(row){
+  const comps = row.components.map(c => c.toLowerCase());
+  const labels = row.labels.map(l => l.toLowerCase());
+
+  if (comps.includes('aoa')) return 'AOA';
+  if (comps.includes('pb')) return 'PB';
+  if (comps.includes('compliance')) {
+    if (labels.some(l => l.includes('aml'))) return 'Compliance AML';
+    if (labels.some(l => l.includes('mifid'))) return 'Compliance MIFID';
+    return 'Compliance';
+  }
+  if (comps.includes('it')) return 'IT';
+  if (comps.some(c => c.includes('client center'))) return 'Client Center';
+  // Catch-all: first component capitalized, else 'Other'
+  if (row.components.length > 0) return row.components[0];
+  return 'Other';
+}
+
+/* ── File handling ── */
+const fileInput = document.getElementById('fileInput');
+const dropZone = document.getElementById('dropZone');
+const errorBanner = document.getElementById('errorBanner');
+
+fileInput.addEventListener('change', e => {
+  const f = e.target.files[0];
+  if (f) handleFile(f);
+});
+['dragenter','dragover'].forEach(evt => dropZone.addEventListener(evt, e => {
+  e.preventDefault(); e.stopPropagation();
+  dropZone.classList.add('dragover');
+}));
+['dragleave','drop'].forEach(evt => dropZone.addEventListener(evt, e => {
+  e.preventDefault(); e.stopPropagation();
+  dropZone.classList.remove('dragover');
+}));
+dropZone.addEventListener('drop', e => {
+  const f = e.dataTransfer.files[0];
+  if (f) handleFile(f);
+});
+
+function showError(msg){
+  errorBanner.textContent = msg;
+  errorBanner.classList.remove('hidden');
+}
+function clearError(){
+  errorBanner.classList.add('hidden');
+  errorBanner.textContent = '';
+}
+
+function handleFile(file){
+  clearError();
+  STATE.fileName = file.name;
+
+  const ext = (file.name.split('.').pop() || '').toLowerCase();
+  if (ext === 'csv') {
+    Papa.parse(file, {
+      header: true,
+      skipEmptyLines: true,
+      complete: (res) => {
+        if (!res.data || res.data.length === 0) {
+          showError('CSV file is empty or could not be parsed.');
+          return;
+        }
+        ingestRows(res.data, res.meta.fields || Object.keys(res.data[0]));
+      },
+      error: (err) => showError('CSV parse error: ' + err.message),
+    });
+  } else if (ext === 'xlsx' || ext === 'xls') {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
+        const sheet = wb.Sheets[wb.SheetNames[0]];
+        const data = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+        if (!data || data.length === 0) {
+          showError('XLSX sheet is empty.');
+          return;
+        }
+        const headers = Object.keys(data[0]);
+        ingestRows(data, headers);
+      } catch (err) {
+        showError('XLSX parse error: ' + err.message);
+      }
+    };
+    reader.onerror = () => showError('Unable to read the file.');
+    reader.readAsArrayBuffer(file);
+  } else {
+    showError('Unsupported file type. Use CSV or XLSX.');
+  }
+}
+
+function ingestRows(rawRows, headers){
+  // Validate critical columns
+  const required = ['key', 'status', 'type'];
+  const missing = required.filter(k => !findColumn(headers, COL_ALIASES[k]));
+  if (missing.length > 0) {
+    showError('Missing critical columns in your file: ' + missing.map(m => COL_ALIASES[m][0]).join(', '));
+    return;
+  }
+
+  STATE.rows = rawRows.map(r => normalizeRow(r, headers));
+  document.getElementById('dropZone').classList.add('hidden');
+  document.getElementById('dashboard').classList.remove('hidden');
+  document.getElementById('btnReplace').classList.remove('hidden');
+  document.getElementById('topbarFilename').textContent = STATE.fileName;
+  renderLoadedHeader();
+  loadPIFromStorage();
+  render();
+}
+
+function renderLoadedHeader(){
+  const epicCount = STATE.rows.filter(r => (r.type || '').toLowerCase() === 'epic').length;
+  const fxs = new Set();
+  STATE.rows.forEach(r => r.fixVersions.forEach(v => fxs.add(v)));
+  document.getElementById('loadedTitle').textContent = STATE.fileName;
+  document.getElementById('loadedMeta').textContent =
+    `${STATE.rows.length} tickets · ${epicCount} epics · ${fxs.size} fixversions`;
+}
+
+/* ── View switching ── */
+function setView(v){
+  STATE.view = v;
+  document.getElementById('viewGlobal').classList.toggle('active', v === 'global');
+  document.getElementById('viewSprint').classList.toggle('active', v === 'sprint');
+  document.getElementById('globalView').classList.toggle('hidden', v !== 'global');
+  document.getElementById('sprintView').classList.toggle('hidden', v !== 'sprint');
+  if (v === 'sprint') renderSprintView();
+}
+
+/* ── PI config / persistence ── */
+function loadPIFromStorage(){
+  try {
+    const raw = JSON.parse(localStorage.getItem(PI_STORAGE_KEY) || 'null');
+    if (raw && raw.start && raw.end) {
+      STATE.pi.start = raw.start;
+      STATE.pi.end = raw.end;
+      STATE.pi.sprintLength = raw.sprintLength || 14;
+    } else {
+      // Default: rolling 3-month PI
+      const now = new Date();
+      const start = new Date(now);
+      start.setMonth(start.getMonth() - 1);
+      const end = new Date(now);
+      end.setMonth(end.getMonth() + 2);
+      STATE.pi.start = isoDate(start);
+      STATE.pi.end = isoDate(end);
+    }
+  } catch { /* ignore */ }
+  document.getElementById('piStart').value = STATE.pi.start || '';
+  document.getElementById('piEnd').value = STATE.pi.end || '';
+  document.getElementById('piSprintLength').value = String(STATE.pi.sprintLength || 14);
+}
+function savePIToStorage(){
+  localStorage.setItem(PI_STORAGE_KEY, JSON.stringify(STATE.pi));
+}
+document.getElementById('piStart').addEventListener('change', e => {
+  STATE.pi.start = e.target.value; savePIToStorage(); renderSprintView(); updatePISummary();
+});
+document.getElementById('piEnd').addEventListener('change', e => {
+  STATE.pi.end = e.target.value; savePIToStorage(); renderSprintView(); updatePISummary();
+});
+document.getElementById('piSprintLength').addEventListener('change', e => {
+  STATE.pi.sprintLength = parseInt(e.target.value, 10);
+  savePIToStorage();
+  renderSprintView();
+  updatePISummary();
+});
+
+function isoDate(d){ return d.toISOString().slice(0, 10); }
+function parseDate(s){ return s ? new Date(s + 'T00:00:00') : null; }
+function daysBetween(a, b){ return Math.round((b - a) / (1000*60*60*24)); }
+
+function computeSprints(){
+  const start = parseDate(STATE.pi.start);
+  const end = parseDate(STATE.pi.end);
+  if (!start || !end || end <= start) return [];
+  const days = daysBetween(start, end);
+  const n = Math.max(1, Math.ceil(days / STATE.pi.sprintLength));
+  const sprints = [];
+  for (let i = 0; i < n; i++) {
+    const sStart = new Date(start); sStart.setDate(start.getDate() + i * STATE.pi.sprintLength);
+    const sEnd = new Date(start); sEnd.setDate(start.getDate() + (i+1) * STATE.pi.sprintLength - 1);
+    if (sEnd > end) sEnd.setTime(end.getTime());
+    sprints.push({ index: i+1, start: sStart, end: sEnd });
+  }
+  return sprints;
+}
+
+function currentSprintIndex(sprints){
+  const now = new Date();
+  for (const s of sprints) {
+    if (now >= s.start && now <= s.end) return s.index;
+  }
+  return null;
+}
+
+function updatePISummary(){
+  const sprints = computeSprints();
+  const pi = STATE.pi;
+  if (!pi.start || !pi.end || sprints.length === 0) {
+    document.getElementById('piSummary').classList.add('hidden');
+    return;
+  }
+  const fmt = (s) => new Date(s).toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' });
+  document.getElementById('piSummary').textContent =
+    `PI: ${fmt(pi.start)} → ${fmt(pi.end)} · ${sprints.length} sprints`;
+  document.getElementById('piSummary').classList.remove('hidden');
+}
+
+/* ── Rendering helpers ── */
+function el(tag, props = {}, children = []){
+  const e = document.createElement(tag);
+  Object.entries(props).forEach(([k, v]) => {
+    if (k === 'class') e.className = v;
+    else if (k === 'text') e.textContent = v;
+    else if (k === 'html') e.innerHTML = v;
+    else if (k.startsWith('on') && typeof v === 'function') e.addEventListener(k.slice(2).toLowerCase(), v);
+    else e.setAttribute(k, v);
+  });
+  (Array.isArray(children) ? children : [children]).forEach(c => {
+    if (c == null) return;
+    e.appendChild(typeof c === 'string' ? document.createTextNode(c) : c);
+  });
+  return e;
+}
+
+function barRow(label, value, max, colorClass, extraClass){
+  const pct = max > 0 ? Math.min(100, (value/max)*100) : 0;
+  return el('div', { class: `bar-row ${colorClass} ${extraClass || ''}` }, [
+    el('div', { class: 'bar-label', text: label, title: label }),
+    el('div', { class: 'bar-value', text: String(value) }),
+    el('div', { class: 'bar-track' }, [
+      el('div', { class: 'bar-fill', style: `width:${pct}%` }),
+    ]),
+  ]);
+}
+
+function aggregate(rows, keyFn){
+  const map = new Map();
+  rows.forEach(r => {
+    const ks = keyFn(r);
+    (Array.isArray(ks) ? ks : [ks]).forEach(k => {
+      map.set(k, (map.get(k) || 0) + 1);
+    });
+  });
+  return [...map.entries()].sort((a, b) => b[1] - a[1]);
+}
+
+/* ── Global view rendering ── */
+function render(){
+  if (STATE.rows.length === 0) return;
+
+  const allRows = STATE.rows;
+  const nonEpic = allRows.filter(r => (r.type || '').toLowerCase() !== 'epic');
+  const epicRows = allRows.filter(r => (r.type || '').toLowerCase() === 'epic');
+
+  // Progress
+  const doneCount = nonEpic.filter(r => isDone(r.status)).length;
+  const total = nonEpic.length;
+  const pct = total > 0 ? Math.round((doneCount/total)*100) : 0;
+  document.getElementById('progressFill').style.width = pct + '%';
+  document.getElementById('progressPct').textContent = pct + '%';
+  document.getElementById('progressRatio').textContent = `${doneCount} / ${total} done`;
+  document.getElementById('progressTotal').textContent = `${total} tickets (epics excluded)`;
+
+  // Business line
+  const blAgg = aggregate(nonEpic, r => businessLine(r));
+  const blMax = blAgg.length > 0 ? blAgg[0][1] : 1;
+  const blColors = { 'AOA':'bar-purple', 'PB':'bar-purple', 'Compliance AML':'bar-green', 'Compliance MIFID':'bar-green', 'Compliance':'bar-green', 'IT':'bar-gray', 'Client Center':'bar-gray', 'Other':'bar-gray' };
+  const blContainer = document.getElementById('blBars');
+  blContainer.innerHTML = '';
+  blAgg.forEach(([k, v]) => blContainer.appendChild(barRow(k, v, blMax, blColors[k] || 'bar-blue')));
+  document.getElementById('blTotal').textContent = `${total} total`;
+
+  // Analyst
+  const anaAgg = aggregate(nonEpic, r => r.assignee);
+  const anaMax = anaAgg.length > 0 ? anaAgg[0][1] : 1;
+  const anaContainer = document.getElementById('anaBars');
+  anaContainer.innerHTML = '';
+  anaAgg.slice(0, 10).forEach(([k, v]) => anaContainer.appendChild(barRow(k, v, anaMax, 'bar-blue')));
+  document.getElementById('anaTotal').textContent = `${anaAgg.length} assignees`;
+
+  // FixVersion
+  const fxAgg = aggregate(nonEpic, r => r.fixVersions.length > 0 ? r.fixVersions : null);
+  const noFx = nonEpic.filter(r => r.fixVersions.length === 0).length;
+  const fxMax = Math.max(...fxAgg.map(x => x[1]), noFx, 1);
+  const fxContainer = document.getElementById('relBars');
+  fxContainer.innerHTML = '';
+  fxAgg.forEach(([k, v]) => fxContainer.appendChild(barRow(k, v, fxMax, 'bar-amber')));
+  if (noFx > 0) {
+    fxContainer.appendChild(el('div', { class: 'warn-divider' }));
+    fxContainer.appendChild(barRow('⚠ No FixVersion', noFx, fxMax, '', 'warn'));
+    fxContainer.appendChild(el('div', { class: 'warn-note', text: 'Tickets not assigned to a release · to triage' }));
+  }
+  document.getElementById('relTotal').textContent = `${fxAgg.length} releases`;
+
+  // Quick wins
+  const qw = nonEpic.filter(r => r.labels.some(l => l.toLowerCase() === 'qw')).length;
+  document.getElementById('quickWinValue').textContent = qw;
+  document.getElementById('quickWinPct').textContent =
+    total > 0 ? `${Math.round((qw/total)*100)}% of total backlog` : '0% of total backlog';
+
+  // Status breakdown
+  const done = nonEpic.filter(r => isDone(r.status)).length;
+  const inProg = nonEpic.filter(r => isInProg(r.status)).length;
+  const todo = nonEpic.filter(r => isTodo(r.status)).length;
+  const statusList = document.getElementById('statusList');
+  statusList.innerHTML = '';
+  [['Done', done], ['In progress', inProg], ['To do', todo]].forEach(([lbl, val]) => {
+    statusList.appendChild(el('div', { class: 'status-row' }, [
+      el('span', { class: 'status-label', text: lbl }),
+      el('span', { class: 'status-count', text: String(val) }),
+    ]));
+  });
+  if (epicRows.length > 0) {
+    statusList.appendChild(el('div', { class: 'status-row muted' }, [
+      el('span', { class: 'status-label', text: 'Epics (excluded)' }),
+      el('span', { class: 'status-count', text: String(epicRows.length) }),
+    ]));
+  }
+
+  updatePISummary();
+}
+
+/* ── Sprint view rendering ── */
+function renderSprintView(){
+  updatePISummary();
+  const sprints = computeSprints();
+  const timeline = document.getElementById('sprintTimeline');
+  timeline.innerHTML = '';
+  const cur = currentSprintIndex(sprints);
+  document.getElementById('sprintCount').textContent = `${sprints.length} sprints`;
+  sprints.forEach(s => {
+    const fmt = (d) => d.toLocaleDateString('en-GB', { day:'2-digit', month:'short' });
+    const pill = el('div', {
+      class: 'sprint-pill' + (s.index === cur ? ' current' : ''),
+      title: `${fmt(s.start)} → ${fmt(s.end)}`,
+    }, [`S${s.index}`]);
+    timeline.appendChild(pill);
+  });
+
+  // FixVersion → Sprint mapping (in-memory)
+  const fxs = new Set();
+  STATE.rows.forEach(r => r.fixVersions.forEach(v => fxs.add(v)));
+  const mappingEl = document.getElementById('piMapping');
+  mappingEl.innerHTML = '';
+  if (sprints.length > 0 && fxs.size > 0) {
+    [...fxs].sort().forEach(fx => {
+      const row = el('div', { class: 'bar-row', style: 'grid-template-columns:1fr 140px;align-items:center' });
+      row.appendChild(el('div', { class: 'bar-label', text: fx }));
+      const sel = el('select');
+      sel.appendChild(el('option', { value: '', text: '— no sprint —' }));
+      sprints.forEach(s => {
+        const opt = el('option', { value: String(s.index), text: `Sprint ${s.index}` });
+        if (STATE.fxToSprint[fx] === s.index) opt.selected = true;
+        sel.appendChild(opt);
+      });
+      sel.style.cssText = 'background:var(--bg);border:1px solid var(--border2);border-radius:6px;padding:5px 8px;color:var(--text);font-size:12px;font-family:inherit;outline:none';
+      sel.addEventListener('change', () => {
+        const v = sel.value;
+        if (v) STATE.fxToSprint[fx] = parseInt(v, 10);
+        else delete STATE.fxToSprint[fx];
+        renderSprintEpics(sprints);
+      });
+      row.appendChild(sel);
+      mappingEl.appendChild(row);
+    });
+    document.getElementById('piMappingRow').textContent = 'FixVersion → Sprint mapping (not persisted, set each session)';
+  } else {
+    document.getElementById('piMappingRow').textContent = '';
+  }
+
+  renderSprintEpics(sprints);
+}
+
+function renderSprintEpics(sprints){
+  const allRows = STATE.rows;
+  const epics = allRows.filter(r => (r.type || '').toLowerCase() === 'epic');
+  const epicList = document.getElementById('epicList');
+  epicList.innerHTML = '';
+
+  if (epics.length === 0) {
+    epicList.appendChild(el('div', { class: 'status-row muted' }, [
+      el('span', { class: 'status-label', text: 'No epics found in this export.' }),
+      el('span', { class: 'status-count', text: '0' }),
+    ]));
+    document.getElementById('epicCount').textContent = '0 epics';
+    return;
+  }
+
+  // Stories by epic link (use epic key or epic name)
+  const storiesByEpic = new Map();
+  allRows.filter(r => (r.type || '').toLowerCase() !== 'epic').forEach(s => {
+    const ek = s.epicLink || s.epicName;
+    if (!ek) return;
+    if (!storiesByEpic.has(ek)) storiesByEpic.set(ek, []);
+    storiesByEpic.get(ek).push(s);
+  });
+
+  document.getElementById('epicCount').textContent = `${epics.length} epics`;
+
+  epics.forEach(ep => {
+    const stories = storiesByEpic.get(ep.key) || storiesByEpic.get(ep.summary) || [];
+    const total = stories.length;
+    const done = stories.filter(s => isDone(s.status)).length;
+    const pct = total > 0 ? Math.round((done/total)*100) : 0;
+    let bandClass = 'epic-low';
+    if (pct >= 90) bandClass = 'epic-success';
+    else if (pct >= 50) bandClass = 'epic-info';
+    else if (pct >= 25) bandClass = 'epic-warn';
+
+    const epicSprints = [...new Set(ep.fixVersions.map(fx => STATE.fxToSprint[fx]).filter(Boolean))]
+      .sort((a, b) => a - b).map(i => 'S' + i).join(', ') || '—';
+    const bl = businessLine(ep);
+    const meta = el('div', { class: 'epic-meta' }, [
+      el('span', { text: 'Sprint(s): ' + epicSprints }),
+      el('span', { text: 'BL: ' + bl }),
+      el('span', { text: `${total} stories` }),
+    ]);
+
+    const row = el('div', { class: `epic-row ${bandClass}` }, [
+      el('div', {}, [
+        el('div', { class: 'epic-name', text: ep.summary || ep.key }),
+        meta,
+      ]),
+      el('div', { class: 'epic-progress-wrap' }, [
+        el('div', { class: 'epic-progress-bar' }, [
+          el('div', { class: 'epic-progress-fill', style: `width:${pct}%` }),
+        ]),
+        el('div', { class: 'epic-progress-pct', text: pct + '%' }),
+      ]),
+    ]);
+    epicList.appendChild(row);
+  });
+}
+
+/* ── Dropdown ── */
+function toggleDropdown(id, e){
+  e && e.stopPropagation();
+  document.querySelectorAll('.dropdown.open').forEach(d => {
+    if (d.id !== id) d.classList.remove('open');
+  });
+  document.getElementById(id).classList.toggle('open');
+}
+document.addEventListener('click', e => {
+  if (!e.target.closest('.dropdown')) {
+    document.querySelectorAll('.dropdown.open').forEach(d => d.classList.remove('open'));
+  }
+});
+
+/* ── PDF export ── */
+function exportPDF(){
+  if (typeof html2pdf === 'undefined') {
+    toast('PDF library not loaded — check your network.', 'err');
+    return;
+  }
+  const root = document.getElementById('dashboard');
+  const now = new Date();
+  const pad = n => String(n).padStart(2, '0');
+  const ts = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}_${pad(now.getHours())}h${pad(now.getMinutes())}`;
+  const filename = `jira_dashboard_${ts}.pdf`;
+  toast('Generating PDF…');
+  html2pdf().set({
+    margin: 10,
+    filename,
+    html2canvas: { scale: 2, useCORS: true, backgroundColor: '#0c0c0c' },
+    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+    pagebreak: { mode: ['css', 'legacy'] },
+  }).from(root).save().then(() => toast('PDF exported', 'ok'))
+    .catch(e => { console.warn('PDF export error', e); toast('PDF export failed', 'err'); });
+}
+
+/* ── HTML export ── */
+function exportHTMLDownload(){
+  const html = buildExportHTML();
+  const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'jira_dashboard.html';
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 200);
+  document.getElementById('exportHtmlDropdown').classList.remove('open');
+  toast('HTML file downloaded', 'ok');
+}
+function exportHTMLCopy(){
+  const html = buildExportHTML();
+  navigator.clipboard.writeText(html).then(() => {
+    document.getElementById('exportHtmlDropdown').classList.remove('open');
+    toast('✓ HTML code copied', 'ok');
+  }).catch(() => toast('Copy failed', 'err'));
+}
+
+function buildExportHTML(){
+  // Snapshot the page WITHOUT current Jira data — purely the empty app.
+  // We clone the current document, reset state markers, and strip dynamic
+  // sections that contain user data.
+  const doc = document.documentElement.cloneNode(true);
+  // Strip auth scripts (the exported file is a standalone offline build)
+  doc.querySelectorAll('script[src*="auth"], script[src*="popup"], script[src*="sidebar"], script[src*="focusfm"], script[src*="supabase"]').forEach(s => s.remove());
+  // Remove the auth-gate inline check
+  doc.querySelectorAll('script').forEach(s => {
+    if (s.textContent && s.textContent.includes('LazyAuth.requireModule')) s.remove();
+  });
+  // Reset dashboard markup to its initial empty state
+  const dash = doc.querySelector('#dashboard');
+  if (dash) dash.classList.add('hidden');
+  const drop = doc.querySelector('#dropZone');
+  if (drop) drop.classList.remove('hidden');
+  const tb = doc.querySelector('#topbarFilename');
+  if (tb) tb.textContent = '';
+  const replaceBtn = doc.querySelector('#btnReplace');
+  if (replaceBtn) replaceBtn.classList.add('hidden');
+  // Strip back-link to Jira hub (the export is standalone)
+  doc.querySelectorAll('a.back-link, a.logo-wrap').forEach(a => {
+    a.removeAttribute('href');
+    a.style.cursor = 'default';
+  });
+  return '<!DOCTYPE html>\n' + doc.outerHTML;
+}
+
+/* ── Toast ── */
+function toast(msg, kind){
+  const t = document.getElementById('toast');
+  t.className = 'toast' + (kind ? ' ' + kind : '');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+</script>
+
+<script src="popup.js"></script>
+<script src="sidebar.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="auth.js"></script>
+<script>document.addEventListener("DOMContentLoaded", function(){ LazyAuth.requireModule('jira'); });</script>
+<script src="focusfm.js"></script>
+</body>
+</html>
