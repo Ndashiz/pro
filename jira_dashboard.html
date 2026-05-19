@@ -783,6 +783,34 @@ function _splitCsvLine(line) {
   return fields.map(f => f.trim());
 }
 
+/* Realign a row to the expected header count by merging any
+   overflow cells back into the Description column.
+
+   Why: Jira sometimes exports Description fields with literal commas
+   that aren't enclosed in `"..."`. After our tolerant CSV split, such
+   a row has MORE cells than headers, and every trailing column (Fix
+   Version/s, Priority, Sprint) shifts right — so Fix Version ends up
+   holding a fragment of the description.
+
+   Strategy: assume the trailing columns are STABLE (short fixed values)
+   and the overflow happened in the longest free-text column we can
+   identify (Description, then Summary). Re-merge the overflow back
+   into that column. */
+function _alignRowToHeader(cells, fields, descIdx, summIdx) {
+  if (cells.length <= fields.length) {
+    while (cells.length < fields.length) cells.push('');
+    return cells;
+  }
+  const overflow = cells.length - fields.length;
+  const targetIdx = descIdx >= 0 ? descIdx : (summIdx >= 0 ? summIdx : fields.length - 4);
+  if (targetIdx < 0 || targetIdx >= fields.length) return cells.slice(0, fields.length);
+  // Merge cells[targetIdx .. targetIdx + overflow] back into cells[targetIdx].
+  const head = cells.slice(0, targetIdx);
+  const merged = cells.slice(targetIdx, targetIdx + overflow + 1).join(',');
+  const tail = cells.slice(targetIdx + overflow + 1);
+  return [...head, merged, ...tail];
+}
+
 /* Full Jira-CSV → JSON-ish row array using our own splitter (Papa Parse
    bails on the malformed quotes that Jira ships). Assumes
    preprocessJiraCsv has already collapsed multi-line cells. */
@@ -798,9 +826,13 @@ function parseJiraCsv(text) {
     seen[h] = n + 1;
     return n === 0 ? h : `${h}__${n}`;
   });
+  // Locate the column most likely to soak up overflow commas.
+  const descIdx = fields.findIndex(f => f === 'description' || f.startsWith('description'));
+  const summIdx = fields.findIndex(f => f === 'summary' || f.startsWith('summary'));
   const data = [];
   for (let i = 1; i < lines.length; i++) {
-    const values = _splitCsvLine(lines[i]);
+    let values = _splitCsvLine(lines[i]);
+    values = _alignRowToHeader(values, fields, descIdx, summIdx);
     const row = {};
     fields.forEach((f, j) => { row[f] = values[j] !== undefined ? values[j] : ''; });
     data.push(row);
