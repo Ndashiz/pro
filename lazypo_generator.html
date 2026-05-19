@@ -639,7 +639,7 @@ function buildEmailHtml() {
   return `<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
 <head>
-<script>if(location.protocol==="http:"&&location.hostname!=="localhost"&&location.hostname!=="127.0.0.1")location.replace("https:"+location.href.slice(5));</script>
+<script>if(location.protocol==="http:"&&location.hostname!=="localhost"&&location.hostname!=="127.0.0.1")location.replace("https:"+location.href.slice(5));<\/script>
 <meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests">
 <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -748,7 +748,7 @@ function buildEmailHtml() {
 
 </td></tr></table>
 <!--[if mso]></td></tr></table><![endif]-->
-<script src="focusfm.js"></script>
+<script src="focusfm.js"><\/script>
 </body>
 </html>`;
 }
@@ -882,14 +882,17 @@ function downloadEml() {
 renderThemeSwatches();
 renderEpics();
 attachLiveListeners();
-</script>
-<script src="popup.js"></script>
-<script src="sidebar.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="auth.js"></script>
-<script>document.addEventListener("DOMContentLoaded", function(){ LazyAuth.requireModule('scope'); });</script>
-<script>
-/* ── Demo Mode ── */
+
+/* ── Demo Mode ──
+   IMPORTANT : doit vivre DANS le même bloc script outer pour partager
+   la portée lexicale (let epics) avec renderEpics() et generate(). Si
+   on le sortait dans un bloc séparé, l'assignation `epics = [...]`
+   créerait un window.epics fantôme et renderEpics rendrait toujours
+   DEFAULT_EPICS — d'où le bug "demo mode → pas d'aperçu email".
+   Note: ne JAMAIS écrire la sous-chaîne fermante de script
+   (</[s]cript>) littéralement dans ce bloc, sinon le parser HTML
+   ferme prématurément ici, et tout le code suivant devient texte
+   inerte (à la place : <\/script> qui évite la fermeture). */
 window.loadDemoData = function () {
   /* Form fields */
   document.getElementById('email-title').value    = 'Scope of Work — PI 2026.2';
@@ -919,7 +922,8 @@ window.loadDemoData = function () {
     objList.appendChild(item);
   });
 
-  /* Epics */
+  /* Epics — reassigns the let-bound `epics` in this very scope so
+     renderEpics() picks up the new array. */
   epics = [
     {
       name: 'Authentication Overhaul', ticket: 'PLT-101',
@@ -950,6 +954,11 @@ window.loadDemoData = function () {
   generate();
 };
 </script>
+<script src="popup.js"></script>
+<script src="sidebar.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="auth.js"></script>
+<script>document.addEventListener("DOMContentLoaded", function(){ LazyAuth.requireModule('scope'); });</script>
 <script src="demo.js"></script>
 <script src="focusfm.js"></script>
 </body>
