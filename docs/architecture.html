@@ -436,9 +436,14 @@
   <a href="#tables">Détail des tables</a>
   <a href="#rls">Sécurité RLS</a>
 
+  <div class="toc-section">Sécurité</div>
+  <a href="#security">★ Architecture de sécurité</a>
+  <a href="#auth">Authentification</a>
+  <a href="#worker-gate">Cloudflare Worker (gate)</a>
+  <a href="#threat-model">Threat model</a>
+
   <div class="toc-section">Fonctionnalités</div>
   <a href="#spa">Navigation SPA</a>
-  <a href="#auth">Authentification</a>
   <a href="#focusfm">Focus FM · Spotify</a>
   <a href="#quiz">Knowledge Quiz</a>
   <a href="#livenote">LiveNote · Realtime</a>
@@ -462,7 +467,7 @@
 
   <!-- ─── HERO ─── -->
   <div class="hero" id="top">
-    <div class="hero-eyebrow">v2.0 · Avril 2026</div>
+    <div class="hero-eyebrow">v2.1 · Mai 2026 · Server-side auth gate</div>
     <h1>Architecture<br>Technique <span>LazyPO</span></h1>
     <p class="hero-desc">Documentation complète de l'architecture applicative — base de données, flux de communication, modules partagés, et intégrations externes.</p>
     <div class="hero-meta">
@@ -1086,49 +1091,366 @@ flowchart TD
   <!-- ══════════════════════════════════════════
        8. AUTHENTIFICATION
   ══════════════════════════════════════════ -->
+  <!-- ══════════════════════════════════════════
+       ★ ARCHITECTURE DE SÉCURITÉ
+  ══════════════════════════════════════════ -->
+  <section class="section" id="security">
+    <div class="section-header">
+      <div class="section-num">★</div>
+      <h2>Architecture de sécurité</h2>
+    </div>
+
+    <p>LazyPO est hébergé sur <strong>GitHub Pages</strong> (statique, pas de serveur applicatif). Avant Mai 2026, l'authentification était <em>100% côté client</em> — le HTML protégé était téléchargeable par n'importe qui via <code>curl</code>, le contrôle d'accès reposait uniquement sur du JavaScript qui s'exécutait après livraison.</p>
+
+    <p>Depuis <a href="https://github.com/Ndashiz/lazypo/pull/112" target="_blank">PR #112</a>, un <strong>Cloudflare Worker</strong> intercepte chaque requête à <code>ndashiz.be/lazypo/*</code> et valide un cookie de session <em>avant</em> que le HTML soit livré. Le contenu protégé n'est jamais servi à un visiteur non authentifié.</p>
+
+    <h3>Vue d'ensemble — defense in depth</h3>
+
+    <div class="diagram-wrap">
+      <div class="mermaid">
+flowchart TB
+    classDef edge fill:#1e3a5f,stroke:#3b82f6,color:#e8e8e8
+    classDef worker fill:#1a2a1a,stroke:#34d399,color:#e8e8e8
+    classDef origin fill:#2a1a2a,stroke:#a78bfa,color:#e8e8e8
+    classDef client fill:#3a2a1a,stroke:#fbbf24,color:#e8e8e8
+    classDef threat fill:#3a1a1a,stroke:#f87171,color:#fff
+
+    subgraph L1[L1 · Edge perimeter — Cloudflare Worker]
+        direction TB
+        W1[Lit cookie lazypo_jwt]:::worker
+        W2[Vérifie signature ES256 via JWKS]:::worker
+        W3[Check exp + sub]:::worker
+        W4{Valide ?}:::worker
+        W1 --> W2 --> W3 --> W4
+    end
+
+    subgraph L2[L2 · Cookie sync — auth.js]
+        direction TB
+        C1[Mirror access_token Supabase<br>vers cookie lazypo_jwt]:::client
+        C2[Refresh sur TOKEN_REFRESHED]:::client
+        C3[Clear sur SIGNED_OUT]:::client
+    end
+
+    subgraph L3[L3 · UX gate — auth-gate.js]
+        direction TB
+        G1[Hide html jusqu'à profile load]:::client
+        G2[Fail-closed timeout 5s]:::client
+    end
+
+    subgraph L4[L4 · Application — page-level checks]
+        direction TB
+        A1[requireModule allowed_modules]:::client
+        A2[RLS Supabase sur la DB]:::client
+    end
+
+    Attacker[🎭 Visiteur non authentifié]:::threat -->|GET /lazypo/jira_dashboard.html| L1
+    L1 -.->|invalide → 302 login| Block[🚫 HTML JAMAIS servi]:::threat
+    L1 -->|valide| L4
+    L2 -->|alimente cookie| L1
+    L3 -.->|améliore UX seulement| L4
+      </div>
+      <div class="diagram-caption">Fig. 6 — Quatre couches de défense. La couche L1 (Worker) est le vrai gardien ; L2/L3/L4 sont des couches complémentaires.</div>
+    </div>
+
+    <p>Quatre couches, chacune avec un rôle distinct :</p>
+
+    <table style="width:100%; border-collapse:collapse; margin:18px 0; font-size:14px;">
+      <thead>
+        <tr style="background:var(--surface2); border-bottom:1px solid var(--border2);">
+          <th style="text-align:left; padding:10px;">Couche</th>
+          <th style="text-align:left; padding:10px;">Rôle</th>
+          <th style="text-align:left; padding:10px;">Côté</th>
+          <th style="text-align:left; padding:10px;">Bypassable ?</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr style="border-bottom:1px solid var(--border);">
+          <td style="padding:10px; color:var(--green); font-weight:600;">L1 · Cloudflare Worker</td>
+          <td style="padding:10px;">Bloque le HTML si JWT cookie absent ou invalide</td>
+          <td style="padding:10px;">Edge (serveur)</td>
+          <td style="padding:10px; color:var(--green);">Non — point d'entrée unique</td>
+        </tr>
+        <tr style="border-bottom:1px solid var(--border);">
+          <td style="padding:10px; color:var(--amber); font-weight:600;">L2 · Cookie sync (auth.js)</td>
+          <td style="padding:10px;">Maintient le cookie aligné avec la session Supabase</td>
+          <td style="padding:10px;">Client</td>
+          <td style="padding:10px; color:var(--muted);">Oui (mais ne sert qu'à <em>poser</em> le cookie — sans cookie pas d'accès)</td>
+        </tr>
+        <tr style="border-bottom:1px solid var(--border);">
+          <td style="padding:10px; color:var(--amber); font-weight:600;">L3 · UX gate (auth-gate.js)</td>
+          <td style="padding:10px;">Évite le flash de contenu protégé pendant le chargement</td>
+          <td style="padding:10px;">Client</td>
+          <td style="padding:10px; color:var(--red);">Oui — uniquement esthétique</td>
+        </tr>
+        <tr>
+          <td style="padding:10px; color:var(--accent); font-weight:600;">L4 · App + RLS</td>
+          <td style="padding:10px;">Module gate + Row-Level Security sur Supabase</td>
+          <td style="padding:10px;">Client + DB</td>
+          <td style="padding:10px; color:var(--muted);">Client : oui via DevTools — DB : non grâce à RLS</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3>Pourquoi avant c'était cassé</h3>
+
+    <p>Une faille architecturale rendait toute correction côté client illusoire :</p>
+
+    <div class="diagram-wrap">
+      <div class="mermaid">
+sequenceDiagram
+    actor Attacker as 🎭 Attaquant
+    participant Browser as Browser
+    participant GH as GitHub Pages
+    participant DB as Supabase (RLS)
+
+    Note over Attacker,GH: AVANT — pas de gate côté serveur
+    Attacker->>Browser: curl ndashiz.be/lazypo/jira_dashboard.html
+    Browser->>GH: GET /lazypo/jira_dashboard.html
+    GH-->>Browser: 200 + HTML COMPLET (sans auth check)
+    Note right of Browser: Contenu protégé déjà téléchargé.<br>auth-gate.js / requireModule()<br>n'arrivent qu'APRÈS, et ne sont<br>que du JS bypassable.
+    Browser-->>Attacker: ✅ HTML lisible (DevTools, curl, view-source)
+      </div>
+      <div class="diagram-caption">Fig. 7 — Le problème de fond : sur un site statique, tout JS qui s'exécute sur la page est <em>déjà</em> trop tard pour empêcher l'accès.</div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════
+       8. AUTHENTIFICATION
+  ══════════════════════════════════════════ -->
   <section class="section" id="auth">
     <div class="section-header">
       <div class="section-num">08</div>
       <h2>Authentification — auth.js</h2>
     </div>
 
-    <p>L'authentification utilise <strong>Supabase Auth</strong> avec email/password + un système d'<strong>approbation manuelle</strong> par un admin. Sans approbation, l'utilisateur voit une page d'attente.</p>
+    <p>Stack auth :</p>
+    <ul style="padding-left:24px; margin-bottom:18px;">
+      <li><strong>Supabase Auth</strong> avec email/password — émet des JWT signés en <strong>ES256</strong> (asymmetric, JWKS public).</li>
+      <li><strong>Approbation manuelle</strong> via <code>profiles.is_approved</code> — un user signupé n'a pas accès tant qu'un admin n'a pas approuvé.</li>
+      <li><strong>Cookie <code>lazypo_jwt</code></strong> miroir du <code>access_token</code>, Path=/lazypo, SameSite=Lax, Secure (https uniquement). Lu par le Worker pour gater le HTML.</li>
+    </ul>
+
+    <h3>Cycle de vie du cookie de session</h3>
+
+    <div class="diagram-wrap">
+      <div class="mermaid">
+stateDiagram-v2
+    [*] --> NoCookie
+    NoCookie --> Login: Visite /lazypo/* sans cookie
+    Login --> Login: signInWithPassword
+    Login --> CookieSet: Succès (Supabase session)
+    CookieSet --> CookieSet: TOKEN_REFRESHED auto (~hourly)
+    CookieSet --> CookieRefreshed: USER_UPDATED
+    CookieRefreshed --> CookieSet
+    CookieSet --> NoCookie: signOut OU expires_at dépassé
+    Login --> NoCookie: Approval pending (signOut auto)
+
+    note right of Login
+      login.html
+      - signInWithPassword
+      - _setLazypoCookie() inline
+        avant le redirect
+    end note
+
+    note right of CookieSet
+      auth.js
+      - onAuthStateChange listener
+      - mirror Supabase session
+        vers cookie lazypo_jwt
+      - Max-Age = session.expires_in
+    end note
+      </div>
+      <div class="diagram-caption">Fig. 8 — Le cookie suit toujours la session Supabase. Pas de cookie = pas d'accès côté Worker.</div>
+    </div>
+
+    <h3>Flux complet — login + accès page protégée</h3>
 
     <div class="diagram-wrap">
       <div class="mermaid">
 sequenceDiagram
-    actor User as 👤 Utilisateur
-    participant App as Application
-    participant Auth as Supabase Auth
+    actor User as 👤 User
+    participant CF as ☁️ Cloudflare Worker
+    participant GH as GitHub Pages
+    participant Supa as Supabase Auth
     participant DB as PostgreSQL
 
-    User->>App: Saisit email + mot de passe
-    App->>Auth: signInWithPassword()
-    Auth-->>App: session JWT
+    User->>CF: GET /lazypo/jira_dashboard.html
+    CF->>CF: Pas de cookie lazypo_jwt
+    CF-->>User: 302 → /lazypo/login.html?return_to=...
 
-    App->>DB: SELECT * FROM profiles WHERE id = user_id
-    DB-->>App: { is_approved: bool, is_admin: bool }
+    User->>CF: GET /lazypo/login.html
+    Note right of CF: Page publique, pass-through
+    CF->>GH: GET /lazypo/login.html
+    GH-->>CF: 200 HTML
+    CF-->>User: 200 HTML login
 
-    alt is_approved = false
-        App-->>User: 🔒 Page "En attente d'approbation"
-    else is_approved = true
-        App-->>User: ✅ Accès accordé
-        App->>App: loadUserWidget()
-        App->>Auth: import session.js (lazy)
-    end
+    User->>Supa: signInWithPassword(email, pwd)
+    Supa-->>User: session JWT (ES256)
 
-    Note over App,DB: Inscription (signUp)
-    User->>App: Formulaire inscription
-    App->>Auth: signUp()
-    Auth->>DB: INSERT INTO profiles (id, username, is_approved=false)
-    DB-->>App: profil créé
-    App-->>User: 📧 Email de confirmation + attente approbation
+    User->>DB: SELECT is_approved, is_admin FROM profiles
+    DB-->>User: { is_approved: true, is_admin: false }
+
+    Note right of User: login.html appelle<br>_setLazypoCookie(session)<br>AVANT le redirect
+    User->>User: document.cookie = lazypo_jwt=...
+
+    User->>CF: GET /lazypo/jira_dashboard.html (avec cookie)
+    CF->>CF: Lit cookie, vérifie ES256 vs JWKS
+    CF->>GH: GET /lazypo/jira_dashboard.html (forward)
+    GH-->>CF: 200 HTML
+    CF-->>User: 200 HTML ✅
       </div>
-      <div class="diagram-caption">Fig. 6 — Flux d'authentification et d'approbation</div>
+      <div class="diagram-caption">Fig. 9 — Premier accès à une page protégée : bounce login, puis retour authentifié avec le cookie posé synchroneusement par login.html avant le redirect.</div>
     </div>
 
+    <h3>Approbation utilisateur</h3>
+
+    <p>Un user fraîchement signupé n'a pas accès tant que <code>profiles.is_approved = false</code>. Le check est fait dans <code>login.html</code> immédiatement après <code>signInWithPassword</code> :</p>
+
+    <ul style="padding-left:24px; margin-bottom:14px;">
+      <li>Si <strong>not approved</strong> → <code>signOut</code> immédiat + message "Pending approval"</li>
+      <li>Si <strong>approved</strong> → cookie posé, redirect vers <code>return_to</code> ou <code>index.html</code></li>
+    </ul>
+
     <h3>Gestion de l'avatar</h3>
-    <p>Les avatars sont uploadés dans le bucket Supabase Storage <code>avatars</code> avec le chemin <code>{user_id}/avatar.{ext}</code>. Le bucket est en lecture publique, écriture authentifiée.</p>
+
+    <p>Les avatars sont uploadés dans le bucket Supabase Storage <code>avatars</code> avec le chemin <code>{user_id}/avatar.{ext}</code>. Le bucket est en lecture publique, écriture authentifiée (RLS).</p>
+  </section>
+
+  <!-- ══════════════════════════════════════════
+       8B. CLOUDFLARE WORKER GATE
+  ══════════════════════════════════════════ -->
+  <section class="section" id="worker-gate">
+    <div class="section-header">
+      <div class="section-num">8B</div>
+      <h2>Cloudflare Worker — gate serveur</h2>
+    </div>
+
+    <p>Le Worker (<a href="https://github.com/Ndashiz/lazypo/blob/main/worker/src/worker.js" target="_blank"><code>worker/src/worker.js</code></a>) est déployé sur la route <code>ndashiz.be/lazypo/*</code>. Pour chaque requête, il décide en quelques ms si la requête passe au cache Cloudflare/origine ou si elle est rejetée vers <code>login.html</code>.</p>
+
+    <h3>Logique de décision</h3>
+
+    <div class="diagram-wrap">
+      <div class="mermaid">
+flowchart TD
+    classDef ok fill:#1a2a1a,stroke:#34d399,color:#e8e8e8
+    classDef bad fill:#3a1a1a,stroke:#f87171,color:#fff
+    classDef step fill:#1a1a1a,stroke:#374151,color:#e8e8e8
+    classDef decision fill:#1e3a5f,stroke:#3b82f6,color:#e8e8e8
+
+    A[Requête sur ndashiz.be/lazypo/*]:::step --> B{Path public ?<br>login.html, favicon,<br>.js, .css, .svg, etc.}:::decision
+    B -- Oui --> PASS1[fetch origine GitHub Pages]:::ok
+    B -- Non --> C{Cookie lazypo_jwt<br>présent ?}:::decision
+    C -- Non --> R1[302 → login.html<br>?return_to=...]:::bad
+    C -- Oui --> D{JWT bien formé ?<br>3 parts, alg=ES256,<br>kid présent}:::decision
+    D -- Non --> R2[302 → login.html]:::bad
+    D -- Oui --> E{exp futur ?<br>sub présent ?}:::decision
+    E -- Non --> R3[302 → login.html]:::bad
+    E -- Oui --> F[Fetch JWKS<br>cache 1h Cloudflare]:::step
+    F --> G{kid présent<br>dans JWKS ?}:::decision
+    G -- Non --> H[Refresh JWKS<br>handle rotation]:::step
+    H --> I{kid présent<br>après refresh ?}:::decision
+    I -- Non --> R4[302 → login.html]:::bad
+    G -- Oui --> J[Verify ECDSA P-256 SHA-256]:::step
+    I -- Oui --> J
+    J --> K{Signature OK ?}:::decision
+    K -- Non --> R5[302 → login.html]:::bad
+    K -- Oui --> CACHE[Cache verdict 60s<br>caches.default]:::step
+    CACHE --> PASS2[fetch origine GitHub Pages]:::ok
+      </div>
+      <div class="diagram-caption">Fig. 10 — Algorithme du Worker. <strong>Fail-closed</strong> sur toute exception (catch global redirige vers login).</div>
+    </div>
+
+    <h3>Caches</h3>
+
+    <p>Deux couches de cache pour minimiser la charge :</p>
+
+    <ul style="padding-left:24px; margin-bottom:14px;">
+      <li><strong>JWKS cache (1h)</strong> — la liste des clés publiques de Supabase est récupérée une fois par heure, stockée dans <code>caches.default</code> au PoP. Un kid manquant déclenche un refresh immédiat (gère la rotation).</li>
+      <li><strong>Token verdict cache (60s)</strong> — pour chaque JWT vu, on cache le verdict (200 ok ou 401 bad) pendant 60s. Un user qui charge 20 ressources avec le même JWT = 1 vérification crypto + 19 cache hits.</li>
+    </ul>
+
+    <h3>Coût</h3>
+
+    <p>Cloudflare Workers free tier : <strong>100 000 requêtes/jour</strong>. LazyPO sit à quelques milliers/jour → gratuit indéfiniment.</p>
+
+    <h3>Déploiement</h3>
+
+    <p>Voir <a href="https://github.com/Ndashiz/lazypo/blob/main/worker/README.md" target="_blank"><code>worker/README.md</code></a>. Commandes en bref :</p>
+
+    <pre style="background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:14px; overflow-x:auto; font-family:'DM Mono',monospace; font-size:13px;"><code>cd worker
+npm install -g wrangler   # une fois
+wrangler login            # une fois
+wrangler deploy           # après chaque changement de worker.js</code></pre>
+  </section>
+
+  <!-- ══════════════════════════════════════════
+       8C. THREAT MODEL
+  ══════════════════════════════════════════ -->
+  <section class="section" id="threat-model">
+    <div class="section-header">
+      <div class="section-num">8C</div>
+      <h2>Threat model</h2>
+    </div>
+
+    <p>Liste des vecteurs d'attaque identifiés lors de l'incident de Mai 2026, et comment chacun est désormais fermé.</p>
+
+    <table style="width:100%; border-collapse:collapse; margin:18px 0; font-size:13px;">
+      <thead>
+        <tr style="background:var(--surface2); border-bottom:2px solid var(--accent);">
+          <th style="text-align:left; padding:10px;">#</th>
+          <th style="text-align:left; padding:10px;">Vecteur</th>
+          <th style="text-align:left; padding:10px;">Avant</th>
+          <th style="text-align:left; padding:10px;">Mitigation</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr style="border-bottom:1px solid var(--border); vertical-align:top;">
+          <td style="padding:10px; color:var(--red); font-weight:600;">V1</td>
+          <td style="padding:10px;"><code>auth-gate.js</code> révélait le contenu après 3s peu importe l'état d'auth</td>
+          <td style="padding:10px;">3s de patience → contenu visible même sans session valide</td>
+          <td style="padding:10px; color:var(--green);">Worker bloque la livraison HTML. <code>auth-gate.js</code> redirige vers login après 5s au lieu de révéler.</td>
+        </tr>
+        <tr style="border-bottom:1px solid var(--border); vertical-align:top;">
+          <td style="padding:10px; color:var(--red); font-weight:600;">V2</td>
+          <td style="padding:10px;"><code>auth-gate.js</code> acceptait n'importe quel localStorage avec <code>access_token</code></td>
+          <td style="padding:10px;">Forge en JS : <code>localStorage.setItem(..., '{"access_token":"x"}')</code></td>
+          <td style="padding:10px; color:var(--green);">Vérification stricte côté client (3-part JWT + exp futur). Surtout : le Worker valide la signature ES256 côté serveur — un faux cookie ne passe pas.</td>
+        </tr>
+        <tr style="border-bottom:1px solid var(--border); vertical-align:top;">
+          <td style="padding:10px; color:var(--red); font-weight:600;">V3</td>
+          <td style="padding:10px;"><code>_showModuleLockOverlay</code> = simple <code>&lt;div&gt;</code> z-indexé</td>
+          <td style="padding:10px;">DevTools → supprimer le div → accès au contenu</td>
+          <td style="padding:10px; color:var(--amber);"><strong>Partiellement</strong> mitigé : le Worker garantit que tu es au moins authentifié. Module-level gate côté client reste DevTools-bypassable. Mitigation principale = RLS Supabase sur la DATA.</td>
+        </tr>
+        <tr style="border-bottom:1px solid var(--border); vertical-align:top;">
+          <td style="padding:10px; color:var(--red); font-weight:600;">V4</td>
+          <td style="padding:10px;"><code>requireModule()</code> async dans <code>DOMContentLoaded</code> → DOM déjà parsé</td>
+          <td style="padding:10px;">Contenu protégé visible 100-500ms avant la décision auth</td>
+          <td style="padding:10px; color:var(--green);">Le HTML n'est pas livré du tout si pas authentifié (Worker). Le problème de race disparaît.</td>
+        </tr>
+        <tr style="border-bottom:1px solid var(--border); vertical-align:top;">
+          <td style="padding:10px; color:var(--red); font-weight:600;">V5</td>
+          <td style="padding:10px;"><code>_fetchAllowedModules</code> fail-open à <code>['quiz']</code> sur erreur Supabase</td>
+          <td style="padding:10px;">Supabase down → tous les users obtenaient l'accès au module quiz</td>
+          <td style="padding:10px; color:var(--amber);">Note interne : à durcir vers <code>[]</code> en cas d'erreur. Tracking issue séparée.</td>
+        </tr>
+        <tr style="vertical-align:top;">
+          <td style="padding:10px; color:var(--red); font-weight:600;">V6</td>
+          <td style="padding:10px;"><code>DEV_SESSION</code> activé automatiquement sur tout hostname localhost-class</td>
+          <td style="padding:10px;">Pas exploitable directement en prod, mais le code restait actif et pouvait être élargi par erreur</td>
+          <td style="padding:10px; color:var(--green);">Bypass dev nécessite désormais <strong>opt-in explicite</strong> : <code>window.__ENABLE_LOCAL_BYPASS=true</code> OU <code>sessionStorage 'lazypo:enableLocalBypass'</code>. <strong>Plus jamais activé automatiquement.</strong></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3>Risques résiduels (assumés)</h3>
+
+    <ul style="padding-left:24px; margin-bottom:14px;">
+      <li><strong>Cookie non HttpOnly</strong> — Supabase JS le pose côté client, donc impossible de mettre <code>HttpOnly</code>. Une XSS pourrait exfiltrer le JWT. Mitigation : CSP stricte (à formaliser), pas d'<code>innerHTML</code> avec contenu user.</li>
+      <li><strong>Latence de révocation cross-device</strong> — sign out sur appareil A, le JWT reste valide sur appareil B jusqu'à <code>exp</code> (~1h). Acceptable pour notre modèle de menace.</li>
+      <li><strong>Module gate client-only</strong> — un user authentifié peut DevTools-supprimer le lock overlay et voir une page d'un module auquel il n'a pas accès. La <em>donnée</em> reste protégée par RLS Supabase ; seules les coques HTML sont visibles.</li>
+      <li><strong>Sécurité de Cloudflare elle-même</strong> — toute compromission du compte CF ou de la zone <code>ndashiz.be</code> permettrait de retirer le Worker. Mitigation : 2FA obligatoire sur le compte CF.</li>
+    </ul>
   </section>
 
   <!-- ══════════════════════════════════════════
@@ -1717,6 +2039,16 @@ graph TB
 
     <p>Changements significatifs des dernières releases — pour le détail complet voir <code>git log</code> ou les PR mergées sur <code>main</code>.</p>
 
+    <h3>Mai 2026 · PR #112 — 🔒 Server-side auth gate (Cloudflare Worker)</h3>
+    <ul style="padding-left: 24px; margin-bottom: 18px;">
+      <li><strong>Incident</strong> : login bypass récurrent (3ème fois). Root cause = site statique + auth 100% côté client = HTML protégé téléchargeable par tout visiteur.</li>
+      <li><strong>Fix architectural</strong> : nouveau Cloudflare Worker (<code>worker/src/worker.js</code>) sur la route <code>ndashiz.be/lazypo/*</code> qui valide un cookie <code>lazypo_jwt</code> en <strong>ES256 via JWKS</strong> AVANT que le HTML soit servi.</li>
+      <li><strong>Cookie sync</strong> : <code>auth.js</code> mirror automatique du <code>access_token</code> Supabase sur les events <code>SIGNED_IN</code> / <code>TOKEN_REFRESHED</code> / <code>USER_UPDATED</code> / <code>INITIAL_SESSION</code>, clear sur <code>SIGNED_OUT</code>. <code>login.html</code> pose le cookie inline synchroneusement avant le redirect (anti-race).</li>
+      <li><strong>Durcissement</strong> : <code>auth-gate.js</code> retire le "reveal after 3s no matter what" (fail-closed, redirige vers login). <code>DEV_SESSION</code> bypass nécessite désormais opt-in explicite (plus d'activation auto sur localhost).</li>
+      <li><strong>Diagrammes</strong> : voir section <a href="#security">★ Architecture de sécurité</a>, <a href="#worker-gate">Cloudflare Worker</a> et <a href="#threat-model">Threat model</a>.</li>
+      <li><strong>Coût</strong> : $0 — free tier Cloudflare Workers (100k req/jour, on est très en dessous).</li>
+    </ul>
+
     <h3>Mai 2026 · PR #84 — Vocab Share rework</h3>
     <ul style="padding-left: 24px; margin-bottom: 18px;">
       <li><strong>Filtre par langue</strong> dans le modal Share (pills Toutes / EN→FR / NL→FR).</li>
@@ -1749,7 +2081,7 @@ graph TB
 
   <!-- ─── Footer ─── -->
   <div style="text-align:center; color: var(--muted); font-size: 13px; font-family: 'DM Mono', monospace; padding-top: 16px;">
-    LazyPO · Documentation Technique · Mai 2026
+    LazyPO · Documentation Technique · v2.1 · Mai 2026
   </div>
 
 </main>
