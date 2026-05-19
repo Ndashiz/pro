@@ -394,16 +394,44 @@ body {
 const SUPABASE_URL  = 'https://hrvxhnmtvzvrsmmmmtsv.supabase.co';
 const SUPABASE_ANON = 'sb_publishable_Mj-FuPZcN_oTeLQ0ME84yQ_uulPdJ4c';
 
-// After successful login, redirect here
+// After successful login, redirect here unless a ?return_to= was passed
+// by the Worker gate (e.g. user hit a deep link unauthenticated).
 const REDIRECT_AFTER_LOGIN = 'index.html';
+function _postLoginTarget(){
+  try {
+    var qp = new URLSearchParams(location.search).get('return_to');
+    if (!qp) return REDIRECT_AFTER_LOGIN;
+    // Reject anything that isn't a same-origin path under /lazypo/
+    // (defence against open-redirect via a crafted return_to).
+    if (!qp.startsWith('/lazypo/')) return REDIRECT_AFTER_LOGIN;
+    if (qp.startsWith('//')) return REDIRECT_AFTER_LOGIN;
+    return qp;
+  } catch(_) { return REDIRECT_AFTER_LOGIN; }
+}
 
 // ─────────────────────────────────────────────────────────
 const { createClient } = supabase;
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
 
+// Helper — sets the Worker-gate cookie from a Supabase session object.
+// Mirrors window.LazyAuth.setSessionCookie() but inlined so we don't
+// depend on auth.js being loaded (login.html doesn't include it).
+function _setLazypoCookie(session){
+  if (!session || !session.access_token) return;
+  var expiresIn = Number(session.expires_in) > 0 ? Number(session.expires_in) : 3600;
+  var secure = location.protocol === 'https:' ? '; Secure' : '';
+  var path = location.pathname.indexOf('/lazypo/') === 0 ? '/lazypo' : '/';
+  document.cookie =
+    'lazypo_jwt=' + encodeURIComponent(session.access_token) +
+    '; Path=' + path + '; Max-Age=' + expiresIn + '; SameSite=Lax' + secure;
+}
+
 // Redirect already-authenticated users
 sb.auth.getSession().then(({ data: { session } }) => {
-  if (session) window.location.href = REDIRECT_AFTER_LOGIN;
+  if (session) {
+    _setLazypoCookie(session);
+    window.location.href = _postLoginTarget();
+  }
 });
 
 // ── tab switching ──────────────────────────────────────
@@ -456,7 +484,7 @@ async function handleLogin(e) {
   const password = document.getElementById('login-password').value;
 
   setLoading('btn-login', true, 'Signing in…');
-  const { error } = await sb.auth.signInWithPassword({ email, password });
+  const { data: signInData, error } = await sb.auth.signInWithPassword({ email, password });
   setLoading('btn-login', false, 'Sign in');
 
   if (error) {
@@ -471,8 +499,11 @@ async function handleLogin(e) {
       // Reset the inactivity timer on fresh login so session.js doesn't
       // immediately force-logout on the next page using a stale timestamp.
       try { localStorage.setItem('lazypo:lastActivity', String(Date.now())); } catch (_) {}
+      // Set the Worker-gate cookie BEFORE the redirect — otherwise the
+      // next page would 302 right back to login.
+      _setLazypoCookie(signInData && signInData.session);
       showMsg('Signed in! Redirecting…', 'success');
-      setTimeout(() => window.location.href = REDIRECT_AFTER_LOGIN, 800);
+      setTimeout(() => window.location.href = _postLoginTarget(), 800);
     }
   }
 }

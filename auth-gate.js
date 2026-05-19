@@ -1,55 +1,71 @@
 /* ═══════════════════════════════════════════════════════════════════
-   LazyPO — auth-gate.js
+   LazyPO — auth-gate.js (client-side UX layer)
    ───────────────────────────────────────────────────────────────────
-   PRE-RENDER SYNCHRONOUS AUTH GATE
-   Empêche le "flash" du contenu protégé avant que l'auth soit validée.
+   THIS IS NOT A SECURITY BOUNDARY. The actual gate is a Cloudflare
+   Worker on ndashiz.be/lazypo/* that verifies a Supabase JWT cookie
+   before the HTML is ever served. See worker/src/worker.js.
 
-   Inclure dans <head> AVANT tout autre script et AVANT tout contenu
-   visible. Aucune dépendance — script autonome ~40 lignes.
+   What this script does for the user:
+     1. If no Supabase session token is present in localStorage AND no
+        session cookie is present → redirect to login.html immediately,
+        before any DOM is parsed, to avoid a flash.
+     2. If a token IS present → hide <html> via CSS until auth.js
+        emits the `lazypo:profile` event (auth.js has confirmed the
+        session is real). If the event never fires within 5s, redirect
+        to login.html (fail-closed — better to bounce a slow page than
+        leak protected content).
+     3. Skip the gate on http://localhost — auth.js dev bypass handles
+        local dev. Explicit protocol check guards against
+        https://localhost.X.com style hostname tricks.
 
-   Comportement :
-     1. Si pas de token Supabase en localStorage → redirect immédiat
-        vers login.html (avant tout parse DOM, donc 0 flash).
-     2. Si token présent → cache <html> via CSS injecté synchronement,
-        puis révèle au lazypo:profile event (auth confirmée par auth.js).
-     3. Safety net : révèle après 3s si l'event n'arrive jamais.
-     4. Skip sur localhost / 127.0.0.1 (le dev bypass d'auth.js prend
-        le relais — pas de gate sur le dev environnement).
-
-   La sécurité réelle reste assurée par les RLS Supabase ; ce gate ne
-   fait QU'AMÉLIORER l'UX en évitant le flash de contenu protégé.
+   Reasons we removed the previous "reveal after 3s no matter what"
+   safety net:
+     • RLS only protects the database, not the static HTML
+     • A slow Supabase = full page leak
+     • Now that the Worker gates HTML delivery, "fail-closed" here is
+       safe — a real user with a real session will see the page within
+       100-500ms ; a 5s redirect is only triggered when something is
+       broken anyway.
 ═══════════════════════════════════════════════════════════════════ */
 (function () {
   var hn = location.hostname;
-  if (hn === 'localhost' || hn === '127.0.0.1' || hn === '0.0.0.0') return;
+  if (location.protocol === 'http:' && (hn === 'localhost' || hn === '127.0.0.1' || hn === '0.0.0.0')) return;
 
   // Supabase JS v2 storage key — `sb-<projectRef>-auth-token`
-  var KEY = 'sb-hrvxhnmtvzvrsmmmmtsv-auth-token';
-  var raw = null;
-  try { raw = localStorage.getItem(KEY); } catch (_) {}
-
+  var SB_KEY = 'sb-hrvxhnmtvzvrsmmmmtsv-auth-token';
   var probablyAuthed = false;
-  if (raw) {
-    try {
+
+  try {
+    var raw = localStorage.getItem(SB_KEY);
+    if (raw) {
       var parsed = JSON.parse(raw);
-      // Accept if shape looks right ; auth.js fera la vraie vérification
-      // côté serveur (refresh token, RLS, etc.). On garde un test laxiste
-      // ici pour ne PAS rediriger un utilisateur dont le access_token est
-      // juste expiré mais qui a un refresh_token utilisable.
-      if (parsed && (parsed.access_token || parsed.refresh_token)) {
+      // Require BOTH access_token and a numeric expires_at in the future.
+      // The previous version accepted any object with an access_token OR
+      // refresh_token — trivially forgeable by setting a fake localStorage
+      // value. The Worker still does the real check; this is just to
+      // avoid a useless redirect flash.
+      if (parsed
+          && typeof parsed.access_token === 'string'
+          && parsed.access_token.split('.').length === 3
+          && typeof parsed.expires_at === 'number'
+          && parsed.expires_at > Math.floor(Date.now()/1000)) {
         probablyAuthed = true;
       }
-    } catch (_) {}
-  }
+    }
+  } catch (_) {}
 
   if (!probablyAuthed) {
-    // Hard redirect — aucun DOM n'est encore parsé, aucun flash possible
-    location.replace('login.html');
+    // Hard redirect — before any DOM is parsed, no flash possible.
+    // Carry a return_to so login.html can bounce back after success.
+    var here = location.pathname + location.search;
+    var sep = here.indexOf('?') >= 0 ? '&' : '?';
+    location.replace('login.html' + sep + 'return_to=' + encodeURIComponent(here));
     return;
   }
 
-  // Token présent → cache <html> jusqu'à ce que auth.js confirme via
-  // l'event lazypo:profile. CSS injecté avant tout paint.
+  // Token shape looked plausible. Hide <html> while auth.js confirms
+  // the session is real (it will fetch the user profile from Supabase
+  // and dispatch lazypo:profile when done).
   var style = document.createElement('style');
   style.id = 'lazypo-auth-gate';
   style.textContent =
@@ -57,13 +73,25 @@
     'html.lazypo-auth-ok{visibility:visible!important;background:initial!important}';
   (document.head || document.documentElement).appendChild(style);
 
+  var revealed = false;
   function reveal() {
+    if (revealed) return;
+    revealed = true;
     document.documentElement.classList.add('lazypo-auth-ok');
     document.removeEventListener('lazypo:profile', reveal);
   }
   document.addEventListener('lazypo:profile', reveal);
 
-  // Safety net : si l'event n'arrive pas en 3s (profil HS, fetch lent),
-  // on révèle quand même — RLS protège le contenu côté serveur.
-  setTimeout(reveal, 3000);
+  // Fail-closed safety net: if auth.js never confirms within 5s,
+  // assume the session is broken and bounce to login. We never reveal
+  // protected content "just because" — the Worker is the real gate,
+  // and if its cookie isn't here, the page wouldn't have been served
+  // in the first place. This timeout is purely a UX rescue for cases
+  // where auth.js itself failed to load or run.
+  setTimeout(function () {
+    if (revealed) return;
+    var here = location.pathname + location.search;
+    var sep = here.indexOf('?') >= 0 ? '&' : '?';
+    location.replace('login.html' + sep + 'return_to=' + encodeURIComponent(here));
+  }, 5000);
 })();

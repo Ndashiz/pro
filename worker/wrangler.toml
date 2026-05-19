@@ -1,0 +1,17 @@
+name = "lazypo-auth-gate"
+main = "src/worker.js"
+compatibility_date = "2025-01-01"
+
+# Don't expose the Worker on workers.dev — only via the configured route.
+workers_dev = false
+
+# Match every request under /lazypo/* on the prod zone. GitHub Pages
+# (configured as the origin in your Cloudflare DNS) serves the actual
+# files; the Worker is the gate in front.
+[[routes]]
+pattern = "ndashiz.be/lazypo/*"
+zone_name = "ndashiz.be"
+
+# Required secret (set via `wrangler secret put SUPABASE_JWT_SECRET`).
+# Documented here for visibility — DO NOT inline its value.
+# SUPABASE_JWT_SECRET = "<set as a Worker secret, not a var>"

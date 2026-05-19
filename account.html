@@ -645,6 +645,9 @@ async function signOut() {
   const btn = document.getElementById('btnSignOut');
   btn.disabled = true;
   btn.textContent = 'Signing out…';
+  // Clear the Worker-gate cookie BEFORE Supabase signOut so even if the
+  // navigation races, the next request is rejected by the Worker.
+  if (window.LazyAuth && window.LazyAuth.clearSessionCookie) window.LazyAuth.clearSessionCookie();
   await window.sb.auth.signOut();
   window.location.href = 'login.html';
 }

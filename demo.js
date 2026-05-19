@@ -96,7 +96,10 @@
     }
   }
 
-  document.addEventListener('lazypo:auth', tryInject);
+  // auth.js dispatches 'lazypo:profile' once the user profile is loaded
+  // (contains isAdmin) — re-check then so the FAB shows up if auth
+  // resolves after our initial check.
+  document.addEventListener('lazypo:profile', tryInject);
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', tryInject);

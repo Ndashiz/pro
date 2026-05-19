@@ -54,8 +54,20 @@
      key 'lazypo:disableLocalBypass') to opt out and use the
      normal auth flow even on localhost.
   ────────────────────────────────────────────────────────────── */
-  const IS_LOCAL = ['localhost','127.0.0.1','0.0.0.0'].includes(location.hostname)
-                && !window.__DISABLE_LOCAL_BYPASS
+  // Local dev bypass — narrowly scoped:
+  //   • only on the three loopback hostnames
+  //   • only on http: (prod is always https) — defence in depth against
+  //     a CF Worker / Pages routing surprise
+  //   • only when EXPLICITLY enabled via window.__ENABLE_LOCAL_BYPASS
+  //     (defaults to off). Set this in your local dev tooling, never in
+  //     a committed file. To verify: open DevTools on localhost and run
+  //     `window.__ENABLE_LOCAL_BYPASS = true; location.reload()`.
+  //   • can also be disabled at any time via sessionStorage.
+  const _localHosts = new Set(['localhost', '127.0.0.1', '0.0.0.0']);
+  const IS_LOCAL = _localHosts.has(location.hostname)
+                && location.protocol === 'http:'
+                && (window.__ENABLE_LOCAL_BYPASS === true
+                    || sessionStorage.getItem('lazypo:enableLocalBypass') === '1')
                 && sessionStorage.getItem('lazypo:disableLocalBypass') !== '1';
   const DEV_SESSION = IS_LOCAL ? {
     __dev: true,
@@ -206,11 +218,62 @@
     localStorage.removeItem(key);
   }
 
+  /* ── Session cookie (read by the Cloudflare Worker gate) ─────────
+     The Worker on ndashiz.be/lazypo/* requires a `lazypo_jwt` cookie
+     containing a valid Supabase access_token to serve any non-public
+     HTML. We set/refresh/clear this cookie in sync with the Supabase
+     session — Supabase JS still stores its session in localStorage as
+     usual, we just mirror the access_token into a cookie scoped to
+     /lazypo so the edge can read it. */
+  const SESSION_COOKIE = 'lazypo_jwt';
+  // Cookie path mirrors where the Worker is deployed in prod (/lazypo/*).
+  // In local dev the site is served from /, so use / and skip the Secure
+  // flag (browsers reject Secure cookies on http://localhost).
+  function _cookiePath() {
+    return location.pathname.startsWith('/lazypo/') ? '/lazypo' : '/';
+  }
+  function _setSessionCookie(session) {
+    if (!session || !session.access_token) return;
+    if (session.__dev) return; // never write the dev-bypass token to a cookie
+    const expiresIn = Number(session.expires_in) > 0
+      ? Number(session.expires_in)
+      : 3600;
+    const secure = location.protocol === 'https:' ? '; Secure' : '';
+    document.cookie =
+      `${SESSION_COOKIE}=${encodeURIComponent(session.access_token)}` +
+      `; Path=${_cookiePath()}` +
+      `; Max-Age=${expiresIn}` +
+      `; SameSite=Lax` +
+      secure;
+  }
+  function _clearSessionCookie() {
+    const secure = location.protocol === 'https:' ? '; Secure' : '';
+    document.cookie =
+      `${SESSION_COOKIE}=; Path=${_cookiePath()}; Max-Age=0; SameSite=Lax` + secure;
+  }
+
   async function boot() {
     await _flushPendingAvatar();
+
+    // Hydrate the cookie from the current session on every page load so
+    // a still-valid Supabase session that predates the Worker rollout
+    // immediately gets gated correctly on the next navigation.
+    try {
+      const { data: { session } } = await window.sb.auth.getSession();
+      if (session) _setSessionCookie(session);
+      else _clearSessionCookie();
+    } catch (_) {}
+
     await renderNavUser();
-    window.sb.auth.onAuthStateChange(async (event) => {
-      if (event === 'SIGNED_OUT' && !IS_LOCAL) window.location.href = LOGIN_PAGE;
+    window.sb.auth.onAuthStateChange(async (event, session) => {
+      // Keep the cookie in sync with Supabase's session state
+      if (session && (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED' || event === 'INITIAL_SESSION')) {
+        _setSessionCookie(session);
+      }
+      if (event === 'SIGNED_OUT') {
+        _clearSessionCookie();
+        if (!IS_LOCAL) window.location.href = LOGIN_PAGE;
+      }
       if (event === 'SIGNED_IN') {
         await _flushPendingAvatar();
         renderNavUser();
@@ -382,6 +445,9 @@
     // (otherwise an old stale timestamp could force-logout immediately on
     // the next sign-in via session.js boot check).
     try { localStorage.removeItem('lazypo:lastActivity'); } catch (_) {}
+    // Clear the Worker-gate cookie BEFORE Supabase signOut so even if the
+    // navigation races the SIGNED_OUT event, the next request is rejected.
+    _clearSessionCookie();
     await window.sb.auth.signOut();
     window.location.href = LOGIN_PAGE;
   };
@@ -790,6 +856,12 @@
   /** Expose flags for other modules / debugging */
   window.LazyAuth.isLocal    = IS_LOCAL;
   window.LazyAuth.devSession = DEV_SESSION;
+
+  /** Public helpers — call after a successful signIn / signOut to make
+      sure the Worker-gate cookie is in sync without waiting for the
+      onAuthStateChange event to fire. */
+  window.LazyAuth.setSessionCookie   = _setSessionCookie;
+  window.LazyAuth.clearSessionCookie = _clearSessionCookie;
 
   /* ── Util ────────────────────────────────────────────────────── */
   function esc(s) {
