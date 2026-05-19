@@ -525,12 +525,27 @@ const COL_ALIASES = {
   labels:    ['labels', 'label'],
   fixVersion:['fix version', 'fix version/s', 'fixversion', 'fix versions', 'fix-version'],
   sprint:    ['sprint', 'sprint name'],
-  epicLink:  ['epic link', 'parent', 'parent key', 'epic'],
+  // Jira CSV exports use "Custom field (Epic Link)" for the parent epic id.
+  // "Parent" / "Parent id" / "Parent key" / "Parent summary" cover other
+  // export shapes (newer Jira renames Epic Link → Parent).
+  epicLink:  ['epic link', 'custom field (epic link)', 'parent id', 'parent key', 'parent', 'epic'],
   epicName:  ['epic name', 'parent summary'],
 };
 
+// Headers come in with a UTF-8 BOM, trailing semicolons (Jira's
+// trailing `;` on the final column), and arbitrary casing. Normalize
+// once so the alias lookup is straightforward.
+function normalizeHeader(h){
+  return (h || '')
+    .toString()
+    .replace(/^﻿/, '')   // strip BOM
+    .replace(/[;\s]+$/, '')   // trailing semicolons + spaces
+    .replace(/^\s+/, '')      // leading spaces
+    .toLowerCase();
+}
+
 function findColumn(headers, aliases){
-  const lower = headers.map(h => (h || '').toString().toLowerCase().trim());
+  const lower = headers.map(normalizeHeader);
   // Try exact match first
   for (const alias of aliases) {
     const idx = lower.indexOf(alias);
@@ -541,16 +556,24 @@ function findColumn(headers, aliases){
     const idx = lower.findIndex(h => h.startsWith(alias));
     if (idx >= 0) return headers[idx];
   }
+  // Finally "includes" — catches "custom field (epic link)" etc.
+  for (const alias of aliases) {
+    const idx = lower.findIndex(h => h.includes(alias));
+    if (idx >= 0) return headers[idx];
+  }
   return null;
 }
 
 function findAllColumns(headers, aliases){
   // Some Jira exports repeat the same column name (e.g., multiple "Labels" columns).
-  const lower = headers.map(h => (h || '').toString().toLowerCase().trim());
+  const lower = headers.map(normalizeHeader);
   const matches = [];
   headers.forEach((h, i) => {
     for (const alias of aliases) {
-      if (lower[i] === alias || lower[i].startsWith(alias)) { matches.push(h); break; }
+      if (lower[i] === alias || lower[i].startsWith(alias) || lower[i].includes(alias)) {
+        matches.push(h);
+        break;
+      }
     }
   });
   return matches;
@@ -590,8 +613,16 @@ function normalizeRow(raw, headers){
 }
 
 /* ── Status classification ── */
-const DONE_STATUSES   = new Set(['done', 'closed', 'resolved', 'completed', 'shipped', 'released']);
-const INPROG_STATUSES = new Set(['in progress', 'in-progress', 'in development', 'in dev', 'in review', 'review', 'testing', 'qa', 'doing']);
+const DONE_STATUSES   = new Set([
+  'done', 'closed', 'resolved', 'completed', 'shipped', 'released',
+  'won\'t fix', 'wont fix', 'rejected', 'cancelled', 'canceled',
+]);
+const INPROG_STATUSES = new Set([
+  'in progress', 'in-progress', 'in development', 'in dev', 'in review',
+  'review', 'testing', 'qa', 'doing', 'design ongoing', 'check design ongoing',
+  'design ready', 'ready for dev', 'ready for development', 'implementing',
+]);
+// Backlog / Blocked / To Do / Open / New / "" all fall through to "todo"
 
 function isDone(s)   { return DONE_STATUSES.has((s||'').toLowerCase().trim()); }
 function isInProg(s) { return INPROG_STATUSES.has((s||'').toLowerCase().trim()); }
@@ -649,24 +680,155 @@ function clearError(){
   errorBanner.textContent = '';
 }
 
+/* Jira CSV quirks we have to neutralise BEFORE Papa Parse sees the text:
+     A) BOM at the top of the file.
+     B) Description fields with embedded newlines, quoted "across lines".
+        RFC 4180 allows this but a single malformed quote anywhere in the
+        file confuses Papa Parse — and Jira does produce malformed quotes
+        (stray semicolons, mismatched `""`). Cheaper to flatten: replace
+        any `\n` or `\r` that sits INSIDE a quoted region with a space.
+     C) Whole-row outer-quote wrap: Jira sometimes emits `"<row>"` where
+        `<row>` itself contains commas and newlines. After (B) the row
+        is on a single line; we then unwrap it cleanly.
+     D) Recovery: if quote-tracking falls out of balance (Jira ships
+        unbalanced quotes occasionally), force a row boundary whenever a
+        line BEGINS with `<KnownType>,<KEY-N>,` regardless of the inQuote
+        state.
+*/
+const _JIRA_TYPES = ['Story', 'Bug', 'Task', 'Epic', 'Spike', 'Sub-task', 'Sub-Task', 'Subtask', 'Improvement', 'New Feature'];
+const _ROW_START_RE = new RegExp('^"?(' + _JIRA_TYPES.join('|') + '),[A-Z][A-Z0-9]*-\\d+,', 'i');
+
+function preprocessJiraCsv(text) {
+  if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
+
+  // Pass 1 — collapse newlines inside quoted regions to a space.
+  // Standard CSV grammar: `"` toggles quote state, `""` inside a quoted
+  // region is an escaped quote and does NOT toggle.
+  let flat = '';
+  let inQuote = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (c === '"') {
+      if (inQuote && text[i + 1] === '"') {       // escaped quote
+        flat += '""';
+        i++;
+      } else {
+        inQuote = !inQuote;
+        flat += '"';
+      }
+      continue;
+    }
+    if (inQuote && (c === '\n' || c === '\r')) {
+      if (c === '\r' && text[i + 1] === '\n') i++;
+      flat += ' ';
+      continue;
+    }
+    flat += c;
+  }
+
+  // Pass 2 — recovery against unbalanced quotes. If a line begins like
+  // a brand new row (KnownType,KEY-N,...), the previous quote state was
+  // wrong. Splice in a newline and reset.
+  const lines = flat.split('\n');
+  if (lines.length === 0) return flat;
+  const out = [lines[0].replace(/[;\r\s]+$/, '')];
+  for (let i = 1; i < lines.length; i++) {
+    // Normalize trailing junk (CR, semicolons, whitespace) BEFORE deciding
+    // whether the line is a new row or a continuation. Jira regularly
+    // appends `;\r` to ALL its rows for reasons known only to its export.
+    const line = lines[i].replace(/[;\r\s]+$/, '');
+    if (_ROW_START_RE.test(line) || _ROW_START_RE.test(line.replace(/^"+/, '"'))) {
+      out.push(line);
+    } else if (out.length) {
+      // Continuation — fold into the previous row with a space.
+      out[out.length - 1] += ' ' + line.replace(/^[;\s]+/, '');
+    }
+  }
+
+  // Pass 3 — unwrap whole-row outer-quote wrap. Now that we've stripped
+  // trailing punctuation, `endsWith('"')` is reliable.
+  for (let i = 1; i < out.length; i++) {
+    const l = out[i];
+    if (l.length >= 4 && l[0] === '"' && l[l.length - 1] === '"'
+        && _JIRA_TYPES.some(t => l.startsWith('"' + t + ','))) {
+      out[i] = l.slice(1, -1).replace(/""/g, '"');
+    }
+  }
+
+  return out.join('\n');
+}
+
+/* Split one cleaned single-line CSV row into fields. Lenient on
+   mismatched / stray quotes — never throws, never spans lines. */
+function _splitCsvLine(line) {
+  const fields = [];
+  let cur = '';
+  let inQuote = false;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (inQuote) {
+      if (c === '"' && line[i + 1] === '"') { cur += '"'; i++; }
+      else if (c === '"') { inQuote = false; }
+      else { cur += c; }
+    } else if (c === '"') {
+      inQuote = true;
+    } else if (c === ',') {
+      fields.push(cur);
+      cur = '';
+    } else {
+      cur += c;
+    }
+  }
+  fields.push(cur);
+  return fields.map(f => f.trim());
+}
+
+/* Full Jira-CSV → JSON-ish row array using our own splitter (Papa Parse
+   bails on the malformed quotes that Jira ships). Assumes
+   preprocessJiraCsv has already collapsed multi-line cells. */
+function parseJiraCsv(text) {
+  const cleaned = preprocessJiraCsv(text);
+  const lines = cleaned.split('\n').map(l => l.replace(/[\r;]+$/, '').trim()).filter(Boolean);
+  if (lines.length < 2) return { data: [], fields: [] };
+  const rawFields = _splitCsvLine(lines[0]).map(normalizeHeader);
+  // Disambiguate repeated headers (Component/s, Labels) by suffix.
+  const seen = {};
+  const fields = rawFields.map(h => {
+    const n = seen[h] || 0;
+    seen[h] = n + 1;
+    return n === 0 ? h : `${h}__${n}`;
+  });
+  const data = [];
+  for (let i = 1; i < lines.length; i++) {
+    const values = _splitCsvLine(lines[i]);
+    const row = {};
+    fields.forEach((f, j) => { row[f] = values[j] !== undefined ? values[j] : ''; });
+    data.push(row);
+  }
+  return { data, fields };
+}
+
 function handleFile(file){
   clearError();
   STATE.fileName = file.name;
 
   const ext = (file.name.split('.').pop() || '').toLowerCase();
   if (ext === 'csv') {
-    Papa.parse(file, {
-      header: true,
-      skipEmptyLines: true,
-      complete: (res) => {
-        if (!res.data || res.data.length === 0) {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const { data, fields } = parseJiraCsv(e.target.result);
+        if (!data || data.length === 0) {
           showError('CSV file is empty or could not be parsed.');
           return;
         }
-        ingestRows(res.data, res.meta.fields || Object.keys(res.data[0]));
-      },
-      error: (err) => showError('CSV parse error: ' + err.message),
-    });
+        ingestRows(data, fields);
+      } catch (err) {
+        showError('CSV parse error: ' + (err.message || err));
+      }
+    };
+    reader.onerror = () => showError('Unable to read the file.');
+    reader.readAsText(file);
   } else if (ext === 'xlsx' || ext === 'xls') {
     const reader = new FileReader();
     reader.onload = (e) => {
