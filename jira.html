@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<script>if(location.protocol==="http:"&&location.hostname!=="localhost"&&location.hostname!=="127.0.0.1")location.replace("https:"+location.href.slice(5));</script>
+<script src="auth-gate.js"></script>
+<meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests">
+  <meta charset="UTF-8">
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <title>LazyPO — Jira</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@400;500&family=Permanent+Marker&display=swap" rel="stylesheet">
+  <style>
+    :root{
+      --navy:#002060; --navy-border:#0a3575;
+      --bg:#0c0c0c; --surface:#161616; --surface2:#1c1c1c;
+      --border:#222; --border2:#2a2a2a;
+      --accent:#3b82f6; --accent2:#60a5fa; --accent3:#93c5fd;
+      --text:#f0f0f0; --muted:#6b6b6b; --faint:#2e2e2e;
+      --amber:#f59e0b; --amber-light:#fbbf24;
+    }
+
+    *{box-sizing:border-box}
+    html,body{margin:0;padding:0;min-height:100vh;font-family:'DM Sans',system-ui,sans-serif;background:var(--bg);color:var(--text)}
+    body{display:flex;flex-direction:column;position:relative;overflow-x:hidden}
+
+    .main-bg{position:fixed;inset:0;z-index:0;pointer-events:none;background:radial-gradient(ellipse 60% 50% at 50% 20%,rgba(20,40,80,.5) 0%,transparent 70%),radial-gradient(ellipse 40% 40% at 85% 80%,rgba(30,58,110,.15) 0%,transparent 60%)}
+
+    /* HEADER */
+    .header{display:flex;align-items:center;gap:20px;position:sticky;top:0;z-index:100;background:var(--navy);border-bottom:3px solid var(--navy-border);padding:14px 28px;color:#fff}
+    .logo-wrap{display:flex;flex-direction:column}
+    .logo{font-family:'Permanent Marker',cursive;font-size:26px;color:#fff;transform:rotate(-1.5deg);letter-spacing:1px;line-height:1;text-shadow:3px 3px 0 rgba(59,130,246,.4),-1px -1px 0 rgba(255,255,255,.1);text-decoration:none;display:inline-block}
+    .logo span{color:var(--accent2)}
+    .subtitle{font-size:12px;color:var(--accent3);margin-top:4px}
+    .spacer{flex:1}
+    .header-actions{display:flex;gap:10px;align-items:center}
+    .back-link{display:inline-flex;align-items:center;gap:6px;color:#fff;text-decoration:none;font-size:13px;padding:8px 14px;border-radius:8px;border:1px solid rgba(255,255,255,.2);transition:background .2s,border-color .2s}
+    .back-link:hover{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.4)}
+    .back-link svg{width:14px;height:14px}
+
+    /* PAGE */
+    .container{max-width:1000px;margin:48px auto;padding:0 28px;position:relative;z-index:1;flex:1}
+
+    .hero{display:flex;align-items:center;gap:16px;margin-bottom:36px}
+    .hero-icon{width:56px;height:56px;border-radius:14px;background:rgba(59,130,246,.15);border:1px solid rgba(96,165,250,.25);display:flex;align-items:center;justify-content:center;font-size:28px}
+    .hero h1{font-size:28px;font-weight:700;margin:0}
+    .hero p{font-size:14px;color:var(--muted);margin:4px 0 0;max-width:520px;line-height:1.5}
+
+    .section-label{display:flex;align-items:center;gap:10px;font-family:'DM Mono',monospace;font-size:11px;font-weight:500;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:16px}
+    .section-label::after{content:'';flex:1;height:1px;background:var(--border)}
+
+    /* CARDS */
+    .features-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:40px}
+    @media (max-width:760px){.features-grid{grid-template-columns:1fr}}
+
+    .feature-card{position:relative;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:22px 20px;display:flex;flex-direction:column;gap:12px;text-decoration:none;color:inherit;transition:border-color .2s,transform .2s,box-shadow .2s;min-height:180px;animation:fadeUp .5s ease both}
+    .feature-card.active{cursor:pointer}
+    .feature-card.active:hover{border-color:var(--accent);transform:translateY(-3px);box-shadow:0 8px 28px rgba(59,130,246,.15)}
+    .feature-card.soon{cursor:default;opacity:.78}
+    .feature-card.soon:hover{border-color:rgba(245,158,11,.35)}
+
+    .feature-card:nth-child(1){animation-delay:.08s}
+    .feature-card:nth-child(2){animation-delay:.16s}
+    .feature-card:nth-child(3){animation-delay:.24s}
+
+    .feature-icon{width:44px;height:44px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:22px;background:var(--faint)}
+    .feature-card.active .feature-icon{background:rgba(59,130,246,.15);color:var(--accent2);border:1px solid rgba(59,130,246,.25)}
+    .feature-card.soon .feature-icon{background:rgba(245,158,11,.08);color:var(--amber-light);border:1px solid rgba(245,158,11,.2)}
+
+    .feature-name{font-size:15px;font-weight:600;color:var(--text)}
+    .feature-desc{font-size:12.5px;color:var(--muted);line-height:1.5;flex:1}
+
+    .feature-cta{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--accent2);font-family:'DM Mono',monospace}
+    .feature-cta svg{width:12px;height:12px;transition:transform .2s}
+    .feature-card.active:hover .feature-cta svg{transform:translateX(3px)}
+
+    .badge-soon{position:absolute;top:14px;right:14px;display:inline-flex;align-items:center;gap:5px;font-size:10px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;padding:3px 9px;border-radius:100px;background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.3);color:var(--amber-light);font-family:'DM Mono',monospace}
+    .badge-soon::before{content:'';width:5px;height:5px;border-radius:50%;background:var(--amber-light);box-shadow:0 0 6px var(--amber-light)}
+
+    @keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+
+    /* FOOTER */
+    .page-footer{padding:24px 48px 32px;display:flex;justify-content:center;border-top:1px solid rgba(255,255,255,.04);position:relative;z-index:1}
+    .footer-pill{display:inline-flex;align-items:center;gap:8px;background:rgba(255,255,255,.03);border:1px solid var(--border2);border-radius:20px;padding:6px 16px;font-size:12px;color:var(--muted)}
+
+    @media (max-width:480px){
+      .header{padding:10px 16px}
+      .logo{font-size:20px}
+      .container{padding:0 16px;margin:24px auto}
+      .hero h1{font-size:22px}
+    }
+  </style>
+</head>
+<body>
+
+<div class="main-bg"></div>
+
+<header class="header">
+  <a href="index.html" class="logo-wrap" style="text-decoration:none">
+    <div class="logo">LazyPO <span>✦</span></div>
+    <div class="subtitle">Jira</div>
+  </a>
+  <div class="spacer"></div>
+  <div class="header-actions">
+    <a href="index.html" class="back-link">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+      All features
+    </a>
+  </div>
+</header>
+
+<div class="container">
+  <div class="hero">
+    <div class="hero-icon">🎫</div>
+    <div>
+      <h1>Jira</h1>
+      <p>Tooling around Jira to save you time. Pick a sub-feature below.</p>
+    </div>
+  </div>
+
+  <div class="section-label">Sub-features</div>
+
+  <div class="features-grid">
+    <a href="jirarepo.html" class="feature-card active">
+      <div class="feature-icon">💾</div>
+      <div class="feature-name">Query Saver</div>
+      <div class="feature-desc">Save your favorite JQL queries, group them by project and copy them in one click.</div>
+      <span class="feature-cta">
+        Open
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+      </span>
+    </a>
+
+    <div class="feature-card soon">
+      <span class="badge-soon">Coming soon</span>
+      <div class="feature-icon">📊</div>
+      <div class="feature-name">Automatic Dashboard</div>
+      <div class="feature-desc">Visualise your Jira data at a glance — auto-generated dashboards from your saved queries.</div>
+      <span class="feature-cta" style="color:var(--muted)">In design</span>
+    </div>
+
+    <div class="feature-card soon">
+      <span class="badge-soon">Coming soon</span>
+      <div class="feature-icon">🧹</div>
+      <div class="feature-name">File Cleaner</div>
+      <div class="feature-desc">Detect and clean up stale attachments, duplicate files and orphaned uploads on your Jira tickets.</div>
+      <span class="feature-cta" style="color:var(--muted)">Planned</span>
+    </div>
+  </div>
+</div>
+
+<footer class="page-footer">
+  <span class="footer-pill">✦ LazyPO — Do less, deliver more.</span>
+</footer>
+
+<script src="popup.js"></script>
+<script src="sidebar.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="auth.js"></script>
+<script>document.addEventListener("DOMContentLoaded", function(){ LazyAuth.requireModule('jira'); });</script>
+<script src="focusfm.js"></script>
+</body>
+</html>

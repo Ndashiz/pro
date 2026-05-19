@@ -39,8 +39,8 @@
       id: 'jira',
       icon: '🎫',
       label: 'Jira',
-      url: 'jirarepo.html',
-      desc: 'Create and manage your Jira queries without leaving your workflow.'
+      url: 'jira.html',
+      desc: 'Query Saver, Dashboard and File Cleaner for your Jira workflow.'
     },
     {
       id: 'livenote',
