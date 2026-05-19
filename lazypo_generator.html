@@ -837,7 +837,7 @@ function downloadEml() {
     `Prioritization requests cannot be accepted after ${dl}.`, '',
     'Best regards,', 'Simon Goffin',
     'Product Owner CLM PB & DPnxt Onboarding | PB Digital',
-    'T +32 2 662 86 64 | M +32 479 48 76 08', 's.goffin@degroofpetercam.com',
+    'T +32 2 662 86 64 | M +32 479 48 76 08', 'goffin.simon@gmail.com',
   ].join('\n');
 
   const boundary = '----=_AltPart_DPnxt_CLM_' + Date.now();
@@ -849,8 +849,8 @@ function downloadEml() {
   const eml = [
     'MIME-Version: 1.0',
     `Date: ${date}`,
-    'From: Simon Goffin <s.goffin@degroofpetercam.com>',
-    'To: Colleagues <colleagues@degroofpetercam.com>',
+    'From: Simon Goffin <goffin.simon@gmail.com>',
+    'To: Colleagues <goffin.simon@gmail.com>',
     `Subject: ${subj}`,
     `Content-Type: multipart/alternative;`,
     `\tboundary="${boundary}"`,
