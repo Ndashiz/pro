@@ -6522,7 +6522,10 @@ async function showXpBreakdown() {
       <button class="xp-panel-close" onclick="document.getElementById('xp-breakdown-panel').remove()">✕</button>
     </div>
     ${rows}`;
-  document.getElementById('multi-sub-classement').appendChild(panel);
+  // Append after the leaderboard card in the sidebar
+  const lbCard = document.querySelector('#view-multi .lb-card');
+  if (lbCard) lbCard.after(panel);
+  else document.getElementById('view-multi').appendChild(panel);
 }
 
 // Weekly leaderboard defined below in MODULE MULTI section
