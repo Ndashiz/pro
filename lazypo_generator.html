@@ -460,20 +460,35 @@ function matchRelease(raw) {
 
 function parseExcel(file) {
   const reader = new FileReader();
+  reader.onerror = () => showDropStatus('❌ Erreur lecture fichier', true);
   reader.onload = e => {
-    const wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
+    let wb;
+    try {
+      wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
+    } catch (err) {
+      showDropStatus('❌ Format non supporté', true);
+      return;
+    }
     const ws = wb.Sheets[wb.SheetNames[0]];
     const rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
-    if (!rows.length) return;
+    if (!rows.length) { showDropStatus('❌ Aucune donnée trouvée', true); return; }
+
     const colMap = {};
     Object.keys(rows[0]).forEach(k => {
       const kl = k.toLowerCase().trim();
-      if (kl.includes('jira') || kl.includes('ticket') || kl.includes('crm')) colMap.ticket = k;
-      if (kl.includes('epic') || kl.includes('name')) colMap.name = k;
+      // ticket/key: "Key", "Issue Key", "Ticket", "Jira", "CRM"
+      if (kl === 'key' || kl === 'issue key' || kl.includes('ticket') || kl.includes('jira') || kl.includes('crm')) colMap.ticket = k;
+      // name/title: "Summary" (Jira), "Epic Name", "Name" — prioritise Summary over Epic Link
+      if ((kl === 'summary' || kl.includes('name')) && !colMap.name) colMap.name = k;
+      if (kl.includes('epic') && !colMap.name) colMap.name = k;
+      // description
       if (kl.includes('desc')) colMap.desc = k;
-      if (kl.includes('benefit')) colMap.benefits = k;
-      if (kl.includes('release') || kl.includes('date')) colMap.release = k;
+      // benefits
+      if (kl.includes('benefit') || kl.includes('label')) colMap.benefits = k;
+      // release: "Fix Version/s", "Fix Version", "Release", "Sprint"
+      if (kl.includes('fix version') || kl.includes('release') || kl === 'sprint') colMap.release = k;
     });
+
     const imported = rows
       .filter(r => String(r[colMap.name] || '').trim())
       .map(r => ({
@@ -483,21 +498,38 @@ function parseExcel(file) {
         benefits: String(r[colMap.benefits] || '').split(/[,;|]/).map(b => b.trim()).filter(Boolean),
         release: matchRelease(r[colMap.release] || '')
       }));
+
     if (imported.length) {
       epics = imported; renderEpics();
-      const st = document.getElementById('drop-status');
-      st.style.display = 'block';
-      st.textContent = `✓ ${imported.length} epic${imported.length>1?'s':''} importé${imported.length>1?'s':''}`;
+      showDropStatus(`✓ ${imported.length} epic${imported.length>1?'s':''} importé${imported.length>1?'s':''}`);
+    } else {
+      showDropStatus('❌ Aucune ligne reconnue (colonnes : ' + Object.keys(rows[0]).join(', ') + ')', true);
     }
   };
   reader.readAsArrayBuffer(file);
 }
 
+function showDropStatus(msg, isError) {
+  const st = document.getElementById('drop-status');
+  st.style.display = 'block';
+  st.style.color = isError ? 'var(--danger, #e53)' : 'var(--success)';
+  st.textContent = msg;
+}
+
 const dz = document.getElementById('drop-zone');
 const fi = document.getElementById('file-input');
-dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('dragover'); });
-dz.addEventListener('dragleave', () => dz.classList.remove('dragover'));
-dz.addEventListener('drop', e => { e.preventDefault(); dz.classList.remove('dragover'); if (e.dataTransfer.files[0]) parseExcel(e.dataTransfer.files[0]); });
+
+function onDragOver(e) { e.preventDefault(); e.stopPropagation(); dz.classList.add('dragover'); }
+function onDragLeave(e) { if (!dz.contains(e.relatedTarget)) dz.classList.remove('dragover'); }
+function onDrop(e) { e.preventDefault(); e.stopPropagation(); dz.classList.remove('dragover'); if (e.dataTransfer.files[0]) parseExcel(e.dataTransfer.files[0]); }
+
+// Les deux éléments reçoivent les événements drag : le div ET l'input caché qui le recouvre
+dz.addEventListener('dragover',  onDragOver);
+dz.addEventListener('dragleave', onDragLeave);
+dz.addEventListener('drop',      onDrop);
+fi.addEventListener('dragover',  onDragOver);
+fi.addEventListener('dragleave', onDragLeave);
+fi.addEventListener('drop',      onDrop);
 fi.addEventListener('change', e => { if (e.target.files[0]) parseExcel(e.target.files[0]); });
 
 function renderEpics() {
