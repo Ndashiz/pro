@@ -230,7 +230,7 @@
   // In local dev the site is served from /, so use / and skip the Secure
   // flag (browsers reject Secure cookies on http://localhost).
   function _cookiePath() {
-    return location.pathname.startsWith('/lazypo/') ? '/lazypo' : '/';
+    return location.pathname.startsWith('/pro/') ? '/pro' : '/';
   }
   function _setSessionCookie(session) {
     if (!session || !session.access_token) return;

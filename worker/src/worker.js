@@ -20,15 +20,15 @@
      • Unexpected exception (fail-closed)
 ═════════════════════════════════════════════════════════════════════ */
 
-const LOGIN_PATH = '/lazypo/login.html';
-const APP_PREFIX = '/lazypo/';
+const LOGIN_PATH = '/pro/login.html';
+const APP_PREFIX = '/pro/';
 const COOKIE_NAME = 'lazypo_jwt';
 
 // Pages that MUST stay accessible without a session
 const PUBLIC_PAGES = new Set([
-  '/lazypo/login.html',
-  '/lazypo/email_confirm.html',
-  '/lazypo/spotify-callback.html',
+  '/pro/login.html',
+  '/pro/email_confirm.html',
+  '/pro/spotify-callback.html',
 ]);
 
 // File extensions that are static assets — never gated
