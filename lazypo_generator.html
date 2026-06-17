@@ -143,7 +143,7 @@ input[type="text"]:focus, select:focus, textarea:focus {
   transition: all .2s; background: #fafbfd; margin-bottom: 14px; position: relative;
 }
 .drop-zone:hover, .drop-zone.dragover { border-color: var(--accent); background: var(--accent-light); }
-.drop-zone input[type="file"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; border: none; padding: 0; }
+.drop-zone input[type="file"] { position: absolute; inset: 0; opacity: 0; width: 100%; height: 100%; border: none; padding: 0; pointer-events: none; }
 .drop-icon { font-size: 28px; margin-bottom: 6px; }
 .drop-zone p { font-size: 12px; color: var(--text-muted); }
 .drop-zone p strong { color: var(--accent); }
@@ -462,74 +462,90 @@ function parseExcel(file) {
   const reader = new FileReader();
   reader.onerror = () => showDropStatus('❌ Erreur lecture fichier', true);
   reader.onload = e => {
-    let wb;
-    try {
-      wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
-    } catch (err) {
-      showDropStatus('❌ Format non supporté', true);
-      return;
-    }
-    const ws = wb.Sheets[wb.SheetNames[0]];
-    const rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
-    if (!rows.length) { showDropStatus('❌ Aucune donnée trouvée', true); return; }
-
-    const colMap = {};
-    Object.keys(rows[0]).forEach(k => {
-      const kl = k.toLowerCase().trim();
-      // ticket/key: "Key", "Issue Key", "Ticket", "Jira", "CRM"
-      if (kl === 'key' || kl === 'issue key' || kl.includes('ticket') || kl.includes('jira') || kl.includes('crm')) colMap.ticket = k;
-      // name/title: "Summary" (Jira), "Epic Name", "Name" — prioritise Summary over Epic Link
-      if ((kl === 'summary' || kl.includes('name')) && !colMap.name) colMap.name = k;
-      if (kl.includes('epic') && !colMap.name) colMap.name = k;
-      // description
-      if (kl.includes('desc')) colMap.desc = k;
-      // benefits
-      if (kl.includes('benefit') || kl.includes('label')) colMap.benefits = k;
-      // release: "Fix Version/s", "Fix Version", "Release", "Sprint"
-      if (kl.includes('fix version') || kl.includes('release') || kl === 'sprint') colMap.release = k;
-    });
-
-    const imported = rows
-      .filter(r => String(r[colMap.name] || '').trim())
-      .map(r => ({
-        name: String(r[colMap.name] || '').trim(),
-        ticket: String(r[colMap.ticket] || '').trim(),
-        desc: String(r[colMap.desc] || '').trim(),
-        benefits: String(r[colMap.benefits] || '').split(/[,;|]/).map(b => b.trim()).filter(Boolean),
-        release: matchRelease(r[colMap.release] || '')
-      }));
-
-    if (imported.length) {
-      epics = imported; renderEpics();
-      showDropStatus(`✓ ${imported.length} epic${imported.length>1?'s':''} importé${imported.length>1?'s':''}`);
+    const buf = e.target.result;
+    // Detect HTML-disguised XLS (Jira export): first byte is '<' (0x3C)
+    // or starts with UTF-8 BOM then '<'
+    const probe = new Uint8Array(buf, 0, 4);
+    const isHtml = probe[0] === 0x3C ||
+                   (probe[0] === 0xEF && probe[1] === 0xBB && probe[2] === 0xBF && probe[3] === 0x3C);
+    if (isHtml) {
+      processRows(parseHtmlTable(new TextDecoder('utf-8').decode(buf)));
     } else {
-      showDropStatus('❌ Aucune ligne reconnue (colonnes : ' + Object.keys(rows[0]).join(', ') + ')', true);
+      try {
+        const wb = XLSX.read(new Uint8Array(buf), { type: 'array' });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        processRows(XLSX.utils.sheet_to_json(ws, { defval: '' }));
+      } catch (err) {
+        showDropStatus('❌ Format non supporté', true);
+      }
     }
   };
   reader.readAsArrayBuffer(file);
 }
 
+function parseHtmlTable(html) {
+  const doc = new DOMParser().parseFromString(html, 'text/html');
+  const table = doc.querySelector('table');
+  if (!table) return [];
+  const rows = Array.from(table.querySelectorAll('tr'));
+  if (rows.length < 2) return [];
+  const headers = Array.from(rows[0].querySelectorAll('th,td')).map(c => c.textContent.trim());
+  return rows.slice(1).map(row => {
+    const cells = Array.from(row.querySelectorAll('td')).map(c => c.textContent.trim());
+    const obj = {};
+    headers.forEach((h, i) => { obj[h] = cells[i] !== undefined ? cells[i] : ''; });
+    return obj;
+  }).filter(r => Object.values(r).some(v => v));
+}
+
+function processRows(rows) {
+  if (!rows.length) { showDropStatus('❌ Aucune donnée trouvée', true); return; }
+
+  const colMap = {};
+  Object.keys(rows[0]).forEach(k => {
+    const kl = k.toLowerCase().trim();
+    if (kl === 'key' || kl === 'issue key' || kl.includes('ticket') || kl.includes('jira') || kl.includes('crm')) colMap.ticket = k;
+    if ((kl === 'summary' || kl.includes('name')) && !colMap.name) colMap.name = k;
+    if (kl.includes('epic') && !colMap.name) colMap.name = k;
+    if (kl.includes('desc')) colMap.desc = k;
+    if (kl.includes('benefit') || kl.includes('label')) colMap.benefits = k;
+    if (kl.includes('fix version') || kl.includes('release') || kl === 'sprint') colMap.release = k;
+  });
+
+  const imported = rows
+    .filter(r => String(r[colMap.name] || '').trim())
+    .map(r => ({
+      name:     String(r[colMap.name]     || '').trim(),
+      ticket:   String(r[colMap.ticket]   || '').trim(),
+      desc:     String(r[colMap.desc]     || '').trim(),
+      benefits: String(r[colMap.benefits] || '').split(/[,;|]/).map(b => b.trim()).filter(Boolean),
+      release:  matchRelease(r[colMap.release] || '')
+    }));
+
+  if (imported.length) {
+    epics = imported; renderEpics();
+    showDropStatus(`✓ ${imported.length} epic${imported.length > 1 ? 's' : ''} importé${imported.length > 1 ? 's' : ''}`);
+  } else {
+    showDropStatus('❌ 0 ligne — colonnes détectées : ' + Object.keys(rows[0]).join(', '), true);
+  }
+}
+
 function showDropStatus(msg, isError) {
   const st = document.getElementById('drop-status');
   st.style.display = 'block';
-  st.style.color = isError ? 'var(--danger, #e53)' : 'var(--success)';
+  st.style.color = isError ? '#e53' : 'var(--success)';
   st.textContent = msg;
 }
 
 const dz = document.getElementById('drop-zone');
 const fi = document.getElementById('file-input');
 
-function onDragOver(e) { e.preventDefault(); e.stopPropagation(); dz.classList.add('dragover'); }
-function onDragLeave(e) { if (!dz.contains(e.relatedTarget)) dz.classList.remove('dragover'); }
-function onDrop(e) { e.preventDefault(); e.stopPropagation(); dz.classList.remove('dragover'); if (e.dataTransfer.files[0]) parseExcel(e.dataTransfer.files[0]); }
-
-// Les deux éléments reçoivent les événements drag : le div ET l'input caché qui le recouvre
-dz.addEventListener('dragover',  onDragOver);
-dz.addEventListener('dragleave', onDragLeave);
-dz.addEventListener('drop',      onDrop);
-fi.addEventListener('dragover',  onDragOver);
-fi.addEventListener('dragleave', onDragLeave);
-fi.addEventListener('drop',      onDrop);
+// input a pointer-events:none → drag events tombent sur dz directement
+dz.addEventListener('dragover',  e => { e.preventDefault(); dz.classList.add('dragover'); });
+dz.addEventListener('dragleave', e => { if (!dz.contains(e.relatedTarget)) dz.classList.remove('dragover'); });
+dz.addEventListener('drop',      e => { e.preventDefault(); dz.classList.remove('dragover'); if (e.dataTransfer.files[0]) parseExcel(e.dataTransfer.files[0]); });
+// click sur le div → ouvre le file picker (remplace le comportement natif de l'input)
+dz.addEventListener('click', () => fi.click());
 fi.addEventListener('change', e => { if (e.target.files[0]) parseExcel(e.target.files[0]); });
 
 function renderEpics() {
