@@ -55,11 +55,9 @@
   } catch (_) {}
 
   if (!probablyAuthed) {
-    // Hard redirect — before any DOM is parsed, no flash possible.
-    // Carry a return_to so login.html can bounce back after success.
     var here = location.pathname + location.search;
     var sep = here.indexOf('?') >= 0 ? '&' : '?';
-    location.replace('login.html' + sep + 'return_to=' + encodeURIComponent(here));
+    location.replace('login.html' + sep + 'next=' + encodeURIComponent(here));
     return;
   }
 
@@ -92,6 +90,6 @@
     if (revealed) return;
     var here = location.pathname + location.search;
     var sep = here.indexOf('?') >= 0 ? '&' : '?';
-    location.replace('login.html' + sep + 'return_to=' + encodeURIComponent(here));
+    location.replace('login.html' + sep + 'next=' + encodeURIComponent(here));
   }, 5000);
 })();
