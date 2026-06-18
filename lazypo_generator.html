@@ -445,6 +445,7 @@ function matchRelease(raw) {
   if (s.includes('may') || s.includes('05/')) return 'May (21 May)';
   if (s.includes('jun')) return 'June 26';
   if (s.includes('jul')) return 'July 26';
+  if (s.includes('aug') || s.includes('sep')) return "Q3 26'";
   if (s.includes('q2')) return "Q2 26'";
   if (s.includes('q3')) return "Q3 26'";
   const d = new Date(raw);
@@ -485,7 +486,9 @@ function parseExcel(file) {
 
 function parseHtmlTable(html) {
   const doc = new DOMParser().parseFromString(html, 'text/html');
-  const table = doc.querySelector('table');
+  // Pick the table with the most rows (Jira exports have a metadata table before the data table)
+  const tables = Array.from(doc.querySelectorAll('table'));
+  const table = tables.reduce((best, t) => t.rows.length > (best ? best.rows.length : 0) ? t : best, null);
   if (!table) return [];
   const rows = Array.from(table.querySelectorAll('tr'));
   if (rows.length < 2) return [];
@@ -509,7 +512,8 @@ function processRows(rows) {
     if (kl.includes('epic') && !colMap.name) colMap.name = k;
     if (kl.includes('desc')) colMap.desc = k;
     if (kl.includes('benefit') || kl.includes('label')) colMap.benefits = k;
-    if (kl.includes('fix version') || kl.includes('release') || kl === 'sprint') colMap.release = k;
+    if ((kl.includes('fix version') || kl.includes('release')) && !colMap.release) colMap.release = k;
+    if (kl === 'sprint' && !colMap.release) colMap.release = k;
   });
 
   const imported = rows
