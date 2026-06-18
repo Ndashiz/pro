@@ -449,18 +449,23 @@ function matchRelease(raw) {
   if (s.includes('may') || s.includes('05/')) return 'May (21 May)';
   if (s.includes('jun')) return 'June 26';
   if (s.includes('jul')) return 'July 26';
-  if (s.includes('aug') || s.includes('sep')) return "Q3 26'";
+  if (s.includes('aug')) return 'August 26';
+  if (s.includes('sep')) return 'September 26';
+  if (s.includes('oct')) return 'October 26';
+  if (s.includes('nov')) return 'November 26';
+  if (s.includes('dec')) return 'December 26';
   if (s.includes('q2')) return "Q2 26'";
   if (s.includes('q3')) return "Q3 26'";
+  if (s.includes('q4')) return "Q4 26'";
   const d = new Date(raw);
   if (!isNaN(d)) {
+    const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
     const m = d.getMonth();
     if (m === 3) return '1/04/26 (16 Apr)';
     if (m === 4) return 'May (21 May)';
-    if (m === 5) return 'June 26';
-    if (m === 6) return 'July 26';
+    return months[m] + ' 26';
   }
-  return 'TBD';
+  return raw.trim() || 'TBD';
 }
 
 function parseExcel(file) {
