@@ -562,7 +562,8 @@ function renderEpics() {
   epics.forEach((ep, i) => {
     const card = document.createElement('div');
     card.className = 'epic-card'; card.draggable = true; card.dataset.idx = i;
-    const optsHtml = RELEASE_OPTIONS.map(o => `<option value="${o}"${ep.release===o?' selected':''}>${o}</option>`).join('');
+    const datalistId = `rl-${i}`;
+    const datalistHtml = RELEASE_OPTIONS.map(o => `<option value="${o}">`).join('');
     card.innerHTML = `
       <div class="epic-head">
         <span class="drag-dots">⠿</span>
@@ -589,7 +590,8 @@ function renderEpics() {
           </div>
           <div class="epic-field" style="max-width:155px;">
             <label>Release</label>
-            <select class="epic-release">${optsHtml}</select>
+            <datalist id="${datalistId}">${datalistHtml}</datalist>
+            <input type="text" class="epic-release" list="${datalistId}" value="${(ep.release||'').replace(/"/g,'&quot;')}" placeholder="ex: Q3 26'" />
             <span class="release-preview ${relClass(ep.release)}">${relLabel(ep.release)}</span>
           </div>
         </div>
@@ -599,7 +601,7 @@ function renderEpics() {
     card.querySelector('.epic-name-input').addEventListener('input', e => { epics[i].name = e.target.value; });
     card.querySelector('.epic-ticket').addEventListener('input', e => { epics[i].ticket = e.target.value; });
     card.querySelector('.epic-desc').addEventListener('input', e => { epics[i].desc = e.target.value; });
-    card.querySelector('.epic-release').addEventListener('change', e => {
+    card.querySelector('.epic-release').addEventListener('input', e => {
       epics[i].release = e.target.value;
       const p = card.querySelector('.release-preview');
       p.className = `release-preview ${relClass(e.target.value)}`;
