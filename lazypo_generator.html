@@ -192,6 +192,10 @@ input[type="text"]:focus, select:focus, textarea:focus {
 .tag { background: var(--tag-bg); color: var(--tag-text); font-size: 10.5px; font-weight: 500; padding: 2px 7px; border-radius: 20px; display: flex; align-items: center; gap: 3px; animation: fadeIn .15s ease; }
 .tag-x { cursor: pointer; font-size: 13px; line-height: 1; opacity: .6; }
 .tag-x:hover { opacity: 1; }
+.tag-arrow { cursor: pointer; font-size: 11px; line-height: 1; user-select: none; transition: opacity .1s; display: none; opacity: .7; }
+.tag:hover .tag-arrow { display: inline; }
+.tag-arrow:hover { opacity: 1; }
+.tag-arrow.active { display: inline; opacity: 1; font-size: 12px; }
 .tag-input { border: none; outline: none; background: transparent; font-size: 11.5px; font-family: 'DM Sans', sans-serif; color: var(--text); min-width: 70px; flex: 1; padding: 0; box-shadow: none; }
 
 .add-btn {
@@ -575,7 +579,11 @@ function renderEpics() {
           <div class="epic-field">
             <label>Bénéfices <span style="font-weight:400;color:var(--text-faint)">(Entrée pour ajouter)</span></label>
             <div class="tags-wrap" id="tw-${i}">
-              ${ep.benefits.map((b,bi)=>`<span class="tag">${b}<span class="tag-x" data-i="${i}" data-bi="${bi}">×</span></span>`).join('')}
+              ${ep.benefits.map((b,bi)=>{
+                const arrow = b.startsWith('↗ ')?'↗':b.startsWith('↘ ')?'↘':'';
+                const txt = arrow ? b.slice(2) : b;
+                return `<span class="tag" data-arrow="${arrow}"><span class="tag-arrow${arrow?' active':''}" data-i="${i}" data-bi="${bi}">${arrow||'↕'}</span><span class="tag-text">${txt}</span><span class="tag-x" data-i="${i}" data-bi="${bi}">×</span></span>`;
+              }).join('')}
               <input class="tag-input" placeholder="Ajouter..." data-idx="${i}" />
             </div>
           </div>
@@ -608,6 +616,15 @@ function renderEpics() {
       }
     });
     card.querySelectorAll('.tag-x').forEach(x => x.addEventListener('click', () => { epics[i].benefits.splice(+x.dataset.bi,1); renderEpics(); }));
+    card.querySelectorAll('.tag-arrow').forEach(btn => btn.addEventListener('click', () => {
+      const bi = +btn.dataset.bi;
+      const cur = epics[i].benefits[bi];
+      const hasUp = cur.startsWith('↗ '), hasDown = cur.startsWith('↘ ');
+      if (!hasUp && !hasDown) epics[i].benefits[bi] = '↗ ' + cur;
+      else if (hasUp) epics[i].benefits[bi] = '↘ ' + cur.slice(2);
+      else epics[i].benefits[bi] = cur.slice(2);
+      renderEpics();
+    }));
     card.addEventListener('dragstart', e => { dragSrc = i; card.classList.add('dragging'); e.dataTransfer.effectAllowed = 'move'; });
     card.addEventListener('dragend', () => card.classList.remove('dragging'));
     card.addEventListener('dragover', e => { e.preventDefault(); card.classList.add('drag-over'); });
@@ -643,7 +660,11 @@ function syncEpics() {
   document.querySelectorAll('.epic-desc').forEach((el,i) => { if(epics[i]) epics[i].desc = el.value; });
   epics.forEach((ep,i) => {
     const tags = document.querySelectorAll(`#tw-${i} .tag`);
-    if (tags.length) ep.benefits = [...tags].map(t => t.textContent.replace('×','').trim());
+    if (tags.length) ep.benefits = [...tags].map(t => {
+      const arrow = t.dataset.arrow || '';
+      const txt = t.querySelector('.tag-text')?.textContent.trim() || '';
+      return arrow ? arrow + ' ' + txt : txt;
+    });
   });
 }
 
