@@ -57,6 +57,13 @@
       desc: 'Centralise all your meeting notes in one click.'
     },
     {
+      id: 'gifrepo',
+      icon: '🎞️',
+      label: 'GIF Repo',
+      url: 'gif_repo.html',
+      desc: 'Paste, label and copy your GIFs — sorted by usage.'
+    },
+    {
       id: 'quiz',
       icon: '🧠',
       label: 'Knowledge Quiz',
