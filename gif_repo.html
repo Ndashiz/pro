@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<script>if(location.protocol==="http:"&&location.hostname!=="localhost"&&location.hostname!=="127.0.0.1")location.replace("https:"+location.href.slice(5));</script>
+<script src="auth-gate.js"></script>
+<meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests">
+<meta charset="UTF-8">
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LazyPO — GIF Repo</title>
+<link rel="stylesheet" href="fonts.css">
+<style>
+:root {
+  --navy: #002060; --navy-border: #0a3575;
+  --bg: #0f172a; --card: #1e293b; --card-border: #334155; --card-hover: #243047;
+  --text: #e2e8f0; --text-muted: #94a3b8; --text-dim: #64748b;
+  --blue: #3b82f6; --blue-light: #60a5fa; --blue-pale: #93c5fd;
+  --green: #10b981; --green-light: #34d399;
+  --red: #ef4444; --red-light: #f87171;
+  --amber: #f59e0b; --amber-light: #fbbf24;
+  --r: 10px;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { min-height: 100%; font-family: 'DM Sans', system-ui, sans-serif; background: var(--bg); color: var(--text); }
+
+/* ── Header ─────────────────────────────── */
+.header { display: flex; align-items: center; gap: 20px; position: sticky; top: 0; z-index: 100; background: var(--navy); border-bottom: 3px solid var(--navy-border); padding: 14px 28px; }
+.logo { font-family: 'Permanent Marker', cursive; font-size: 26px; color: #fff; transform: rotate(-1.5deg); letter-spacing: 1px; line-height: 1; text-shadow: 3px 3px 0 rgba(59,130,246,.4), -1px -1px 0 rgba(255,255,255,.1); }
+.logo span { color: var(--blue-light); }
+.subtitle { font-size: 12px; color: var(--blue-pale); margin-top: 4px; }
+.spacer { flex: 1; }
+.header-actions { display: flex; gap: 10px; align-items: center; }
+
+/* ── Buttons ─────────────────────────────── */
+.btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 500; border: none; cursor: pointer; white-space: nowrap; transition: background .15s, border-color .15s; line-height: 1; font-family: inherit; }
+.btn-ghost { background: transparent; color: #fff; border: 1px solid rgba(255,255,255,.25); }
+.btn-ghost:hover { background: rgba(255,255,255,.08); }
+.btn-primary { background: var(--blue); color: #fff; border: 1px solid transparent; }
+.btn-primary:hover { background: #2563eb; }
+
+/* ── Layout ─────────────────────────────── */
+.container { max-width: 1200px; margin: 0 auto; padding: 28px 28px 64px; }
+
+/* ── Paste zone ─────────────────────────── */
+.paste-zone {
+  border: 2px dashed var(--card-border); border-radius: 14px;
+  background: var(--card); padding: 36px 24px; text-align: center;
+  cursor: pointer; transition: border-color .2s, background .2s;
+  margin-bottom: 28px; user-select: none;
+}
+.paste-zone:hover, .paste-zone.drag-over { border-color: var(--blue); background: rgba(59,130,246,.06); }
+.paste-zone.drag-over { border-style: solid; }
+.paste-icon { font-size: 36px; margin-bottom: 10px; opacity: .6; }
+.paste-title { font-size: 16px; font-weight: 600; color: var(--text); margin-bottom: 6px; }
+.paste-hint { font-size: 13px; color: var(--text-muted); }
+kbd { background: rgba(255,255,255,.08); border: 1px solid var(--card-border); border-radius: 5px; padding: 2px 7px; font-family: 'DM Mono', monospace; font-size: 12px; color: var(--text); }
+
+/* ── Toolbar ─────────────────────────────── */
+.toolbar { display: flex; align-items: center; gap: 12px; margin-bottom: 22px; }
+.search-wrap { flex: 1; max-width: 360px; position: relative; }
+.search-wrap input {
+  width: 100%; background: var(--card); border: 1px solid var(--card-border);
+  border-radius: 8px; color: var(--text); font-size: 13px; font-family: inherit;
+  padding: 9px 14px 9px 36px; outline: none; transition: border-color .2s;
+}
+.search-wrap input:focus { border-color: var(--blue); }
+.search-icon { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); color: var(--text-dim); width: 16px; height: 16px; pointer-events: none; }
+.count-label { font-size: 13px; color: var(--text-muted); margin-left: auto; }
+
+/* ── GIF Grid ───────────────────────────── */
+.gif-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 16px;
+}
+.gif-card {
+  background: var(--card); border: 1px solid var(--card-border);
+  border-radius: 12px; overflow: hidden;
+  transition: border-color .2s, transform .15s, box-shadow .15s;
+  cursor: pointer; position: relative;
+}
+.gif-card:hover { border-color: var(--blue); transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,.35); }
+
+/* preview area */
+.gif-preview {
+  width: 100%; aspect-ratio: 16/10; object-fit: cover;
+  display: block; background: #0a0f1a;
+}
+
+/* overlay actions */
+.gif-overlay {
+  position: absolute; inset: 0; background: rgba(0,0,0,.55);
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  opacity: 0; transition: opacity .15s;
+}
+.gif-card:hover .gif-overlay { opacity: 1; }
+.overlay-btn {
+  background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.25);
+  color: #fff; border-radius: 8px; font-size: 12px; font-weight: 600;
+  padding: 7px 14px; cursor: pointer; display: flex; align-items: center; gap: 5px;
+  transition: background .15s; font-family: inherit;
+}
+.overlay-btn:hover { background: rgba(255,255,255,.22); }
+.overlay-btn.copy-btn { background: rgba(59,130,246,.3); border-color: var(--blue-light); }
+.overlay-btn.copy-btn:hover { background: rgba(59,130,246,.5); }
+.overlay-btn.del-btn { background: rgba(239,68,68,.2); border-color: rgba(248,113,113,.4); }
+.overlay-btn.del-btn:hover { background: rgba(239,68,68,.4); }
+
+/* card footer */
+.gif-footer { padding: 10px 12px 12px; }
+.gif-label-wrap { display: flex; align-items: center; gap: 6px; }
+.gif-label {
+  flex: 1; font-size: 13px; font-weight: 500; color: var(--text);
+  background: transparent; border: none; outline: none;
+  font-family: inherit; cursor: text; min-width: 0;
+  border-bottom: 1px solid transparent; padding-bottom: 1px;
+  transition: border-color .15s;
+}
+.gif-label:focus { border-bottom-color: var(--blue); }
+.gif-meta { display: flex; align-items: center; justify-content: space-between; margin-top: 5px; }
+.gif-usage {
+  font-size: 11px; color: var(--text-dim); font-family: 'DM Mono', monospace;
+  display: flex; align-items: center; gap: 4px;
+}
+.gif-usage.hot { color: var(--amber-light); }
+.gif-size { font-size: 11px; color: var(--text-dim); }
+
+/* ── Empty state ─────────────────────────── */
+.empty-state { text-align: center; padding: 64px 24px; color: var(--text-dim); }
+.empty-state p { font-size: 15px; margin-top: 12px; }
+.empty-state span { font-size: 48px; display: block; margin-bottom: 8px; opacity: .4; }
+
+/* ── Toast ───────────────────────────────── */
+.toast {
+  position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%) translateY(80px);
+  background: #1e293b; border: 1px solid var(--card-border); color: var(--text);
+  border-radius: 10px; padding: 12px 20px; font-size: 13px; font-weight: 500;
+  z-index: 9999; transition: transform .25s ease, opacity .25s;
+  opacity: 0; pointer-events: none; display: flex; align-items: center; gap: 8px;
+  box-shadow: 0 8px 24px rgba(0,0,0,.5);
+}
+.toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+.toast.ok  { border-color: rgba(52,211,153,.4); }
+.toast.err { border-color: rgba(248,113,113,.4); }
+
+/* ── Label modal (new gif) ───────────────── */
+.modal-backdrop {
+  position: fixed; inset: 0; background: rgba(0,0,0,.7);
+  z-index: 500; display: flex; align-items: center; justify-content: center;
+  opacity: 0; pointer-events: none; transition: opacity .2s;
+}
+.modal-backdrop.open { opacity: 1; pointer-events: all; }
+.modal {
+  background: var(--card); border: 1px solid var(--card-border); border-radius: 14px;
+  padding: 28px; width: 360px; max-width: 90vw;
+}
+.modal h2 { font-size: 16px; font-weight: 700; margin-bottom: 6px; }
+.modal p  { font-size: 13px; color: var(--text-muted); margin-bottom: 18px; }
+.modal input {
+  width: 100%; background: var(--bg); border: 1px solid var(--card-border);
+  border-radius: 8px; color: var(--text); font-size: 14px; font-family: inherit;
+  padding: 10px 14px; outline: none; margin-bottom: 16px; transition: border-color .2s;
+}
+.modal input:focus { border-color: var(--blue); }
+.modal-preview { width: 100%; max-height: 160px; object-fit: contain; border-radius: 8px; margin-bottom: 16px; background: #0a0f1a; display: none; }
+.modal-actions { display: flex; gap: 10px; justify-content: flex-end; }
+
+/* ── Responsive ──────────────────────────── */
+@media (max-width: 600px) {
+  .gif-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+  .container { padding: 16px 16px 48px; }
+}
+</style>
+</head>
+<body>
+
+<header class="header">
+  <div>
+    <div class="logo">Lazy<span>PO</span></div>
+    <div class="subtitle">GIF Repo</div>
+  </div>
+  <div class="spacer"></div>
+  <div class="header-actions">
+    <a href="index.html" class="btn btn-ghost">← Home</a>
+  </div>
+</header>
+
+<div class="container">
+
+  <!-- Paste zone -->
+  <div class="paste-zone" id="paste-zone">
+    <div class="paste-icon">🎞️</div>
+    <div class="paste-title">Paste a GIF here</div>
+    <div class="paste-hint">Press <kbd>Ctrl</kbd>+<kbd>V</kbd> anywhere on this page, or drag & drop a GIF file</div>
+  </div>
+
+  <!-- Toolbar -->
+  <div class="toolbar">
+    <div class="search-wrap">
+      <svg class="search-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8">
+        <circle cx="9" cy="9" r="6"/><path d="M14 14l4 4" stroke-linecap="round"/>
+      </svg>
+      <input type="search" id="search-input" placeholder="Search by label…" autocomplete="off" />
+    </div>
+    <span class="count-label" id="count-label"></span>
+  </div>
+
+  <!-- Grid -->
+  <div class="gif-grid" id="gif-grid"></div>
+
+  <!-- Empty state -->
+  <div class="empty-state" id="empty-state" style="display:none">
+    <span>🎞️</span>
+    <p id="empty-msg">No GIFs yet — paste one to get started.</p>
+  </div>
+
+</div>
+
+<!-- Label modal -->
+<div class="modal-backdrop" id="modal">
+  <div class="modal">
+    <h2>New GIF</h2>
+    <p>Add a label to find this GIF later.</p>
+    <img class="modal-preview" id="modal-preview" alt="" />
+    <input type="text" id="modal-label" placeholder="e.g. Thumbs up, Party parrot…" maxlength="80" />
+    <div class="modal-actions">
+      <button class="btn btn-ghost" id="modal-cancel">Cancel</button>
+      <button class="btn btn-primary" id="modal-save">Save GIF</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script src="auth.js"></script>
+<script>
+/* ══════════════════════════════════════════════════════════
+   GIF REPO — IndexedDB + paste + copy
+══════════════════════════════════════════════════════════ */
+
+const DB_NAME    = 'lazypo-gif-repo';
+const DB_VERSION = 1;
+const STORE      = 'gifs';
+
+let db = null;
+let allGifs = [];       // in-memory, sorted by usageCount desc
+let pendingBlob = null; // blob waiting for label in modal
+
+/* ── IndexedDB ─────────────────────────────────────────── */
+
+function openDb() {
+  return new Promise((res, rej) => {
+    const req = indexedDB.open(DB_NAME, DB_VERSION);
+    req.onupgradeneeded = e => {
+      const d = e.target.result;
+      if (!d.objectStoreNames.contains(STORE)) {
+        d.createObjectStore(STORE, { keyPath: 'id' });
+      }
+    };
+    req.onsuccess = e => { db = e.target.result; res(db); };
+    req.onerror   = () => rej(req.error);
+  });
+}
+
+function tx(mode, fn) {
+  return new Promise((res, rej) => {
+    const t  = db.transaction(STORE, mode);
+    const s  = t.objectStore(STORE);
+    const rq = fn(s);
+    rq.onsuccess = () => res(rq.result);
+    rq.onerror   = () => rej(rq.error);
+  });
+}
+
+function dbGetAll()   { return tx('readonly',  s => s.getAll()); }
+function dbPut(item)  { return tx('readwrite', s => s.put(item)); }
+function dbDel(id)    { return tx('readwrite', s => s.delete(id)); }
+
+function uid() {
+  return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+}
+
+/* ── Load & render ─────────────────────────────────────── */
+
+async function loadAndRender() {
+  allGifs = await dbGetAll();
+  render(document.getElementById('search-input').value.trim().toLowerCase());
+}
+
+function render(filter) {
+  const grid  = document.getElementById('gif-grid');
+  const empty = document.getElementById('empty-state');
+  const count = document.getElementById('count-label');
+
+  let list = allGifs
+    .filter(g => !filter || g.label.toLowerCase().includes(filter))
+    .sort((a, b) => (b.usageCount - a.usageCount) || (b.createdAt - a.createdAt));
+
+  count.textContent = list.length ? `${list.length} GIF${list.length > 1 ? 's' : ''}` : '';
+
+  if (!list.length) {
+    grid.innerHTML = '';
+    empty.style.display = 'block';
+    document.getElementById('empty-msg').textContent = filter
+      ? `No GIF matching "${filter}".`
+      : 'No GIFs yet — paste one to get started.';
+    return;
+  }
+
+  empty.style.display = 'none';
+  grid.innerHTML = '';
+
+  list.forEach(gif => {
+    const url  = URL.createObjectURL(gif.blob);
+    const hot  = gif.usageCount >= 5;
+    const size = formatSize(gif.blob.size);
+
+    const card = document.createElement('div');
+    card.className = 'gif-card';
+    card.dataset.id = gif.id;
+    card.innerHTML = `
+      <img class="gif-preview" src="${url}" alt="${esc(gif.label)}" loading="lazy" />
+      <div class="gif-overlay">
+        <button class="overlay-btn copy-btn">
+          <svg width="13" height="13" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><rect x="7" y="7" width="11" height="11" rx="2"/><path d="M3 13V3h10"/></svg>
+          Copy
+        </button>
+        <button class="overlay-btn del-btn">
+          <svg width="13" height="13" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 5l10 10M15 5L5 15" stroke-linecap="round"/></svg>
+        </button>
+      </div>
+      <div class="gif-footer">
+        <div class="gif-label-wrap">
+          <input class="gif-label" value="${esc(gif.label)}" maxlength="80" title="Click to edit label" />
+        </div>
+        <div class="gif-meta">
+          <span class="gif-usage${hot ? ' hot' : ''}">
+            ${hot ? '🔥' : '📋'} ${gif.usageCount} cop${gif.usageCount === 1 ? 'y' : 'ies'}
+          </span>
+          <span class="gif-size">${size}</span>
+        </div>
+      </div>`;
+
+    // Copy
+    card.querySelector('.copy-btn').addEventListener('click', e => {
+      e.stopPropagation();
+      copyGif(gif, card);
+    });
+
+    // Delete
+    card.querySelector('.del-btn').addEventListener('click', async e => {
+      e.stopPropagation();
+      if (!confirm(`Delete "${gif.label}"?`)) return;
+      await dbDel(gif.id);
+      URL.revokeObjectURL(url);
+      await loadAndRender();
+    });
+
+    // Edit label
+    const labelInput = card.querySelector('.gif-label');
+    labelInput.addEventListener('click',  e => e.stopPropagation());
+    labelInput.addEventListener('keydown', async e => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        labelInput.blur();
+      }
+    });
+    labelInput.addEventListener('blur', async () => {
+      const newLabel = labelInput.value.trim() || gif.label;
+      if (newLabel === gif.label) return;
+      gif.label = newLabel;
+      await dbPut(gif);
+      allGifs = allGifs.map(g => g.id === gif.id ? gif : g);
+    });
+
+    grid.appendChild(card);
+  });
+}
+
+/* ── Copy to clipboard ─────────────────────────────────── */
+
+async function copyGif(gif, card) {
+  try {
+    await navigator.clipboard.write([
+      new ClipboardItem({ [gif.blob.type]: gif.blob })
+    ]);
+    gif.usageCount = (gif.usageCount || 0) + 1;
+    gif.lastUsedAt = Date.now();
+    await dbPut(gif);
+    allGifs = allGifs.map(g => g.id === gif.id ? gif : g);
+    // Update badge inline without full re-render
+    const hot   = gif.usageCount >= 5;
+    const badge = card.querySelector('.gif-usage');
+    if (badge) {
+      badge.className = `gif-usage${hot ? ' hot' : ''}`;
+      badge.textContent = `${hot ? '🔥' : '📋'} ${gif.usageCount} cop${gif.usageCount === 1 ? 'y' : 'ies'}`;
+    }
+    toast('✓ Copied to clipboard!', 'ok');
+  } catch (err) {
+    // Fallback: download
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(gif.blob);
+    a.download = (gif.label || 'gif') + '.gif';
+    a.click();
+    toast('Clipboard not available — downloading instead', 'err');
+  }
+}
+
+/* ── Paste / drag-drop ─────────────────────────────────── */
+
+document.addEventListener('paste', e => {
+  const items = [...(e.clipboardData?.items || [])];
+  const imgItem = items.find(i => i.type.startsWith('image/'));
+  if (!imgItem) return;
+  e.preventDefault();
+  const blob = imgItem.getAsFile();
+  if (!blob) return;
+  openLabelModal(blob);
+});
+
+const pasteZone = document.getElementById('paste-zone');
+pasteZone.addEventListener('dragover',  e => { e.preventDefault(); pasteZone.classList.add('drag-over'); });
+pasteZone.addEventListener('dragleave', e => { if (!pasteZone.contains(e.relatedTarget)) pasteZone.classList.remove('drag-over'); });
+pasteZone.addEventListener('drop', e => {
+  e.preventDefault();
+  pasteZone.classList.remove('drag-over');
+  const file = e.dataTransfer.files[0];
+  if (!file || !file.type.startsWith('image/')) return;
+  openLabelModal(file);
+});
+
+/* ── Label modal ───────────────────────────────────────── */
+
+const modal       = document.getElementById('modal');
+const modalLabel  = document.getElementById('modal-label');
+const modalPrev   = document.getElementById('modal-preview');
+const modalCancel = document.getElementById('modal-cancel');
+const modalSave   = document.getElementById('modal-save');
+
+function openLabelModal(blob) {
+  pendingBlob = blob;
+  const url = URL.createObjectURL(blob);
+  modalPrev.src = url;
+  modalPrev.style.display = 'block';
+  modalLabel.value = '';
+  modal.classList.add('open');
+  setTimeout(() => modalLabel.focus(), 80);
+}
+
+function closeModal() {
+  modal.classList.remove('open');
+  if (modalPrev.src) { URL.revokeObjectURL(modalPrev.src); modalPrev.src = ''; }
+  pendingBlob = null;
+}
+
+modalCancel.addEventListener('click', closeModal);
+modal.addEventListener('click', e => { if (e.target === modal) closeModal(); });
+modalLabel.addEventListener('keydown', e => { if (e.key === 'Enter') modalSave.click(); });
+
+modalSave.addEventListener('click', async () => {
+  const label = modalLabel.value.trim() || 'Untitled GIF';
+  const gif = {
+    id:         uid(),
+    label,
+    blob:       pendingBlob,
+    usageCount: 0,
+    createdAt:  Date.now(),
+    lastUsedAt: null,
+  };
+  await dbPut(gif);
+  allGifs.push(gif);
+  closeModal();
+  await loadAndRender();
+  toast(`✓ "${label}" saved!`, 'ok');
+});
+
+/* ── Search ────────────────────────────────────────────── */
+
+document.getElementById('search-input').addEventListener('input', e => {
+  render(e.target.value.trim().toLowerCase());
+});
+
+/* ── Toast ─────────────────────────────────────────────── */
+
+let toastTimer;
+function toast(msg, type = 'ok') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = `toast ${type} show`;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+/* ── Helpers ───────────────────────────────────────────── */
+
+function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
+function formatSize(bytes) {
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(0) + ' KB';
+  return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+}
+
+/* ── Boot ──────────────────────────────────────────────── */
+openDb().then(loadAndRender);
+</script>
+</body>
+</html>
