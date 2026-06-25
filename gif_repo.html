@@ -166,6 +166,36 @@ kbd { background: rgba(255,255,255,.08); border: 1px solid var(--card-border); b
 .modal-preview { width: 100%; max-height: 160px; object-fit: contain; border-radius: 8px; margin-bottom: 16px; background: #0a0f1a; display: none; }
 .modal-actions { display: flex; gap: 10px; justify-content: flex-end; }
 
+/* ── Copy lightbox ───────────────────────── */
+.lightbox {
+  position: fixed; inset: 0; background: rgba(0,0,0,.82);
+  z-index: 600; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 20px;
+  opacity: 0; pointer-events: none; transition: opacity .2s;
+}
+.lightbox.open { opacity: 1; pointer-events: all; }
+.lightbox img { max-width: 90vw; max-height: 60vh; border-radius: 10px; display: block; cursor: context-menu; }
+.lightbox-label { font-size: 15px; font-weight: 600; color: #fff; }
+.lightbox-hint {
+  background: rgba(59,130,246,.18); border: 1px solid rgba(96,165,250,.35);
+  border-radius: 10px; padding: 14px 22px; text-align: center; max-width: 380px;
+}
+.lightbox-hint strong { display: block; color: var(--blue-light); font-size: 14px; margin-bottom: 4px; }
+.lightbox-hint span { font-size: 12px; color: var(--text-muted); }
+.lightbox-close {
+  position: absolute; top: 20px; right: 24px;
+  background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.2);
+  color: #fff; border-radius: 8px; padding: 6px 14px; cursor: pointer;
+  font-size: 13px; font-family: inherit;
+}
+.lightbox-close:hover { background: rgba(255,255,255,.2); }
+.lightbox-dl {
+  background: transparent; border: 1px solid rgba(255,255,255,.25); color: #fff;
+  border-radius: 8px; padding: 8px 18px; cursor: pointer; font-size: 13px; font-family: inherit;
+  display: inline-flex; align-items: center; gap: 6px;
+}
+.lightbox-dl:hover { background: rgba(255,255,255,.08); }
+
 /* ── Responsive ──────────────────────────── */
 @media (max-width: 600px) {
   .gif-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
@@ -230,6 +260,18 @@ kbd { background: rgba(255,255,255,.08); border: 1px solid var(--card-border); b
       <button class="btn btn-primary" id="modal-save">Save GIF</button>
     </div>
   </div>
+</div>
+
+<!-- Copy lightbox -->
+<div class="lightbox" id="lightbox">
+  <button class="lightbox-close" id="lightbox-close">✕ Fermer</button>
+  <div class="lightbox-label" id="lightbox-label"></div>
+  <img id="lightbox-img" src="" alt="" />
+  <div class="lightbox-hint">
+    <strong>Clic-droit → Copier l'image</strong>
+    <span>puis colle directement dans Teams, Slack, Outlook…</span>
+  </div>
+  <button class="lightbox-dl" id="lightbox-dl">⬇ Télécharger le GIF</button>
 </div>
 
 <!-- Toast -->
@@ -383,45 +425,57 @@ function render(filter) {
 
 /* ── Copy to clipboard ─────────────────────────────────── */
 
-async function blobToPng(blob) {
-  const url = URL.createObjectURL(blob);
-  const img  = new Image();
-  await new Promise((res, rej) => { img.onload = res; img.onerror = rej; img.src = url; });
-  URL.revokeObjectURL(url);
-  const canvas = document.createElement('canvas');
-  canvas.width  = img.naturalWidth  || 200;
-  canvas.height = img.naturalHeight || 200;
-  canvas.getContext('2d').drawImage(img, 0, 0);
-  return new Promise(res => canvas.toBlob(res, 'image/png'));
-}
+/* ── Copy lightbox ─────────────────────────────────────── */
 
-async function copyGif(gif, card) {
-  try {
-    // Try native GIF copy first (Chrome 97+), fall back to PNG (first frame)
-    let item;
-    try {
-      item = new ClipboardItem({ 'image/gif': gif.blob });
-      await navigator.clipboard.write([item]);
-    } catch {
-      const png = await blobToPng(gif.blob);
-      await navigator.clipboard.write([new ClipboardItem({ 'image/png': png })]);
-    }
+let lightboxGif  = null;
+let lightboxUrl  = null;
 
-    gif.usageCount = (gif.usageCount || 0) + 1;
-    gif.lastUsedAt = Date.now();
-    await dbPut(gif);
-    allGifs = allGifs.map(g => g.id === gif.id ? gif : g);
+const lightbox     = document.getElementById('lightbox');
+const lightboxImg  = document.getElementById('lightbox-img');
+const lightboxLbl  = document.getElementById('lightbox-label');
+const lightboxDl   = document.getElementById('lightbox-dl');
+const lightboxClose = document.getElementById('lightbox-close');
+
+function openLightbox(gif, card) {
+  if (lightboxUrl) URL.revokeObjectURL(lightboxUrl);
+  lightboxUrl = URL.createObjectURL(gif.blob);
+  lightboxGif = gif;
+  lightboxImg.src  = lightboxUrl;
+  lightboxLbl.textContent = gif.label;
+  lightbox.classList.add('open');
+
+  // increment usage
+  gif.usageCount = (gif.usageCount || 0) + 1;
+  gif.lastUsedAt = Date.now();
+  dbPut(gif);
+  allGifs = allGifs.map(g => g.id === gif.id ? gif : g);
+  if (card) {
     const hot   = gif.usageCount >= 5;
     const badge = card.querySelector('.gif-usage');
     if (badge) {
       badge.className = `gif-usage${hot ? ' hot' : ''}`;
       badge.textContent = `${hot ? '🔥' : '📋'} ${gif.usageCount} cop${gif.usageCount === 1 ? 'y' : 'ies'}`;
     }
-    toast('✓ Copied! Paste it anywhere.', 'ok');
-  } catch (err) {
-    toast('❌ Copy failed — try right-click → Copy Image on the GIF', 'err');
   }
 }
+
+function closeLightbox() {
+  lightbox.classList.remove('open');
+}
+
+lightboxClose.addEventListener('click', closeLightbox);
+lightbox.addEventListener('click', e => { if (e.target === lightbox) closeLightbox(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeLightbox(); });
+
+lightboxDl.addEventListener('click', () => {
+  if (!lightboxGif) return;
+  const a = document.createElement('a');
+  a.href     = lightboxUrl;
+  a.download = (lightboxGif.label || 'gif').replace(/[^a-z0-9_\- ]/gi, '_') + '.gif';
+  a.click();
+});
+
+function copyGif(gif, card) { openLightbox(gif, card); }
 
 /* ── Paste / drag-drop ─────────────────────────────────── */
 
