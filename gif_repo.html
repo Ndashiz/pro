@@ -126,6 +126,26 @@ kbd { background: rgba(255,255,255,.08); border: 1px solid var(--card-border); b
 .gif-usage.hot { color: var(--amber-light); }
 .gif-size { font-size: 11px; color: var(--text-dim); }
 
+/* ── Tags ────────────────────────────────── */
+.gif-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 5px; min-height: 22px; align-items: flex-start; }
+.gif-tag {
+  display: inline-flex; align-items: center; gap: 3px;
+  background: rgba(59,130,246,.12); border: 1px solid rgba(59,130,246,.25);
+  border-radius: 6px; padding: 2px 7px; font-size: 11px; font-weight: 500;
+  color: var(--blue-pale); line-height: 1.4;
+}
+.gif-tag.hagra-tag { background: rgba(239,68,68,.12); border-color: rgba(248,113,113,.25); color: var(--red-light); }
+.tag-del { background: none; border: none; color: var(--text-dim); cursor: pointer; font-size: 12px; line-height: 1; padding: 0; font-family: inherit; }
+.tag-del:hover { color: var(--red-light); }
+.tag-add { background: rgba(255,255,255,.05); border: 1px solid var(--card-border); border-radius: 6px; color: var(--text-dim); cursor: pointer; font-size: 11px; padding: 2px 7px; font-family: inherit; transition: border-color .15s; }
+.tag-add:hover { border-color: var(--blue); color: var(--blue-light); }
+.tag-input { background: var(--bg); border: 1px solid var(--blue); border-radius: 6px; color: var(--text); font-size: 11px; font-family: inherit; padding: 2px 7px; outline: none; width: 90px; }
+
+/* ── Hagra toggle ────────────────────────── */
+.hagra-btn { background: transparent; border: 1px solid transparent; color: var(--text-dim); border-radius: 8px; font-size: 13px; cursor: pointer; padding: 7px 10px; font-family: inherit; transition: color .15s, border-color .15s, background .15s; }
+.hagra-btn:hover { color: var(--text-muted); border-color: var(--card-border); }
+.hagra-btn.active { color: var(--red-light); border-color: rgba(248,113,113,.3); background: rgba(239,68,68,.06); }
+
 /* ── Empty state ─────────────────────────── */
 .empty-state { text-align: center; padding: 64px 24px; color: var(--text-dim); }
 .empty-state p { font-size: 15px; margin-top: 12px; }
@@ -235,6 +255,7 @@ kbd { background: rgba(255,255,255,.08); border: 1px solid var(--card-border); b
       <input type="search" id="search-input" placeholder="Search by label…" autocomplete="off" />
     </div>
     <span class="count-label" id="count-label"></span>
+    <button class="hagra-btn" id="hagra-btn" title="Mode privé">🔒</button>
   </div>
 
   <!-- Grid -->
@@ -291,6 +312,7 @@ const STORE      = 'gifs';
 let db = null;
 let allGifs = [];       // in-memory, sorted by usageCount desc
 let pendingBlob = null; // blob waiting for label in modal
+let showHagra = false;
 
 /* ── IndexedDB ─────────────────────────────────────────── */
 
@@ -329,7 +351,16 @@ function uid() {
 /* ── Load & render ─────────────────────────────────────── */
 
 async function loadAndRender() {
-  allGifs = await dbGetAll();
+  let gifs = await dbGetAll();
+  // Migrate: label (string) → labels (array)
+  for (const g of gifs) {
+    if (!g.labels) {
+      g.labels = g.label ? [g.label] : [];
+      delete g.label;
+      await dbPut(g);
+    }
+  }
+  allGifs = gifs;
   render(document.getElementById('search-input').value.trim().toLowerCase());
 }
 
@@ -338,8 +369,10 @@ function render(filter) {
   const empty = document.getElementById('empty-state');
   const count = document.getElementById('count-label');
 
+  const isHagra = g => (g.labels || []).map(l => l.toLowerCase()).includes('hagra');
   let list = allGifs
-    .filter(g => !filter || g.label.toLowerCase().includes(filter))
+    .filter(g => showHagra ? isHagra(g) : !isHagra(g))
+    .filter(g => !filter || (g.labels || []).some(l => l.toLowerCase().includes(filter)))
     .sort((a, b) => (b.usageCount - a.usageCount) || (b.createdAt - a.createdAt));
 
   count.textContent = list.length ? `${list.length} GIF${list.length > 1 ? 's' : ''}` : '';
@@ -364,8 +397,13 @@ function render(filter) {
     const card = document.createElement('div');
     card.className = 'gif-card';
     card.dataset.id = gif.id;
+    const primaryLabel = gif.labels[0] || 'Untitled';
+    const tagsHtml = gif.labels.map((l, li) =>
+      `<span class="gif-tag${l.toLowerCase() === 'hagra' ? ' hagra-tag' : ''}">${esc(l)}<button class="tag-del" data-li="${li}" title="Remove">×</button></span>`
+    ).join('') + `<button class="tag-add" title="Add label">+</button>`;
+
     card.innerHTML = `
-      <img class="gif-preview" src="${url}" alt="${esc(gif.label)}" loading="lazy" />
+      <img class="gif-preview" src="${url}" alt="${esc(primaryLabel)}" loading="lazy" />
       <div class="gif-overlay">
         <button class="overlay-btn copy-btn">
           <svg width="13" height="13" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><rect x="7" y="7" width="11" height="11" rx="2"/><path d="M3 13V3h10"/></svg>
@@ -376,9 +414,7 @@ function render(filter) {
         </button>
       </div>
       <div class="gif-footer">
-        <div class="gif-label-wrap">
-          <input class="gif-label" value="${esc(gif.label)}" maxlength="80" title="Click to edit label" />
-        </div>
+        <div class="gif-tags">${tagsHtml}</div>
         <div class="gif-meta">
           <span class="gif-usage${hot ? ' hot' : ''}">
             ${hot ? '🔥' : '📋'} ${gif.usageCount} cop${gif.usageCount === 1 ? 'y' : 'ies'}
@@ -393,30 +429,54 @@ function render(filter) {
       copyGif(gif, card);
     });
 
-    // Delete
+    // Delete card
     card.querySelector('.del-btn').addEventListener('click', async e => {
       e.stopPropagation();
-      if (!confirm(`Delete "${gif.label}"?`)) return;
+      if (!confirm(`Delete "${primaryLabel}"?`)) return;
       await dbDel(gif.id);
       URL.revokeObjectURL(url);
       await loadAndRender();
     });
 
-    // Edit label
-    const labelInput = card.querySelector('.gif-label');
-    labelInput.addEventListener('click',  e => e.stopPropagation());
-    labelInput.addEventListener('keydown', async e => {
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        labelInput.blur();
-      }
+    // Remove tag
+    card.querySelectorAll('.tag-del').forEach(btn => {
+      btn.addEventListener('click', async e => {
+        e.stopPropagation();
+        const li = +btn.dataset.li;
+        gif.labels.splice(li, 1);
+        await dbPut(gif);
+        allGifs = allGifs.map(g => g.id === gif.id ? gif : g);
+        render(document.getElementById('search-input').value.trim().toLowerCase());
+      });
     });
-    labelInput.addEventListener('blur', async () => {
-      const newLabel = labelInput.value.trim() || gif.label;
-      if (newLabel === gif.label) return;
-      gif.label = newLabel;
-      await dbPut(gif);
-      allGifs = allGifs.map(g => g.id === gif.id ? gif : g);
+
+    // Add tag
+    card.querySelector('.tag-add').addEventListener('click', e => {
+      e.stopPropagation();
+      const tagsDiv = card.querySelector('.gif-tags');
+      const addBtn  = card.querySelector('.tag-add');
+      if (tagsDiv.querySelector('.tag-input')) return; // already open
+      const inp = document.createElement('input');
+      inp.className   = 'tag-input';
+      inp.placeholder = 'label…';
+      inp.maxLength   = 40;
+      tagsDiv.insertBefore(inp, addBtn);
+      inp.focus();
+      const commit = async () => {
+        const val = inp.value.trim().toLowerCase();
+        if (val && !gif.labels.map(l => l.toLowerCase()).includes(val)) {
+          gif.labels.push(val);
+          await dbPut(gif);
+          allGifs = allGifs.map(g => g.id === gif.id ? gif : g);
+        }
+        render(document.getElementById('search-input').value.trim().toLowerCase());
+      };
+      inp.addEventListener('keydown', e => {
+        if (e.key === 'Enter') { e.preventDefault(); commit(); }
+        if (e.key === 'Escape') render(document.getElementById('search-input').value.trim().toLowerCase());
+      });
+      inp.addEventListener('blur', commit);
+      inp.addEventListener('click', e => e.stopPropagation());
     });
 
     grid.appendChild(card);
@@ -441,7 +501,7 @@ function openLightbox(gif, card) {
   lightboxUrl = URL.createObjectURL(gif.blob);
   lightboxGif = gif;
   lightboxImg.src  = lightboxUrl;
-  lightboxLbl.textContent = gif.label;
+  lightboxLbl.textContent = (gif.labels && gif.labels[0]) || gif.label || '';
   lightbox.classList.add('open');
 
   // increment usage
@@ -471,7 +531,7 @@ lightboxDl.addEventListener('click', () => {
   if (!lightboxGif) return;
   const a = document.createElement('a');
   a.href     = lightboxUrl;
-  a.download = (lightboxGif.label || 'gif').replace(/[^a-z0-9_\- ]/gi, '_') + '.gif';
+  a.download = ((lightboxGif.labels && lightboxGif.labels[0]) || lightboxGif.label || 'gif').replace(/[^a-z0-9_\- ]/gi, '_') + '.gif';
   a.click();
 });
 
@@ -501,7 +561,7 @@ async function copyGif(gif, card) {
     await navigator.clipboard.write([
       new ClipboardItem({ 'text/html': new Blob([html], { type: 'text/html' }) })
     ]);
-    toast(`✓ "${gif.label}" copié ! Colle dans Teams/Slack/Outlook.`, 'ok');
+    toast(`✓ "${gif.labels[0] || 'GIF'}" copié ! Colle dans Teams/Slack/Outlook.`, 'ok');
   } catch (err) {
     // Fallback: open lightbox with manual right-click instruction
     openLightbox(gif, card);
@@ -571,7 +631,7 @@ modalSave.addEventListener('click', async () => {
   const label = modalLabel.value.trim() || 'Untitled GIF';
   const gif = {
     id:         uid(),
-    label,
+    labels:     [label],
     blob:       pendingBlob,
     usageCount: 0,
     createdAt:  Date.now(),
@@ -582,6 +642,15 @@ modalSave.addEventListener('click', async () => {
   closeModal();
   await loadAndRender();
   toast(`✓ "${label}" saved!`, 'ok');
+});
+
+/* ── Hagra toggle ──────────────────────────────────────── */
+
+document.getElementById('hagra-btn').addEventListener('click', () => {
+  showHagra = !showHagra;
+  document.getElementById('hagra-btn').classList.toggle('active', showHagra);
+  document.getElementById('search-input').value = '';
+  render('');
 });
 
 /* ── Search ────────────────────────────────────────────── */
