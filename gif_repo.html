@@ -475,7 +475,38 @@ lightboxDl.addEventListener('click', () => {
   a.click();
 });
 
-function copyGif(gif, card) { openLightbox(gif, card); }
+async function copyGif(gif, card) {
+  // Increment usage counter
+  gif.usageCount = (gif.usageCount || 0) + 1;
+  gif.lastUsedAt = Date.now();
+  dbPut(gif);
+  allGifs = allGifs.map(g => g.id === gif.id ? gif : g);
+  if (card) {
+    const hot   = gif.usageCount >= 5;
+    const badge = card.querySelector('.gif-usage');
+    if (badge) {
+      badge.className = `gif-usage${hot ? ' hot' : ''}`;
+      badge.textContent = `${hot ? '🔥' : '📋'} ${gif.usageCount} cop${gif.usageCount === 1 ? 'y' : 'ies'}`;
+    }
+  }
+
+  try {
+    const dataUrl = await new Promise((res, rej) => {
+      const r = new FileReader();
+      r.onload  = () => res(r.result);
+      r.onerror = rej;
+      r.readAsDataURL(gif.blob);
+    });
+    const html = `<img src="${dataUrl}" alt="${gif.label}">`;
+    await navigator.clipboard.write([
+      new ClipboardItem({ 'text/html': new Blob([html], { type: 'text/html' }) })
+    ]);
+    toast(`✓ "${gif.label}" copié ! Colle dans Teams/Slack/Outlook.`, 'ok');
+  } catch (err) {
+    // Fallback: open lightbox with manual right-click instruction
+    openLightbox(gif, card);
+  }
+}
 
 /* ── Paste / drag-drop ─────────────────────────────────── */
 
