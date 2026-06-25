@@ -189,10 +189,11 @@ kbd { background: rgba(255,255,255,.08); border: 1px solid var(--card-border); b
 <div class="container">
 
   <!-- Paste zone -->
+  <input type="file" id="file-input" accept="image/*" style="display:none" />
   <div class="paste-zone" id="paste-zone">
     <div class="paste-icon">🎞️</div>
-    <div class="paste-title">Paste a GIF here</div>
-    <div class="paste-hint">Press <kbd>Ctrl</kbd>+<kbd>V</kbd> anywhere on this page, or drag & drop a GIF file</div>
+    <div class="paste-title">Add a GIF</div>
+    <div class="paste-hint"><strong>Click to browse</strong>, drag & drop, or press <kbd>Ctrl</kbd>+<kbd>V</kbd> to paste</div>
   </div>
 
   <!-- Toolbar -->
@@ -422,6 +423,9 @@ document.addEventListener('paste', e => {
 });
 
 const pasteZone = document.getElementById('paste-zone');
+const fileInput  = document.getElementById('file-input');
+
+pasteZone.addEventListener('click',    () => fileInput.click());
 pasteZone.addEventListener('dragover',  e => { e.preventDefault(); pasteZone.classList.add('drag-over'); });
 pasteZone.addEventListener('dragleave', e => { if (!pasteZone.contains(e.relatedTarget)) pasteZone.classList.remove('drag-over'); });
 pasteZone.addEventListener('drop', e => {
@@ -430,6 +434,11 @@ pasteZone.addEventListener('drop', e => {
   const file = e.dataTransfer.files[0];
   if (!file || !file.type.startsWith('image/')) return;
   openLabelModal(file);
+});
+fileInput.addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (file) openLabelModal(file);
+  fileInput.value = '';
 });
 
 /* ── Label modal ───────────────────────────────────────── */
