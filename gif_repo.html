@@ -383,30 +383,43 @@ function render(filter) {
 
 /* ── Copy to clipboard ─────────────────────────────────── */
 
+async function blobToPng(blob) {
+  const url = URL.createObjectURL(blob);
+  const img  = new Image();
+  await new Promise((res, rej) => { img.onload = res; img.onerror = rej; img.src = url; });
+  URL.revokeObjectURL(url);
+  const canvas = document.createElement('canvas');
+  canvas.width  = img.naturalWidth  || 200;
+  canvas.height = img.naturalHeight || 200;
+  canvas.getContext('2d').drawImage(img, 0, 0);
+  return new Promise(res => canvas.toBlob(res, 'image/png'));
+}
+
 async function copyGif(gif, card) {
   try {
-    await navigator.clipboard.write([
-      new ClipboardItem({ [gif.blob.type]: gif.blob })
-    ]);
+    // Try native GIF copy first (Chrome 97+), fall back to PNG (first frame)
+    let item;
+    try {
+      item = new ClipboardItem({ 'image/gif': gif.blob });
+      await navigator.clipboard.write([item]);
+    } catch {
+      const png = await blobToPng(gif.blob);
+      await navigator.clipboard.write([new ClipboardItem({ 'image/png': png })]);
+    }
+
     gif.usageCount = (gif.usageCount || 0) + 1;
     gif.lastUsedAt = Date.now();
     await dbPut(gif);
     allGifs = allGifs.map(g => g.id === gif.id ? gif : g);
-    // Update badge inline without full re-render
     const hot   = gif.usageCount >= 5;
     const badge = card.querySelector('.gif-usage');
     if (badge) {
       badge.className = `gif-usage${hot ? ' hot' : ''}`;
       badge.textContent = `${hot ? '🔥' : '📋'} ${gif.usageCount} cop${gif.usageCount === 1 ? 'y' : 'ies'}`;
     }
-    toast('✓ Copied to clipboard!', 'ok');
+    toast('✓ Copied! Paste it anywhere.', 'ok');
   } catch (err) {
-    // Fallback: download
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(gif.blob);
-    a.download = (gif.label || 'gif') + '.gif';
-    a.click();
-    toast('Clipboard not available — downloading instead', 'err');
+    toast('❌ Copy failed — try right-click → Copy Image on the GIF', 'err');
   }
 }
 
