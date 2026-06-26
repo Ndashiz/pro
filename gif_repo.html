@@ -146,6 +146,13 @@ kbd { background: rgba(255,255,255,.08); border: 1px solid var(--card-border); b
 .hagra-btn:hover { color: var(--text-muted); border-color: var(--card-border); }
 .hagra-btn.active { color: var(--red-light); border-color: rgba(248,113,113,.3); background: rgba(239,68,68,.06); }
 
+/* ── Locked card (hagra in search results) ── */
+.gif-card.locked .gif-preview { filter: blur(10px); }
+.gif-card.locked .gif-overlay { opacity: 1; background: rgba(0,0,0,.3); cursor: pointer; }
+.lock-overlay { display: flex; flex-direction: column; align-items: center; gap: 6px; pointer-events: none; }
+.lock-icon { font-size: 30px; }
+.lock-hint { font-size: 11px; color: rgba(255,255,255,.75); font-weight: 500; }
+
 /* ── Empty state ─────────────────────────── */
 .empty-state { text-align: center; padding: 64px 24px; color: var(--text-dim); }
 .empty-state p { font-size: 15px; margin-top: 12px; }
@@ -313,6 +320,7 @@ let db = null;
 let allGifs = [];       // in-memory, sorted by usageCount desc
 let pendingBlob = null; // blob waiting for label in modal
 let showHagra = false;
+const revealedIds = new Set(); // hagra GIFs revealed this session
 
 /* ── IndexedDB ─────────────────────────────────────────── */
 
@@ -370,10 +378,16 @@ function render(filter) {
   const count = document.getElementById('count-label');
 
   const isHagra = g => (g.labels || []).map(l => l.toLowerCase()).includes('hagra');
-  let list = allGifs
-    .filter(g => showHagra ? isHagra(g) : !isHagra(g))
-    .filter(g => !filter || (g.labels || []).some(l => l.toLowerCase().includes(filter)))
-    .sort((a, b) => (b.usageCount - a.usageCount) || (b.createdAt - a.createdAt));
+  let list;
+  if (showHagra) {
+    list = allGifs.filter(g => isHagra(g));
+  } else if (filter) {
+    // Include hagra GIFs in search results — shown as locked unless revealed
+    list = allGifs.filter(g => (g.labels || []).some(l => l.toLowerCase().includes(filter)));
+  } else {
+    list = allGifs.filter(g => !isHagra(g));
+  }
+  list = list.sort((a, b) => (b.usageCount - a.usageCount) || (b.createdAt - a.createdAt));
 
   count.textContent = list.length ? `${list.length} GIF${list.length > 1 ? 's' : ''}` : '';
 
@@ -401,6 +415,30 @@ function render(filter) {
     const tagsHtml = gif.labels.map((l, li) =>
       `<span class="gif-tag${l.toLowerCase() === 'hagra' ? ' hagra-tag' : ''}">${esc(l)}<button class="tag-del" data-li="${li}" title="Remove">×</button></span>`
     ).join('') + `<button class="tag-add" title="Add label">+</button>`;
+
+    const locked = !showHagra && isHagra(gif) && !revealedIds.has(gif.id);
+
+    if (locked) {
+      card.className = 'gif-card locked';
+      card.innerHTML = `
+        <img class="gif-preview" src="${url}" alt="" loading="lazy" />
+        <div class="gif-overlay">
+          <div class="lock-overlay">
+            <span class="lock-icon">🔒</span>
+            <span class="lock-hint">Cliquer pour révéler</span>
+          </div>
+        </div>
+        <div class="gif-footer">
+          <div class="gif-tags">${tagsHtml}</div>
+          <div class="gif-meta"><span class="gif-size">${size}</span></div>
+        </div>`;
+      card.addEventListener('click', () => {
+        revealedIds.add(gif.id);
+        render(document.getElementById('search-input').value.trim().toLowerCase());
+      });
+      grid.appendChild(card);
+      return;
+    }
 
     card.innerHTML = `
       <img class="gif-preview" src="${url}" alt="${esc(primaryLabel)}" loading="lazy" />
