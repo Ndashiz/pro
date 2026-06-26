@@ -281,7 +281,8 @@ kbd { background: rgba(255,255,255,.08); border: 1px solid var(--card-border); b
     <h2>New GIF</h2>
     <p>Add a label to find this GIF later.</p>
     <img class="modal-preview" id="modal-preview" alt="" />
-    <input type="text" id="modal-label" placeholder="e.g. Thumbs up, Party parrot…" maxlength="80" />
+    <div class="gif-tags" id="modal-tags" style="min-height:0;margin-bottom:8px"></div>
+    <input type="text" id="modal-label" placeholder="Label, puis Entrée pour en ajouter…" maxlength="80" />
     <div style="display:flex;gap:8px;margin-bottom:16px">
       <label class="modal-radio" id="modal-radio-normal">
         <input type="radio" name="modal-visibility" value="normal" checked />
@@ -652,19 +653,54 @@ function openLabelModal(blob) {
 function closeModal() {
   modal.classList.remove('open');
   if (modalPrev.src) { URL.revokeObjectURL(modalPrev.src); modalPrev.src = ''; }
-  pendingBlob = null;
+  pendingBlob   = null;
+  modalLabels   = [];
+  modalLabel.value = '';
+  renderModalTags();
   document.querySelector('input[name="modal-visibility"][value="normal"]').checked = true;
 }
 
 modalCancel.addEventListener('click', closeModal);
 modal.addEventListener('click', e => { if (e.target === modal) closeModal(); });
-modalLabel.addEventListener('keydown', e => { if (e.key === 'Enter') modalSave.click(); });
+
+let modalLabels = [];
+
+function renderModalTags() {
+  const container = document.getElementById('modal-tags');
+  if (!container) return;
+  container.innerHTML = modalLabels.map((l, i) =>
+    `<span class="gif-tag">${esc(l)}<button class="tag-del" data-i="${i}">×</button></span>`
+  ).join('');
+  container.querySelectorAll('.tag-del').forEach(btn => {
+    btn.addEventListener('click', () => {
+      modalLabels.splice(+btn.dataset.i, 1);
+      renderModalTags();
+    });
+  });
+}
+
+modalLabel.addEventListener('keydown', e => {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    const val = modalLabel.value.trim().toLowerCase();
+    if (val && !modalLabels.includes(val)) {
+      modalLabels.push(val);
+      renderModalTags();
+    }
+    modalLabel.value = '';
+  }
+});
 
 modalSave.addEventListener('click', async () => {
   if (!pendingBlob) return;
-  const label    = modalLabel.value.trim() || 'Untitled GIF';
-  const isHagraSelected = document.querySelector('input[name="modal-visibility"]:checked')?.value === 'hagra';
-  const labels   = isHagraSelected ? [label, 'hagra'] : [label];
+  // Flush whatever is still typed in the input
+  const typed = modalLabel.value.trim().toLowerCase();
+  if (typed && !modalLabels.includes(typed)) modalLabels.push(typed);
+  if (!modalLabels.length) modalLabels.push('untitled gif');
+
+  const isHagra = document.querySelector('input[name="modal-visibility"]:checked')?.value === 'hagra';
+  const labels  = isHagra ? [...modalLabels, 'hagra'] : [...modalLabels];
+
   modalSave.disabled = true;
   modalSave.textContent = 'Saving…';
   try {
@@ -672,9 +708,9 @@ modalSave.addEventListener('click', async () => {
     allGifs.push(gif);
     closeModal();
     render(document.getElementById('search-input').value.trim().toLowerCase());
-    toast(`✓ "${label}" saved!`, 'ok');
+    toast(`✓ "${modalLabels[0]}" saved!`, 'ok');
   } catch (err) {
-    toast('Erreur lors de la sauvegarde', 'err');
+    toast(`Erreur : ${err?.message || JSON.stringify(err)}`, 'err');
     console.error(err);
   }
   modalSave.disabled = false;
