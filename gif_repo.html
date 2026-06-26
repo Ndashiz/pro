@@ -78,7 +78,7 @@ kbd { background: rgba(255,255,255,.08); border: 1px solid var(--card-border); b
   background: var(--card); border: 1px solid var(--card-border);
   border-radius: 12px; overflow: hidden;
   transition: border-color .2s, transform .15s, box-shadow .15s;
-  cursor: pointer; position: relative;
+  position: relative;
 }
 .gif-card:hover { border-color: var(--blue); transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,.35); }
 
@@ -88,36 +88,18 @@ kbd { background: rgba(255,255,255,.08); border: 1px solid var(--card-border); b
   display: block; background: #0a0f1a;
 }
 
-/* overlay actions */
-.gif-overlay {
-  position: absolute; inset: 0; background: rgba(0,0,0,.55);
-  display: flex; align-items: center; justify-content: center; gap: 10px;
-  opacity: 0; transition: opacity .15s;
-}
-.gif-card:hover .gif-overlay { opacity: 1; }
-.overlay-btn {
-  background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.25);
-  color: #fff; border-radius: 8px; font-size: 12px; font-weight: 600;
-  padding: 7px 14px; cursor: pointer; display: flex; align-items: center; gap: 5px;
-  transition: background .15s; font-family: inherit;
-}
-.overlay-btn:hover { background: rgba(255,255,255,.22); }
-.overlay-btn.copy-btn { background: rgba(59,130,246,.3); border-color: var(--blue-light); }
-.overlay-btn.copy-btn:hover { background: rgba(59,130,246,.5); }
-.overlay-btn.del-btn { background: rgba(239,68,68,.2); border-color: rgba(248,113,113,.4); }
-.overlay-btn.del-btn:hover { background: rgba(239,68,68,.4); }
-
 /* card footer */
 .gif-footer { padding: 10px 12px 12px; }
-.gif-label-wrap { display: flex; align-items: center; gap: 6px; }
-.gif-label {
-  flex: 1; font-size: 13px; font-weight: 500; color: var(--text);
-  background: transparent; border: none; outline: none;
-  font-family: inherit; cursor: text; min-width: 0;
-  border-bottom: 1px solid transparent; padding-bottom: 1px;
-  transition: border-color .15s;
+.gif-actions { display: flex; gap: 6px; margin: 8px 0 6px; }
+.gif-btn {
+  flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 5px;
+  padding: 7px 10px; border-radius: 8px; font-size: 12px; font-weight: 600;
+  border: 1px solid; cursor: pointer; font-family: inherit; transition: background .15s;
 }
-.gif-label:focus { border-bottom-color: var(--blue); }
+.gif-btn.copy-btn { background: rgba(59,130,246,.15); border-color: rgba(96,165,250,.35); color: var(--blue-light); }
+.gif-btn.copy-btn:hover { background: rgba(59,130,246,.3); }
+.gif-btn.edit-btn { background: rgba(255,255,255,.05); border-color: var(--card-border); color: var(--text-muted); }
+.gif-btn.edit-btn:hover { background: rgba(255,255,255,.1); color: var(--text); }
 .gif-meta { display: flex; align-items: center; justify-content: space-between; margin-top: 5px; }
 .gif-usage {
   font-size: 11px; color: var(--text-dim); font-family: 'DM Mono', monospace;
@@ -125,6 +107,15 @@ kbd { background: rgba(255,255,255,.08); border: 1px solid var(--card-border); b
 }
 .gif-usage.hot { color: var(--amber-light); }
 .gif-size { font-size: 11px; color: var(--text-dim); }
+
+/* locked overlay (hagra in search results) */
+.gif-overlay {
+  position: absolute; inset: 0; background: rgba(0,0,0,.3);
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0; transition: opacity .15s; cursor: pointer;
+}
+.gif-card.locked .gif-overlay { opacity: 1; }
+.gif-card.locked { cursor: pointer; }
 
 /* ── Tags ────────────────────────────────── */
 .gif-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 5px; min-height: 22px; align-items: flex-start; }
@@ -286,6 +277,26 @@ kbd { background: rgba(255,255,255,.08); border: 1px solid var(--card-border); b
     <div class="modal-actions">
       <button class="btn btn-ghost" id="modal-cancel">Cancel</button>
       <button class="btn btn-primary" id="modal-save">Save GIF</button>
+    </div>
+  </div>
+</div>
+
+<!-- Edit modal -->
+<div class="modal-backdrop" id="edit-modal">
+  <div class="modal" style="width:420px">
+    <h2>Modifier le GIF</h2>
+    <img class="modal-preview" id="edit-preview" style="display:block" alt="" />
+    <div style="margin-bottom:14px">
+      <div style="font-size:12px;color:var(--text-muted);margin-bottom:8px;font-weight:600;text-transform:uppercase;letter-spacing:.05em">Labels</div>
+      <div class="gif-tags" id="edit-tags"></div>
+    </div>
+    <label style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:rgba(239,68,68,.06);border:1px solid rgba(248,113,113,.2);border-radius:8px;cursor:pointer;margin-bottom:16px;font-size:13px;color:var(--text-muted)">
+      <input type="checkbox" id="edit-hagra" style="width:16px;height:16px;accent-color:var(--red-light)" />
+      🔒 Catégorie hagra (contenu privé)
+    </label>
+    <div class="modal-actions" style="justify-content:space-between">
+      <button class="btn" id="edit-delete" style="background:rgba(239,68,68,.15);border:1px solid rgba(248,113,113,.3);color:var(--red-light)">🗑 Supprimer</button>
+      <button class="btn btn-ghost" id="edit-close">Fermer</button>
     </div>
   </div>
 </div>
@@ -454,9 +465,10 @@ function render(filter) {
     card.className = 'gif-card';
     card.dataset.id = gif.id;
     const primaryLabel = gif.labels[0] || 'Untitled';
-    const tagsHtml = gif.labels.map((l, li) =>
-      `<span class="gif-tag${l.toLowerCase() === 'hagra' ? ' hagra-tag' : ''}">${esc(l)}<button class="tag-del" data-li="${li}" title="Remove">×</button></span>`
-    ).join('') + `<button class="tag-add" title="Add label">+</button>`;
+    const visibleLabels = gif.labels.filter(l => l.toLowerCase() !== 'hagra');
+    const tagsHtml = visibleLabels.map(l =>
+      `<span class="gif-tag">${esc(l)}</span>`
+    ).join('') + (gif.labels.some(l => l.toLowerCase() === 'hagra') ? `<span class="gif-tag hagra-tag">🔒</span>` : '');
 
     const locked = !showHagra && isHagra(gif) && !revealedIds.has(gif.id);
 
@@ -484,17 +496,15 @@ function render(filter) {
 
     card.innerHTML = `
       <img class="gif-preview" src="${esc(gif.signedUrl)}" alt="${esc(primaryLabel)}" loading="lazy" />
-      <div class="gif-overlay">
-        <button class="overlay-btn copy-btn">
-          <svg width="13" height="13" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><rect x="7" y="7" width="11" height="11" rx="2"/><path d="M3 13V3h10"/></svg>
-          Copy
-        </button>
-        <button class="overlay-btn del-btn">
-          <svg width="13" height="13" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 5l10 10M15 5L5 15" stroke-linecap="round"/></svg>
-        </button>
-      </div>
       <div class="gif-footer">
         <div class="gif-tags">${tagsHtml}</div>
+        <div class="gif-actions">
+          <button class="gif-btn copy-btn">
+            <svg width="12" height="12" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><rect x="7" y="7" width="11" height="11" rx="2"/><path d="M3 13V3h10"/></svg>
+            Copier
+          </button>
+          <button class="gif-btn edit-btn">✏️ Modifier</button>
+        </div>
         <div class="gif-meta">
           <span class="gif-usage${hot ? ' hot' : ''}">
             ${hot ? '🔥' : '📋'} ${gif.usage_count} cop${gif.usage_count === 1 ? 'y' : 'ies'}
@@ -503,61 +513,8 @@ function render(filter) {
         </div>
       </div>`;
 
-    // Copy
-    card.querySelector('.copy-btn').addEventListener('click', e => {
-      e.stopPropagation();
-      copyGif(gif, card);
-    });
-
-    // Delete card
-    card.querySelector('.del-btn').addEventListener('click', async e => {
-      e.stopPropagation();
-      if (!confirm(`Delete "${primaryLabel}"?`)) return;
-      await dbDelete(gif);
-      allGifs = allGifs.filter(g => g.id !== gif.id);
-      render(document.getElementById('search-input').value.trim().toLowerCase());
-    });
-
-    // Remove tag
-    card.querySelectorAll('.tag-del').forEach(btn => {
-      btn.addEventListener('click', async e => {
-        e.stopPropagation();
-        const li = +btn.dataset.li;
-        gif.labels.splice(li, 1);
-        await dbUpdate(gif);
-        allGifs = allGifs.map(g => g.id === gif.id ? gif : g);
-        render(document.getElementById('search-input').value.trim().toLowerCase());
-      });
-    });
-
-    // Add tag
-    card.querySelector('.tag-add').addEventListener('click', e => {
-      e.stopPropagation();
-      const tagsDiv = card.querySelector('.gif-tags');
-      const addBtn  = card.querySelector('.tag-add');
-      if (tagsDiv.querySelector('.tag-input')) return; // already open
-      const inp = document.createElement('input');
-      inp.className   = 'tag-input';
-      inp.placeholder = 'label…';
-      inp.maxLength   = 40;
-      tagsDiv.insertBefore(inp, addBtn);
-      inp.focus();
-      const commit = async () => {
-        const val = inp.value.trim().toLowerCase();
-        if (val && !gif.labels.map(l => l.toLowerCase()).includes(val)) {
-          gif.labels.push(val);
-          await dbUpdate(gif);
-          allGifs = allGifs.map(g => g.id === gif.id ? gif : g);
-        }
-        render(document.getElementById('search-input').value.trim().toLowerCase());
-      };
-      inp.addEventListener('keydown', e => {
-        if (e.key === 'Enter') { e.preventDefault(); commit(); }
-        if (e.key === 'Escape') render(document.getElementById('search-input').value.trim().toLowerCase());
-      });
-      inp.addEventListener('blur', commit);
-      inp.addEventListener('click', e => e.stopPropagation());
-    });
+    card.querySelector('.copy-btn').addEventListener('click', () => copyGif(gif, card));
+    card.querySelector('.edit-btn').addEventListener('click', () => openEditModal(gif, card));
 
     grid.appendChild(card);
   });
@@ -701,6 +658,90 @@ modalSave.addEventListener('click', async () => {
   }
   modalSave.disabled = false;
   modalSave.textContent = 'Save GIF';
+});
+
+/* ── Edit modal ────────────────────────────────────────── */
+
+const editModal   = document.getElementById('edit-modal');
+const editPreview = document.getElementById('edit-preview');
+const editTagsDiv = document.getElementById('edit-tags');
+const editHagra   = document.getElementById('edit-hagra');
+const editDelete  = document.getElementById('edit-delete');
+const editClose   = document.getElementById('edit-close');
+
+let editGif  = null;
+let editCard = null;
+
+function openEditModal(gif, card) {
+  editGif  = gif;
+  editCard = card;
+  editPreview.src = gif.signedUrl;
+  editHagra.checked = (gif.labels || []).map(l => l.toLowerCase()).includes('hagra');
+  renderEditTags();
+  editModal.classList.add('open');
+}
+
+function closeEditModal() { editModal.classList.remove('open'); }
+editClose.addEventListener('click', closeEditModal);
+editModal.addEventListener('click', e => { if (e.target === editModal) closeEditModal(); });
+
+function renderEditTags() {
+  const nonHagra = (editGif.labels || []).filter(l => l.toLowerCase() !== 'hagra');
+  editTagsDiv.innerHTML = nonHagra.map((l, li) =>
+    `<span class="gif-tag">${esc(l)}<button class="tag-del" data-li="${li}">×</button></span>`
+  ).join('') + `<button class="tag-add" id="edit-tag-add">+</button>`;
+
+  editTagsDiv.querySelectorAll('.tag-del').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const label = nonHagra[+btn.dataset.li];
+      editGif.labels = editGif.labels.filter(l => l !== label);
+      await dbUpdate(editGif);
+      allGifs = allGifs.map(g => g.id === editGif.id ? editGif : g);
+      renderEditTags();
+      render(document.getElementById('search-input').value.trim().toLowerCase());
+    });
+  });
+
+  document.getElementById('edit-tag-add').addEventListener('click', () => {
+    const addBtn = document.getElementById('edit-tag-add');
+    if (editTagsDiv.querySelector('.tag-input')) return;
+    const inp = document.createElement('input');
+    inp.className = 'tag-input'; inp.placeholder = 'label…'; inp.maxLength = 40;
+    editTagsDiv.insertBefore(inp, addBtn);
+    inp.focus();
+    const commit = async () => {
+      const val = inp.value.trim().toLowerCase();
+      if (val && val !== 'hagra' && !editGif.labels.map(l => l.toLowerCase()).includes(val)) {
+        editGif.labels.push(val);
+        await dbUpdate(editGif);
+        allGifs = allGifs.map(g => g.id === editGif.id ? editGif : g);
+        render(document.getElementById('search-input').value.trim().toLowerCase());
+      }
+      renderEditTags();
+    };
+    inp.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); commit(); } if (e.key === 'Escape') renderEditTags(); });
+    inp.addEventListener('blur', commit);
+  });
+}
+
+editHagra.addEventListener('change', async () => {
+  const has = (editGif.labels || []).map(l => l.toLowerCase()).includes('hagra');
+  if (editHagra.checked && !has) editGif.labels.push('hagra');
+  if (!editHagra.checked && has) editGif.labels = editGif.labels.filter(l => l.toLowerCase() !== 'hagra');
+  await dbUpdate(editGif);
+  allGifs = allGifs.map(g => g.id === editGif.id ? editGif : g);
+  render(document.getElementById('search-input').value.trim().toLowerCase());
+});
+
+editDelete.addEventListener('click', async () => {
+  const label = (editGif.labels || [])[0] || 'ce GIF';
+  if (!confirm(`Supprimer "${label}" ?`)) return;
+  editDelete.disabled = true;
+  editDelete.textContent = 'Suppression…';
+  await dbDelete(editGif);
+  allGifs = allGifs.filter(g => g.id !== editGif.id);
+  closeEditModal();
+  render(document.getElementById('search-input').value.trim().toLowerCase());
 });
 
 /* ── Hagra toggle ──────────────────────────────────────── */
