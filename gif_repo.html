@@ -309,67 +309,110 @@ kbd { background: rgba(255,255,255,.08); border: 1px solid var(--card-border); b
 <script src="sidebar.js"></script>
 <script>
 /* ══════════════════════════════════════════════════════════
-   GIF REPO — IndexedDB + paste + copy
+   GIF REPO — Supabase Storage + table
+   SQL setup (run once in Supabase SQL editor):
+
+   create table public.gif_items (
+     id           text primary key,
+     user_id      uuid references auth.users(id) on delete cascade not null,
+     labels       jsonb not null default '[]',
+     usage_count  int not null default 0,
+     created_at   timestamptz not null default now(),
+     last_used_at timestamptz,
+     storage_path text not null,
+     size_bytes   bigint,
+     mime_type    text
+   );
+   alter table public.gif_items enable row level security;
+   create policy "gif_own" on public.gif_items
+     using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+   -- Storage bucket: create "gifs" bucket (Private) in Dashboard → Storage, then:
+   create policy "gifs_select" on storage.objects
+     for select using (bucket_id = 'gifs' and auth.uid()::text = (storage.foldername(name))[1]);
+   create policy "gifs_insert" on storage.objects
+     for insert with check (bucket_id = 'gifs' and auth.uid()::text = (storage.foldername(name))[1]);
+   create policy "gifs_delete" on storage.objects
+     for delete using (bucket_id = 'gifs' and auth.uid()::text = (storage.foldername(name))[1]);
 ══════════════════════════════════════════════════════════ */
 
-const DB_NAME    = 'lazypo-gif-repo';
-const DB_VERSION = 1;
-const STORE      = 'gifs';
+const BUCKET = 'gifs';
+const TABLE  = 'gif_items';
 
-let db = null;
-let allGifs = [];       // in-memory, sorted by usageCount desc
-let pendingBlob = null; // blob waiting for label in modal
-let showHagra = false;
-const revealedIds = new Set(); // hagra GIFs revealed this session
+let allGifs     = [];
+let currentUser = null;
+let pendingBlob = null;
+let showHagra   = false;
+const revealedIds = new Set();
 
-/* ── IndexedDB ─────────────────────────────────────────── */
-
-function openDb() {
-  return new Promise((res, rej) => {
-    const req = indexedDB.open(DB_NAME, DB_VERSION);
-    req.onupgradeneeded = e => {
-      const d = e.target.result;
-      if (!d.objectStoreNames.contains(STORE)) {
-        d.createObjectStore(STORE, { keyPath: 'id' });
-      }
-    };
-    req.onsuccess = e => { db = e.target.result; res(db); };
-    req.onerror   = () => rej(req.error);
-  });
-}
-
-function tx(mode, fn) {
-  return new Promise((res, rej) => {
-    const t  = db.transaction(STORE, mode);
-    const s  = t.objectStore(STORE);
-    const rq = fn(s);
-    rq.onsuccess = () => res(rq.result);
-    rq.onerror   = () => rej(rq.error);
-  });
-}
-
-function dbGetAll()   { return tx('readonly',  s => s.getAll()); }
-function dbPut(item)  { return tx('readwrite', s => s.put(item)); }
-function dbDel(id)    { return tx('readwrite', s => s.delete(id)); }
+/* ── Supabase CRUD ─────────────────────────────────────── */
 
 function uid() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 }
 
-/* ── Load & render ─────────────────────────────────────── */
-
 async function loadAndRender() {
-  let gifs = await dbGetAll();
-  // Migrate: label (string) → labels (array)
-  for (const g of gifs) {
-    if (!g.labels) {
-      g.labels = g.label ? [g.label] : [];
-      delete g.label;
-      await dbPut(g);
-    }
+  if (!currentUser) {
+    const { data: { session } } = await window.sb.auth.getSession();
+    currentUser = session?.user ?? null;
+    if (!currentUser) return;
   }
-  allGifs = gifs;
+
+  setLoading(true);
+  try {
+    const { data, error } = await window.sb.from(TABLE).select('*').eq('user_id', currentUser.id);
+    if (error) throw error;
+
+    const signedUrls = {};
+    await Promise.all((data || []).map(async g => {
+      const { data: u } = await window.sb.storage.from(BUCKET).createSignedUrl(g.storage_path, 3600);
+      if (u?.signedUrl) signedUrls[g.storage_path] = u.signedUrl;
+    }));
+
+    allGifs = (data || []).map(g => ({ ...g, signedUrl: signedUrls[g.storage_path] || '' }));
+  } catch (err) {
+    toast('Erreur chargement GIFs', 'err');
+    console.error(err);
+  }
+  setLoading(false);
   render(document.getElementById('search-input').value.trim().toLowerCase());
+}
+
+function setLoading(on) {
+  document.getElementById('gif-grid').style.opacity = on ? '.4' : '1';
+}
+
+async function dbSave(blob, labels) {
+  const id   = uid();
+  const path = `${currentUser.id}/${id}`;
+  const mime = blob.type || 'image/gif';
+
+  const { error: upErr } = await window.sb.storage.from(BUCKET)
+    .upload(path, blob, { contentType: mime, upsert: false });
+  if (upErr) throw upErr;
+
+  const row = {
+    id, user_id: currentUser.id, labels,
+    usage_count: 0, created_at: new Date().toISOString(),
+    last_used_at: null, storage_path: path,
+    size_bytes: blob.size, mime_type: mime,
+  };
+  const { error: insErr } = await window.sb.from(TABLE).insert(row);
+  if (insErr) throw insErr;
+
+  const { data: u } = await window.sb.storage.from(BUCKET).createSignedUrl(path, 3600);
+  return { ...row, signedUrl: u?.signedUrl || '' };
+}
+
+async function dbUpdate(gif) {
+  await window.sb.from(TABLE).update({
+    labels: gif.labels, usage_count: gif.usage_count, last_used_at: gif.last_used_at,
+  }).eq('id', gif.id);
+}
+
+async function dbDelete(gif) {
+  await window.sb.storage.from(BUCKET).remove([gif.storage_path]);
+  await window.sb.from(TABLE).delete().eq('id', gif.id);
 }
 
 function render(filter) {
@@ -404,9 +447,8 @@ function render(filter) {
   grid.innerHTML = '';
 
   list.forEach(gif => {
-    const url  = URL.createObjectURL(gif.blob);
-    const hot  = gif.usageCount >= 5;
-    const size = formatSize(gif.blob.size);
+    const hot  = gif.usage_count >= 5;
+    const size = formatSize(gif.size_bytes || 0);
 
     const card = document.createElement('div');
     card.className = 'gif-card';
@@ -421,7 +463,7 @@ function render(filter) {
     if (locked) {
       card.className = 'gif-card locked';
       card.innerHTML = `
-        <img class="gif-preview" src="${url}" alt="" loading="lazy" />
+        <img class="gif-preview" src="${esc(gif.signedUrl)}" alt="" loading="lazy" />
         <div class="gif-overlay">
           <div class="lock-overlay">
             <span class="lock-icon">🔒</span>
@@ -441,7 +483,7 @@ function render(filter) {
     }
 
     card.innerHTML = `
-      <img class="gif-preview" src="${url}" alt="${esc(primaryLabel)}" loading="lazy" />
+      <img class="gif-preview" src="${esc(gif.signedUrl)}" alt="${esc(primaryLabel)}" loading="lazy" />
       <div class="gif-overlay">
         <button class="overlay-btn copy-btn">
           <svg width="13" height="13" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><rect x="7" y="7" width="11" height="11" rx="2"/><path d="M3 13V3h10"/></svg>
@@ -455,7 +497,7 @@ function render(filter) {
         <div class="gif-tags">${tagsHtml}</div>
         <div class="gif-meta">
           <span class="gif-usage${hot ? ' hot' : ''}">
-            ${hot ? '🔥' : '📋'} ${gif.usageCount} cop${gif.usageCount === 1 ? 'y' : 'ies'}
+            ${hot ? '🔥' : '📋'} ${gif.usage_count} cop${gif.usage_count === 1 ? 'y' : 'ies'}
           </span>
           <span class="gif-size">${size}</span>
         </div>
@@ -471,9 +513,9 @@ function render(filter) {
     card.querySelector('.del-btn').addEventListener('click', async e => {
       e.stopPropagation();
       if (!confirm(`Delete "${primaryLabel}"?`)) return;
-      await dbDel(gif.id);
-      URL.revokeObjectURL(url);
-      await loadAndRender();
+      await dbDelete(gif);
+      allGifs = allGifs.filter(g => g.id !== gif.id);
+      render(document.getElementById('search-input').value.trim().toLowerCase());
     });
 
     // Remove tag
@@ -482,7 +524,7 @@ function render(filter) {
         e.stopPropagation();
         const li = +btn.dataset.li;
         gif.labels.splice(li, 1);
-        await dbPut(gif);
+        await dbUpdate(gif);
         allGifs = allGifs.map(g => g.id === gif.id ? gif : g);
         render(document.getElementById('search-input').value.trim().toLowerCase());
       });
@@ -504,7 +546,7 @@ function render(filter) {
         const val = inp.value.trim().toLowerCase();
         if (val && !gif.labels.map(l => l.toLowerCase()).includes(val)) {
           gif.labels.push(val);
-          await dbPut(gif);
+          await dbUpdate(gif);
           allGifs = allGifs.map(g => g.id === gif.id ? gif : g);
         }
         render(document.getElementById('search-input').value.trim().toLowerCase());
@@ -523,88 +565,65 @@ function render(filter) {
 
 /* ── Copy to clipboard ─────────────────────────────────── */
 
-/* ── Copy lightbox ─────────────────────────────────────── */
-
-let lightboxGif  = null;
-let lightboxUrl  = null;
-
-const lightbox     = document.getElementById('lightbox');
-const lightboxImg  = document.getElementById('lightbox-img');
-const lightboxLbl  = document.getElementById('lightbox-label');
-const lightboxDl   = document.getElementById('lightbox-dl');
-const lightboxClose = document.getElementById('lightbox-close');
-
-function openLightbox(gif, card) {
-  if (lightboxUrl) URL.revokeObjectURL(lightboxUrl);
-  lightboxUrl = URL.createObjectURL(gif.blob);
-  lightboxGif = gif;
-  lightboxImg.src  = lightboxUrl;
-  lightboxLbl.textContent = (gif.labels && gif.labels[0]) || gif.label || '';
-  lightbox.classList.add('open');
-
-  // increment usage
-  gif.usageCount = (gif.usageCount || 0) + 1;
-  gif.lastUsedAt = Date.now();
-  dbPut(gif);
+async function copyGif(gif, card) {
+  gif.usage_count  = (gif.usage_count || 0) + 1;
+  gif.last_used_at = new Date().toISOString();
   allGifs = allGifs.map(g => g.id === gif.id ? gif : g);
+  dbUpdate(gif);
   if (card) {
-    const hot   = gif.usageCount >= 5;
+    const hot   = gif.usage_count >= 5;
     const badge = card.querySelector('.gif-usage');
     if (badge) {
       badge.className = `gif-usage${hot ? ' hot' : ''}`;
-      badge.textContent = `${hot ? '🔥' : '📋'} ${gif.usageCount} cop${gif.usageCount === 1 ? 'y' : 'ies'}`;
+      badge.textContent = `${hot ? '🔥' : '📋'} ${gif.usage_count} cop${gif.usage_count === 1 ? 'y' : 'ies'}`;
     }
+  }
+  try {
+    const resp    = await fetch(gif.signedUrl);
+    const blob    = await resp.blob();
+    const dataUrl = await new Promise((res, rej) => {
+      const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej;
+      r.readAsDataURL(blob);
+    });
+    const html = `<img src="${dataUrl}" alt="${gif.labels[0] || ''}">`;
+    await navigator.clipboard.write([new ClipboardItem({ 'text/html': new Blob([html], { type: 'text/html' }) })]);
+    toast(`✓ "${gif.labels[0] || 'GIF'}" copié ! Colle dans Teams/Slack/Outlook.`, 'ok');
+  } catch (err) {
+    openLightbox(gif);
   }
 }
 
-function closeLightbox() {
-  lightbox.classList.remove('open');
+/* ── Copy lightbox ─────────────────────────────────────── */
+
+let lightboxGif = null;
+const lightbox      = document.getElementById('lightbox');
+const lightboxImg   = document.getElementById('lightbox-img');
+const lightboxLbl   = document.getElementById('lightbox-label');
+const lightboxDl    = document.getElementById('lightbox-dl');
+const lightboxClose = document.getElementById('lightbox-close');
+
+function openLightbox(gif) {
+  lightboxGif     = gif;
+  lightboxImg.src = gif.signedUrl;
+  lightboxLbl.textContent = (gif.labels && gif.labels[0]) || '';
+  lightbox.classList.add('open');
 }
 
+function closeLightbox() { lightbox.classList.remove('open'); }
 lightboxClose.addEventListener('click', closeLightbox);
 lightbox.addEventListener('click', e => { if (e.target === lightbox) closeLightbox(); });
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeLightbox(); });
 
-lightboxDl.addEventListener('click', () => {
+lightboxDl.addEventListener('click', async () => {
   if (!lightboxGif) return;
+  const resp = await fetch(lightboxGif.signedUrl);
+  const blob = await resp.blob();
   const a = document.createElement('a');
-  a.href     = lightboxUrl;
-  a.download = ((lightboxGif.labels && lightboxGif.labels[0]) || lightboxGif.label || 'gif').replace(/[^a-z0-9_\- ]/gi, '_') + '.gif';
+  a.href     = URL.createObjectURL(blob);
+  a.download = ((lightboxGif.labels && lightboxGif.labels[0]) || 'gif').replace(/[^a-z0-9_\- ]/gi, '_') + '.gif';
   a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 });
-
-async function copyGif(gif, card) {
-  // Increment usage counter
-  gif.usageCount = (gif.usageCount || 0) + 1;
-  gif.lastUsedAt = Date.now();
-  dbPut(gif);
-  allGifs = allGifs.map(g => g.id === gif.id ? gif : g);
-  if (card) {
-    const hot   = gif.usageCount >= 5;
-    const badge = card.querySelector('.gif-usage');
-    if (badge) {
-      badge.className = `gif-usage${hot ? ' hot' : ''}`;
-      badge.textContent = `${hot ? '🔥' : '📋'} ${gif.usageCount} cop${gif.usageCount === 1 ? 'y' : 'ies'}`;
-    }
-  }
-
-  try {
-    const dataUrl = await new Promise((res, rej) => {
-      const r = new FileReader();
-      r.onload  = () => res(r.result);
-      r.onerror = rej;
-      r.readAsDataURL(gif.blob);
-    });
-    const html = `<img src="${dataUrl}" alt="${gif.label}">`;
-    await navigator.clipboard.write([
-      new ClipboardItem({ 'text/html': new Blob([html], { type: 'text/html' }) })
-    ]);
-    toast(`✓ "${gif.labels[0] || 'GIF'}" copié ! Colle dans Teams/Slack/Outlook.`, 'ok');
-  } catch (err) {
-    // Fallback: open lightbox with manual right-click instruction
-    openLightbox(gif, card);
-  }
-}
 
 /* ── Paste / drag-drop ─────────────────────────────────── */
 
@@ -666,20 +685,22 @@ modal.addEventListener('click', e => { if (e.target === modal) closeModal(); });
 modalLabel.addEventListener('keydown', e => { if (e.key === 'Enter') modalSave.click(); });
 
 modalSave.addEventListener('click', async () => {
+  if (!pendingBlob) return;
   const label = modalLabel.value.trim() || 'Untitled GIF';
-  const gif = {
-    id:         uid(),
-    labels:     [label],
-    blob:       pendingBlob,
-    usageCount: 0,
-    createdAt:  Date.now(),
-    lastUsedAt: null,
-  };
-  await dbPut(gif);
-  allGifs.push(gif);
-  closeModal();
-  await loadAndRender();
-  toast(`✓ "${label}" saved!`, 'ok');
+  modalSave.disabled = true;
+  modalSave.textContent = 'Saving…';
+  try {
+    const gif = await dbSave(pendingBlob, [label]);
+    allGifs.push(gif);
+    closeModal();
+    render(document.getElementById('search-input').value.trim().toLowerCase());
+    toast(`✓ "${label}" saved!`, 'ok');
+  } catch (err) {
+    toast('Erreur lors de la sauvegarde', 'err');
+    console.error(err);
+  }
+  modalSave.disabled = false;
+  modalSave.textContent = 'Save GIF';
 });
 
 /* ── Hagra toggle ──────────────────────────────────────── */
@@ -718,7 +739,7 @@ function formatSize(bytes) {
 }
 
 /* ── Boot ──────────────────────────────────────────────── */
-openDb().then(loadAndRender);
+loadAndRender();
 </script>
 </body>
 </html>
