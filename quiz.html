@@ -2186,261 +2186,228 @@ tr.row-selected { background: rgba(59,130,246,.05); }
   .qz-question-word { font-size: 30px; }
   .qz-setup-card, .qz-question-card { padding: 24px 18px; }
 }
-
-/* ═══════════════════════════════════════════════
-   PLAYER PROFILE POPUP
-═══════════════════════════════════════════════ */
-
-/* Clickable affordance on avatars + names. */
-.pp-clickable { cursor: pointer; transition: background .15s ease; }
-.pp-clickable:hover { background: rgba(255,255,255,.03); }
-
-/* ── Overlay backdrop ── */
-.pp-overlay {
-  position: fixed; inset: 0; z-index: 9000;
-  background: rgba(8,10,14,.78);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  display: flex; align-items: center; justify-content: center;
-  padding: 24px 16px;
-  animation: pp-fade-in .18s ease both;
+/* ══════════════════════════════════════════
+   GRAMMAR MODULE
+══════════════════════════════════════════ */
+.gr-layout {
+  display: grid;
+  grid-template-columns: 230px 1fr;
+  gap: 20px;
+  align-items: start;
 }
-@keyframes pp-fade-in { from { opacity: 0; } to { opacity: 1; } }
-
-/* ── Modal card ── */
-.pp-modal {
-  position: relative;
-  width: 100%; max-width: 640px;
-  max-height: 90vh; overflow-y: auto;
-  background: linear-gradient(180deg, #14171c 0%, #0e1116 100%);
-  border: 1px solid var(--border2);
-  border-radius: 16px;
-  box-shadow: 0 24px 64px rgba(0,0,0,.6), 0 0 0 1px rgba(255,255,255,.03);
-  padding: 28px;
-  animation: pp-slide-in .24s cubic-bezier(.2,.7,.3,1.2) both;
-}
-@keyframes pp-slide-in {
-  from { opacity: 0; transform: translateY(12px) scale(.97); }
-  to   { opacity: 1; transform: translateY(0)    scale(1); }
-}
-
-/* ── Close button ── */
-.pp-close {
-  position: absolute; top: 14px; right: 14px;
-  width: 32px; height: 32px; border-radius: 50%;
-  border: 1px solid var(--border2);
-  background: var(--surface2);
-  color: var(--muted);
-  font-size: 14px; line-height: 1;
-  cursor: pointer; display: flex; align-items: center; justify-content: center;
-  transition: color .15s, background .15s, border-color .15s, transform .15s;
-}
-.pp-close:hover {
-  color: var(--text);
+.gr-sidebar {
   background: var(--surface);
-  border-color: var(--accent);
-  transform: rotate(90deg);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  padding: 8px;
+  position: sticky;
+  top: 24px;
 }
-
-/* ── Loading skeleton ── */
-.pp-loading {
-  padding: 60px 0; text-align: center;
-  color: var(--muted); font-size: 14px;
+.gr-topic-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  text-align: left;
+  padding: 9px 12px;
+  border-radius: 7px;
+  border: none;
+  background: none;
+  color: var(--muted);
+  font-family: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  transition: color .15s, background .15s;
+  line-height: 1.35;
 }
+.gr-topic-btn:hover { color: var(--text); background: var(--surface2); }
+.gr-topic-btn.active { color: var(--text); background: var(--surface2); font-weight: 600; }
+.gr-topic-done { margin-left: auto; font-size: 11px; color: var(--success); flex-shrink: 0; }
 
-/* ── Header (avatar + name + meta) ── */
-.pp-header {
-  display: flex; align-items: center; gap: 18px;
-  margin-bottom: 24px;
-  padding-bottom: 20px;
+.gr-content {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  padding: 28px 32px;
+}
+.gr-topic-title { font-size: 20px; font-weight: 700; margin-bottom: 4px; }
+.gr-topic-subtitle { color: var(--muted); font-size: 13px; margin-bottom: 24px; }
+
+.gr-section { margin-bottom: 28px; }
+.gr-section-title {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .1em;
+  color: var(--accent2);
+  margin-bottom: 14px;
+  padding-bottom: 8px;
   border-bottom: 1px solid var(--border);
 }
-.pp-avatar {
-  width: 72px; height: 72px; border-radius: 50%;
-  background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
-  display: flex; align-items: center; justify-content: center;
-  flex-shrink: 0; overflow: hidden; position: relative;
-  box-shadow: 0 0 0 3px rgba(96,165,250,.18), 0 8px 24px rgba(59,130,246,.25);
-}
-.pp-avatar img {
-  position: absolute; inset: 0;
-  width: 100%; height: 100%; object-fit: cover;
-}
-.pp-avatar-initial {
-  font-size: 28px; font-weight: 700; color: #fff;
-  font-family: 'DM Sans', sans-serif; line-height: 1;
-  position: relative; z-index: 1;
-}
-.pp-header-info { flex: 1; min-width: 0; }
-.pp-name {
-  font-size: 22px; font-weight: 700; color: var(--text);
-  margin-bottom: 6px; word-break: break-word;
-}
-.pp-tagline {
-  display: flex; flex-wrap: wrap; gap: 12px;
-  font-size: 13px; color: var(--muted);
-}
-.pp-tagline-item {
-  display: inline-flex; align-items: center; gap: 5px;
-  font-weight: 500;
-}
-.pp-rank-medal { font-size: 15px; }
-.pp-streak-fire { font-size: 14px; }
-
-/* ── Stats grid (4 cards) ── */
-.pp-stats-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 10px; margin-bottom: 24px;
-}
-.pp-stat-card {
-  background: var(--surface2);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 14px 10px;
-  text-align: center;
-  transition: border-color .15s, transform .15s;
-}
-.pp-stat-card:hover { border-color: var(--border2); transform: translateY(-1px); }
-.pp-stat-val {
-  font-size: 20px; font-weight: 700; color: var(--text);
-  font-family: 'DM Mono', monospace;
-  margin-bottom: 4px;
-}
-.pp-stat-lbl {
-  font-size: 10.5px; color: var(--muted);
-  text-transform: uppercase; letter-spacing: .06em;
-}
-.pp-stat-val.accent { color: var(--accent2); }
-.pp-stat-val.success { color: var(--success); }
-
-/* ── Section title ── */
-.pp-section {
-  margin-top: 24px;
-}
-.pp-section-title {
-  display: flex; align-items: center; gap: 8px;
-  font-size: 13px; font-weight: 600;
-  text-transform: uppercase; letter-spacing: .06em;
-  color: var(--muted);
-  margin-bottom: 12px;
-}
-
-/* ── XP daily breakdown ── */
-.pp-xp-list {
-  display: flex; flex-direction: column; gap: 6px;
-}
-.pp-xp-day {
-  display: grid;
-  grid-template-columns: 70px 1fr 70px;
-  align-items: center;
-  gap: 12px;
-  padding: 8px 12px;
-  background: var(--surface2);
+.gr-rule {
+  background: var(--bg);
   border: 1px solid var(--border);
   border-radius: 8px;
+  padding: 14px 16px;
+  margin-bottom: 10px;
+  font-size: 13.5px;
+  line-height: 1.75;
 }
-.pp-xp-day-date {
-  font-family: 'DM Mono', monospace;
-  font-size: 12px; color: var(--muted);
-  text-transform: capitalize;
-}
-.pp-xp-day-bar-wrap {
-  height: 8px; background: rgba(255,255,255,.04);
-  border-radius: 4px; overflow: hidden;
-}
-.pp-xp-day-bar {
-  height: 100%;
-  background: linear-gradient(90deg, var(--accent) 0%, var(--accent2) 100%);
-  border-radius: 4px;
-  transition: width .4s ease;
-}
-.pp-xp-day-val {
-  font-family: 'DM Mono', monospace;
-  font-size: 12px; font-weight: 600;
-  text-align: right; color: var(--accent2);
-}
-.pp-xp-day.zero .pp-xp-day-val { color: var(--muted); }
-.pp-xp-empty {
-  padding: 20px; text-align: center;
-  color: var(--muted); font-size: 13px;
-}
-
-/* ── Sessions list ── */
-.pp-session-list {
-  display: flex; flex-direction: column; gap: 8px;
-}
-.pp-session {
-  display: flex; align-items: center; gap: 12px;
-  padding: 12px 14px;
-  background: var(--surface2);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-}
-.pp-session-icon {
-  width: 32px; height: 32px; border-radius: 8px;
+.gr-rule strong { color: var(--accent2); }
+.gr-rule code {
   background: rgba(59,130,246,.12);
-  display: flex; align-items: center; justify-content: center;
-  font-size: 15px; flex-shrink: 0;
+  border: 1px solid rgba(59,130,246,.2);
+  border-radius: 4px;
+  padding: 1px 6px;
+  font-size: 12.5px;
+  font-family: monospace;
+  color: #93c5fd;
 }
-.pp-session-icon.verbes { background: rgba(139,92,246,.12); }
-.pp-session-main { flex: 1; min-width: 0; }
-.pp-session-mode {
-  font-size: 13px; font-weight: 600; color: var(--text);
-  margin-bottom: 2px;
+.gr-eg { display: flex; gap: 10px; align-items: baseline; margin-top: 5px; font-size: 13px; flex-wrap: wrap; }
+.gr-nl { color: #93c5fd; font-style: italic; }
+.gr-fr { color: var(--muted); }
+.gr-arr { color: var(--border2); }
+.gr-table {
+  width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 10px;
 }
-.pp-session-date {
-  font-size: 11px; color: var(--muted);
-  font-family: 'DM Mono', monospace;
+.gr-table th {
+  text-align: left; padding: 5px 10px;
+  border-bottom: 1px solid var(--border);
+  color: var(--muted); font-size: 11px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: .05em;
 }
-.pp-session-score {
-  font-family: 'DM Mono', monospace;
-  font-size: 13px; font-weight: 600;
-  text-align: right;
-}
-.pp-session-pct {
-  font-size: 11px; margin-top: 2px;
-}
-.pp-session-pct.good { color: var(--success); }
-.pp-session-pct.mid  { color: #f59e0b; }
-.pp-session-pct.bad  { color: var(--danger); }
-.pp-session-challenge {
-  padding: 6px 10px;
-  border: 1px solid var(--accent);
-  background: rgba(59,130,246,.08);
-  color: var(--accent2);
-  border-radius: 6px;
-  font-size: 11px; font-weight: 600;
-  cursor: pointer;
-  transition: background .15s, transform .15s;
-  font-family: 'DM Sans', sans-serif;
-  white-space: nowrap;
-}
-.pp-session-challenge:hover { background: rgba(59,130,246,.18); transform: translateY(-1px); }
-.pp-session-empty {
-  padding: 20px; text-align: center;
-  color: var(--muted); font-size: 13px;
-}
+.gr-table td { padding: 7px 10px; border-bottom: 1px solid var(--border); }
+.gr-table tr:last-child td { border-bottom: none; }
 
-/* ── Footer "me" badge ── */
-.pp-me-badge {
-  display: inline-block;
-  padding: 3px 8px; border-radius: 20px;
-  background: rgba(59,130,246,.15);
-  color: var(--accent2);
-  font-size: 10px; font-weight: 700;
-  letter-spacing: .05em; text-transform: uppercase;
-  margin-left: 8px;
-  vertical-align: middle;
+/* Exercises */
+.gr-ex-item {
+  margin-bottom: 12px;
+  padding: 14px 16px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  transition: border-color .2s;
 }
+.gr-ex-item.gr-correct { border-color: var(--success); background: rgba(34,197,94,.04); }
+.gr-ex-item.gr-wrong   { border-color: var(--danger);  background: rgba(239,68,68,.04); }
+.gr-ex-prompt { font-size: 13.5px; line-height: 1.55; margin-bottom: 10px; color: var(--text); }
+.gr-ex-prompt em { color: var(--muted); font-style: italic; font-size: 12px; }
+.gr-ex-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.gr-ex-input {
+  flex: 1; min-width: 140px;
+  background: var(--surface2); border: 1px solid var(--border2);
+  border-radius: 6px; color: var(--text);
+  font-family: inherit; font-size: 14px; padding: 7px 11px; outline: none;
+  transition: border-color .15s;
+}
+.gr-ex-input:focus { border-color: var(--accent); }
+.gr-ex-input.gr-ok  { border-color: var(--success); color: var(--success); }
+.gr-ex-input.gr-bad { border-color: var(--danger);  color: var(--danger); }
+.gr-ex-check {
+  padding: 7px 16px; border-radius: 6px;
+  border: 1px solid var(--accent); background: rgba(59,130,246,.1);
+  color: var(--accent2); font-family: inherit; font-size: 13px;
+  cursor: pointer; white-space: nowrap;
+  transition: background .15s;
+}
+.gr-ex-check:hover { background: rgba(59,130,246,.2); }
+.gr-ex-feedback { font-size: 12px; margin-top: 7px; display: none; }
+.gr-ex-feedback.show { display: block; }
+.gr-ex-feedback.ok  { color: var(--success); }
+.gr-ex-feedback.err { color: var(--danger); }
 
-/* ── Mobile adjustments ── */
-@media (max-width: 640px) {
-  .pp-modal { padding: 22px 18px; }
-  .pp-stats-grid { grid-template-columns: repeat(2, 1fr); }
-  .pp-avatar { width: 56px; height: 56px; }
-  .pp-avatar-initial { font-size: 22px; }
-  .pp-name { font-size: 18px; }
+.gr-ex-bar {
+  display: flex; align-items: center; gap: 14px;
+  margin-top: 24px; padding-top: 20px;
+  border-top: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+.gr-score {
+  font-size: 13px; color: var(--muted);
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 20px; padding: 5px 14px;
+}
+.gr-score b { color: var(--text); }
+.gr-nav { display: flex; gap: 8px; margin-left: auto; }
+.gr-btn {
+  padding: 8px 18px; border-radius: 8px;
+  border: 1px solid var(--border2); background: var(--surface2);
+  color: var(--text); font-family: inherit; font-size: 13px;
+  cursor: pointer; transition: border-color .15s, background .15s;
+}
+.gr-btn:hover { border-color: var(--accent); background: rgba(59,130,246,.08); }
+.gr-btn.primary { border-color: var(--accent); background: var(--accent); color: #fff; }
+.gr-btn.primary:hover { background: #2563eb; }
+.gr-btn:disabled { opacity: .4; cursor: default; pointer-events: none; }
+.gr-reset {
+  font-size: 12px; padding: 5px 12px;
+  border-radius: 6px; border: 1px solid var(--border);
+  background: none; color: var(--muted);
+  font-family: inherit; cursor: pointer;
+}
+.gr-reset:hover { color: var(--text); border-color: var(--muted); }
+
+@media (max-width: 720px) {
+  .gr-layout { grid-template-columns: 1fr; }
+  .gr-sidebar { position: static; display: flex; flex-wrap: wrap; gap: 4px; padding: 6px; }
+  .gr-topic-btn { width: auto; padding: 6px 10px; }
+  .gr-topic-done { display: none; }
+  .gr-content { padding: 20px 16px; }
+}
+/* ══════════════════════════════════════════
+   GRAMMAR MODULE — CARDS & NEW UI
+══════════════════════════════════════════ */
+.gr-global-bar { margin-bottom: 20px; }
+.gr-global-bar-label { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+.gr-global-bar-label span:last-child { color: var(--text); font-weight: 600; }
+.gr-global-track { height: 6px; background: var(--surface2); border-radius: 3px; overflow: hidden; }
+.gr-global-fill { height: 100%; border-radius: 3px; background: var(--accent); transition: width .5s ease; }
+
+.gr-modules-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
+.gr-module-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 18px; display: flex; flex-direction: column; gap: 12px; transition: border-color .2s; }
+.gr-module-card:hover { border-color: var(--border2); }
+.gr-card-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+.gr-card-title { font-size: 14px; font-weight: 600; line-height: 1.4; }
+.gr-card-status { font-size: 11px; padding: 3px 8px; border-radius: 10px; white-space: nowrap; flex-shrink: 0; font-weight: 600; }
+.gr-card-status.todo { background: var(--surface2); color: var(--muted); }
+.gr-card-status.in_progress { background: rgba(234,179,8,.15); color: #f59e0b; }
+.gr-card-status.mastered { background: rgba(34,197,94,.15); color: var(--success); }
+.gr-card-scores { display: flex; align-items: center; gap: 8px; font-size: 12px; flex-wrap: wrap; }
+.gr-card-avg { font-family: 'DM Mono', monospace; font-size: 18px; font-weight: 700; }
+.gr-card-avg.good { color: var(--success); }
+.gr-card-avg.warning { color: #f59e0b; }
+.gr-card-avg.danger { color: var(--danger); }
+.gr-card-best { color: var(--muted); font-size: 12px; }
+.gr-card-track { height: 4px; background: var(--surface2); border-radius: 2px; overflow: hidden; }
+.gr-card-fill { height: 100%; border-radius: 2px; transition: width .4s ease; }
+.gr-card-fill.good { background: var(--success); }
+.gr-card-fill.warning { background: #f59e0b; }
+.gr-card-fill.danger { background: var(--danger); }
+.gr-card-not-started { font-size: 12px; color: var(--muted); font-style: italic; }
+.gr-card-btns { display: flex; gap: 8px; margin-top: 4px; }
+.gr-trend { font-size: 11px; padding: 2px 6px; border-radius: 6px; }
+.gr-trend.up { background: rgba(34,197,94,.15); color: var(--success); }
+.gr-trend.down { background: rgba(239,68,68,.15); color: var(--danger); }
+
+.gr-back-btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 8px; border: 1px solid var(--border2); background: var(--surface); color: var(--muted); font-family: inherit; font-size: 13px; cursor: pointer; margin-bottom: 20px; transition: color .15s, border-color .15s; }
+.gr-back-btn:hover { color: var(--text); border-color: var(--accent); }
+
+.gr-detail-header { margin-bottom: 24px; }
+.gr-detail-title { font-size: 22px; font-weight: 700; margin-bottom: 4px; }
+.gr-detail-subtitle { color: var(--muted); font-size: 13px; }
+.gr-detail-launch { margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--border); display: flex; gap: 12px; align-items: center; }
+
+.gr-qz-module-tag { font-size: 14px; font-weight: 600; color: var(--accent2); margin-bottom: 16px; padding: 8px 14px; background: rgba(59,130,246,.08); border-radius: 8px; display: inline-block; }
+.gr-rule-hint { background: rgba(59,130,246,.08); border: 1px solid rgba(59,130,246,.2); border-radius: 8px; padding: 12px 16px; font-size: 12.5px; color: var(--accent2); margin-top: 10px; line-height: 1.6; }
+
+.gr-mastery-toast { position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%); background: linear-gradient(135deg, var(--success), #16a34a); color: #fff; padding: 14px 28px; border-radius: 14px; font-size: 15px; font-weight: 600; z-index: 9999; box-shadow: 0 4px 24px rgba(34,197,94,.4); animation: grMasteryIn .4s ease; white-space: nowrap; }
+@keyframes grMasteryIn { from { opacity: 0; transform: translateX(-50%) translateY(20px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
+
+.feed-score-mode-icon.grammar { background: rgba(139,92,246,0.2); }
+
+@media (max-width: 600px) {
+  .gr-modules-grid { grid-template-columns: 1fr; }
+  .gr-card-btns { flex-direction: column; }
 }
 </style>
 </head>
@@ -2459,8 +2426,8 @@ tr.row-selected { background: rgba(59,130,246,.05); }
       <button class="qz-tab active" data-tab="vocab"    role="tab" aria-selected="true">📚 Vocabulary</button>
       <button class="qz-tab"        data-tab="quiz"     role="tab" aria-selected="false">🎯 Quiz</button>
       <button class="qz-tab"        data-tab="progress" role="tab" aria-selected="false">📊 Progress</button>
-      <button class="qz-tab"        data-tab="verbes"   role="tab" aria-selected="false">🔤 Verbes NL</button>
       <button class="qz-tab"        data-tab="multi"    role="tab" aria-selected="false">👥 Multi</button>
+      <button class="qz-tab"        data-tab="grammar"  role="tab" aria-selected="false">📖 Grammaire</button>
     </div>
   </div>
 
@@ -3068,8 +3035,125 @@ tr.row-selected { background: rgba(59,130,246,.05); }
   <!-- ════════════════════════════════
        VIEW: VERBES IRRÉGULIERS NL
   ════════════════════════════════ -->
-  <section class="qz-view" id="view-verbes" role="tabpanel">
+  <!-- ═══════════════════════════════════════════
+       VIEW: MULTI
+  ═══════════════════════════════════════════ -->
+  <section class="qz-view" id="view-multi" role="tabpanel">
 
+    <div class="multi-layout">
+
+      <!-- ── Feed column ── -->
+      <div class="multi-feed-col">
+        <div class="multi-feed-hdr">
+          <div class="multi-feed-hdr-left">
+            <div class="multi-feed-icon">📰</div>
+            <div>
+              <div class="multi-feed-title">Fil d'activité</div>
+              <div class="multi-feed-sub">Les dernières sessions de la communauté</div>
+            </div>
+          </div>
+        </div>
+        <div id="feed-list"></div>
+        <div style="text-align:center;margin-top:12px;">
+          <button class="btn-secondary" id="feed-load-more" style="display:none;font-size:13px;padding:8px 20px;">Charger plus</button>
+        </div>
+      </div>
+
+      <!-- ── Sidebar ── -->
+      <div class="multi-side-col">
+
+        <!-- Leaderboard card -->
+        <div class="lb-card">
+          <div class="lb-card-hdr">
+            <div class="lb-card-title">🏆 Classement</div>
+            <div id="lb-weekly-countdown" class="lb-countdown"></div>
+          </div>
+          <div id="lb-rows"></div>
+        </div>
+
+        <!-- My stats card -->
+        <div class="stats-card" id="stats-card">
+          <div class="stats-card-title">📈 Mes stats</div>
+          <div class="stats-mini-grid" id="ms-cards"></div>
+          <div class="multi-vs-wrap" id="ms-vs"></div>
+        </div>
+
+      </div>
+    </div>
+
+  </section>
+
+  <section class="qz-view" id="view-grammar" role="tabpanel">
+
+    <!-- PANEL 1: Module cards -->
+    <div id="gr-cards">
+      <div class="gr-global-bar">
+        <div class="gr-global-bar-label">
+          <span>Progression globale</span>
+          <span id="gr-global-count">0 / 11 modules maîtrisés</span>
+        </div>
+        <div class="gr-global-track"><div class="gr-global-fill" id="gr-global-fill" style="width:0%"></div></div>
+      </div>
+      <div class="gr-modules-grid" id="gr-modules-grid"></div>
+    </div>
+
+    <!-- PANEL 2: Module detail (theory) -->
+    <div id="gr-detail" style="display:none">
+      <button class="gr-back-btn" id="gr-detail-back">← Tous les modules</button>
+      <div id="gr-detail-content"></div>
+    </div>
+
+    <!-- PANEL 3: Grammar quiz -->
+    <div id="gr-quiz" class="qz-card" style="display:none">
+      <div class="qz-progress-bar-wrap">
+        <div class="qz-progress-bar-bg"><div class="qz-progress-bar-fill" id="grq-prog-fill" style="width:0%"></div></div>
+        <span class="qz-progress-text" id="grq-prog-text">1 / 10</span>
+      </div>
+      <div class="gr-qz-module-tag" id="grq-module-tag"></div>
+      <div class="qz-question-example" id="grq-prompt"></div>
+      <div class="qz-answer-row" id="grq-input-zone">
+        <input type="text" id="grq-answer-input" class="qz-answer-input" placeholder="Votre réponse…" autocomplete="off" autocorrect="off" spellcheck="false">
+        <button class="btn-primary" id="grq-check-btn" style="padding:14px 20px;">Vérifier</button>
+      </div>
+      <div class="qz-feedback" id="grq-feedback"></div>
+      <div class="gr-rule-hint" id="grq-rule-hint" style="display:none"></div>
+      <div class="qz-action-row" id="grq-next-row" style="display:none">
+        <button class="btn-primary" id="grq-next-btn">Suivant →</button>
+      </div>
+    </div>
+
+    <!-- PANEL 4: Summary -->
+    <div id="gr-summary" class="qz-summary" style="display:none">
+      <div class="qz-summary-card">
+        <div class="qz-score-big" id="grs-score-big">0 / 0</div>
+        <div class="qz-score-pct" id="grs-score-sub">0%</div>
+        <div class="qz-stars" id="grs-stars">⭐</div>
+        <div id="grs-trend" style="margin-top:8px;font-size:13px;color:var(--muted)"></div>
+        <div class="qz-breakdown">
+          <div class="qz-breakdown-item">
+            <div class="val" id="grs-correct" style="color:var(--success)">0</div>
+            <div class="lbl">Corrects</div>
+          </div>
+          <div class="qz-breakdown-item">
+            <div class="val" id="grs-wrong" style="color:var(--danger)">0</div>
+            <div class="lbl">Erreurs</div>
+          </div>
+        </div>
+      </div>
+      <div id="grs-missed-section" class="qz-missed-list" style="display:none">
+        <div class="qz-missed-header">Erreurs à revoir</div>
+        <div id="grs-missed-list"></div>
+      </div>
+      <div class="qz-summary-btns">
+        <button class="btn-secondary" id="grs-btn-restart">Rejouer</button>
+        <button class="btn-primary" id="grs-btn-back">Tous les modules</button>
+      </div>
+    </div>
+
+    <!-- PANEL 5: Verbes irréguliers (embedded engine) -->
+    <div id="gr-verbes-embed" style="display:none">
+      <button class="gr-back-btn" id="gr-verbes-back">← Tous les modules</button>
+      
     <!-- SETUP -->
     <div id="vb-setup">
       <div class="vb-intro">
@@ -3254,69 +3338,10 @@ tr.row-selected { background: rgba(59,130,246,.05); }
         📋 Voir la liste complète des verbes
       </button>
     </div>
-
-  </section>
-
-  <!-- ═══════════════════════════════════════════
-       VIEW: MULTI
-  ═══════════════════════════════════════════ -->
-  <section class="qz-view" id="view-multi" role="tabpanel">
-
-    <div class="multi-layout">
-
-      <!-- ── Feed column ── -->
-      <div class="multi-feed-col">
-        <div class="multi-feed-hdr">
-          <div class="multi-feed-hdr-left">
-            <div class="multi-feed-icon">📰</div>
-            <div>
-              <div class="multi-feed-title">Fil d'activité</div>
-              <div class="multi-feed-sub">Les dernières sessions de la communauté</div>
-            </div>
-          </div>
-          <button class="multi-refresh-btn" id="multi-refresh-btn" type="button"
-                  title="Rafraîchir le fil et le classement maintenant">
-            <span class="multi-refresh-icon">⟳</span>
-            <span>Rafraîchir</span>
-          </button>
-          <button class="multi-demo-btn" id="multi-demo-btn" type="button"
-                  title="Affiche un fil d'exemple avec 100 joueurs simulés (admin uniquement)">
-            🧪 Demo · 100 joueurs <span class="multi-demo-badge">Admin</span>
-          </button>
-        </div>
-        <div class="multi-demo-banner" id="multi-demo-banner">
-          <span>🧪 <strong>Mode démo</strong> — fil simulé avec 100 joueurs fictifs. Aucune donnée n'est enregistrée.</span>
-          <button class="multi-demo-exit" id="multi-demo-exit" type="button">Quitter le mode démo</button>
-        </div>
-        <div id="feed-list"></div>
-        <div style="text-align:center;margin-top:12px;">
-          <button class="btn-secondary" id="feed-load-more" style="display:none;font-size:13px;padding:8px 20px;">Charger plus</button>
-        </div>
-      </div>
-
-      <!-- ── Sidebar ── -->
-      <div class="multi-side-col">
-
-        <!-- Leaderboard card -->
-        <div class="lb-card">
-          <div class="lb-card-hdr">
-            <div class="lb-card-title">🏆 Classement</div>
-            <div class="lb-countdown">All-time</div>
-          </div>
-          <div id="lb-rows"></div>
-        </div>
-
-        <!-- My stats card -->
-        <div class="stats-card" id="stats-card">
-          <div class="stats-card-title">📈 Mes stats</div>
-          <div class="stats-mini-grid" id="ms-cards"></div>
-          <div class="multi-vs-wrap" id="ms-vs"></div>
-        </div>
-
-      </div>
     </div>
 
   </section>
+
 
 </main>
 
@@ -6431,7 +6456,7 @@ async function runXpReconciliation() {
 
     // Rule 5: Diversity — modes
     const modes = [...new Set((sessions || []).map(s => s.mode))];
-    if (modes.includes('vocab') && modes.includes('verbes')) {
+    if (modes.includes('vocab') && (modes.includes('grammar') || modes.includes('verbes'))) {
       xp += XP_RULES.DIVERSITY_MODES;
       breakdown.diversity_modes = XP_RULES.DIVERSITY_MODES;
     }
@@ -7016,10 +7041,11 @@ function feedFormatDate(isoStr) {
 function buildFeedItem(s) {
   const pct     = s.total > 0 ? Math.round((s.score / s.total) * 100) : 0;
   const pctCls  = pct >= 75 ? 'pct-good' : pct >= 50 ? 'pct-mid' : 'pct-bad';
-  const isVerbes = s.mode === 'verbes';
-  const modeIcon  = isVerbes ? '🔤' : '📚';
-  const modeLabel = isVerbes ? 'Verbes NL' : 'Vocabulaire';
-  const modeClass = isVerbes ? 'verbes' : 'vocab';
+  const isVerbes  = s.mode === 'verbes';
+  const isGrammar = s.mode === 'grammar';
+  const modeIcon  = isGrammar ? '📖' : isVerbes ? '🔤' : '📚';
+  const modeLabel = isGrammar ? ('Grammaire' + (s.theme ? ' · ' + s.theme.replace(/-/g,' ') : '')) : isVerbes ? 'Verbes NL' : 'Vocabulaire';
+  const modeClass = isGrammar ? 'grammar' : isVerbes ? 'verbes' : 'vocab';
   const count   = s.quiz_session_comments?.[0]?.count ?? 0;
   const dateStr = feedFormatDate(s.created_at);
   const name    = s.display_name || 'Joueur';
@@ -7862,5 +7888,798 @@ function closePlayerProfile() {
   });
 })();
 </script>
+
+<!-- ══ GRAMMAR MODULE ══ -->
+<script>
+(function () {
+'use strict';
+
+/* ══════════════════════════════════════════
+   SUPABASE — grammar_progress
+══════════════════════════════════════════ */
+var _grUserId = null;
+var grProgress = {}; // { moduleId: { attempts, best_score, scores_history, status } }
+
+async function grLoadProgress(userId) {
+  _grUserId = userId;
+  if (!window.sb) return;
+  try {
+    var r = await window.sb.from('grammar_progress').select('*').eq('user_id', userId);
+    grProgress = {};
+    (r.data || []).forEach(function(row) { grProgress[row.module_id] = row; });
+  } catch(_) {}
+}
+
+async function grSaveProgress(moduleId, correct, total) {
+  if (!_grUserId || !window.sb) return null;
+  var pct = total > 0 ? Math.round(correct / total * 100) : 0;
+  var prev = grProgress[moduleId] || { attempts: 0, best_score: 0, scores_history: [], status: 'todo' };
+  var history = ((prev.scores_history || []).concat([pct])).slice(-10);
+  var avg = Math.round(history.reduce(function(s, v) { return s + v; }, 0) / history.length);
+  var bestScore = Math.max(prev.best_score || 0, pct);
+  var wasMastered = prev.status === 'mastered';
+  var status = avg >= 80 ? 'mastered' : history.length > 0 ? 'in_progress' : 'todo';
+  var trend = history.length >= 2 ? pct - history[history.length - 2] : null;
+
+  var newRow = {
+    user_id: _grUserId,
+    module_id: moduleId,
+    attempts: (prev.attempts || 0) + 1,
+    best_score: bestScore,
+    scores_history: history,
+    status: status,
+    last_tested: new Date().toISOString(),
+  };
+
+  try {
+    await window.sb.from('grammar_progress').upsert(newRow, { onConflict: 'user_id,module_id' });
+    grProgress[moduleId] = newRow;
+    await grPostSession(moduleId, correct, total);
+    if (typeof xpScheduleReconciliation === 'function') xpScheduleReconciliation();
+    if (!wasMastered && status === 'mastered') await grAwardMasteryXp(moduleId);
+  } catch(_) {}
+
+  return { pct: pct, avg: avg, bestScore: bestScore, status: status, wasMastered: wasMastered, trend: trend };
+}
+
+async function grPostSession(moduleId, correct, total) {
+  if (!_grUserId || !window.sb) return;
+  try {
+    var name = typeof getMultiDisplayName === 'function' ? await getMultiDisplayName() : 'Joueur';
+    var avatar = typeof multiAvatarUrl !== 'undefined' ? multiAvatarUrl : null;
+    await window.sb.from('quiz_sessions').insert({
+      user_id: _grUserId,
+      display_name: name,
+      avatar_url: avatar,
+      score: correct,
+      total: total,
+      duration_sec: 0,
+      mode: 'grammar',
+      lang: moduleId,
+      theme: moduleId,
+      direction: 'auto',
+    });
+    if (typeof multiLoaded !== 'undefined') multiLoaded = false;
+  } catch(_) {}
+}
+
+async function grAwardMasteryXp(moduleId) {
+  if (!_grUserId || !window.sb) return;
+  try {
+    var r = await window.sb.from('user_xp').select('total_xp, mastered_module_ids').eq('user_id', _grUserId).single();
+    if (!r.data) return;
+    var ids = (r.data.mastered_module_ids || []).slice();
+    if (ids.indexOf(moduleId) !== -1) return;
+    ids.push(moduleId);
+    await window.sb.from('user_xp').update({
+      total_xp: (r.data.total_xp || 0) + 40,
+      mastered_module_ids: ids,
+    }).eq('user_id', _grUserId);
+    if (typeof userXpState !== 'undefined' && userXpState) {
+      userXpState.mastered_module_ids = ids;
+      userXpState.total_xp = (userXpState.total_xp || 0) + 40;
+    }
+  } catch(_) {}
+}
+
+/* ══════════════════════════════════════════
+   ANSWER NORMALIZATION
+══════════════════════════════════════════ */
+function grNorm(s) {
+  return String(s).trim().toLowerCase()
+    .replace(/\s+/g, ' ')
+    .replace(/['']/g, "'")
+    .replace(/\.\s*$/, '');
+}
+function grCheck(input, expected) {
+  var u = grNorm(input);
+  return expected.split('/').map(function(v) { return grNorm(v); }).some(function(v) { return u === v; });
+}
+
+/* ══════════════════════════════════════════
+   GRAMMAR DATA (TOPICS)
+══════════════════════════════════════════ */
+var TOPICS = [
+  {
+    id: 'pluriel',
+    title: '1. Pluriel des noms',
+    subtitle: 'Formation du pluriel en néerlandais',
+    theory: `
+<div class="gr-rule">
+  <strong>Règle générale : + EN</strong>
+  <div class="gr-eg"><span class="gr-nl">het huis → de huizen</span><span class="gr-arr">|</span><span class="gr-nl">de man → de mannen</span></div>
+  <div style="margin-top:8px;font-size:12.5px;color:var(--muted)">⚠️ Règles orthographe : S→Z (kaas→kazen), F→V (fotograaf→fotografen), doublement consonne (bed→bedden), voyelle longue (dag→dagen)</div>
+</div>
+<div class="gr-rule">
+  <strong>+ S</strong> — mots en <code>-el -em -en -er -aar</code>, diminutifs <code>-je</code>, mots étrangers
+  <div class="gr-eg"><span class="gr-nl">de lepel → de lepels</span><span class="gr-arr">|</span><span class="gr-nl">het café → de cafés</span><span class="gr-arr">|</span><span class="gr-nl">het ijsje → de ijsjes</span></div>
+</div>
+<div class="gr-rule">
+  <strong>+ 'S</strong> — mots terminés par A, I, O, U, Y
+  <div class="gr-eg"><span class="gr-nl">de auto → de auto's</span><span class="gr-arr">|</span><span class="gr-nl">de taxi → de taxi's</span></div>
+</div>
+<div class="gr-rule">
+  <strong>Irréguliers</strong>
+  <div class="gr-eg"><span class="gr-nl">het kind → de kinderen</span><span class="gr-arr">|</span><span class="gr-nl">het ei → de eieren</span><span class="gr-arr">|</span><span class="gr-nl">de stad → de steden</span></div>
+</div>`,
+    exercises: [
+      { p: 'de kat → ?', a: 'de katten' },
+      { p: 'het huis → ?', a: 'de huizen', h: 'S→Z' },
+      { p: 'de roos → ?', a: 'de rozen', h: 'S→Z' },
+      { p: 'de auto → ?', a: "de auto's", h: "Voyelle finale → 's" },
+      { p: 'het kind → ?', a: 'de kinderen', h: 'Irrégulier' },
+      { p: 'de fotograaf → ?', a: 'de fotografen', h: 'F→V + voyelle longue' },
+      { p: 'het ijsje → ?', a: 'de ijsjes', h: 'Diminutif → -s' },
+      { p: 'de stad → ?', a: 'de steden', h: 'Irrégulier' },
+      { p: 'de dag → ?', a: 'de dagen', h: 'Voyelle longue' },
+      { p: 'het bed → ?', a: 'de bedden', h: 'Doublement consonne' },
+      { p: 'de schoonheid → ?', a: 'de schoonheden', h: 'Noms en -heid → -heden' },
+      { p: 'het museum → ?', a: 'de musea/de museums', h: 'Latin -um → -a ou -ums' },
+    ]
+  },
+  {
+    id: 'pronoms',
+    title: '2. Pronoms personnels',
+    subtitle: 'Sujets, objets et possessifs',
+    theory: `
+<div class="gr-rule">
+  <strong>Pronoms sujets</strong>
+  <table class="gr-table">
+    <tr><th>FR</th><th>Non accentué</th><th>Accentué</th></tr>
+    <tr><td>je</td><td class="gr-nl">ik</td><td class="gr-nl">ik</td></tr>
+    <tr><td>tu</td><td class="gr-nl">je</td><td class="gr-nl">jij</td></tr>
+    <tr><td>il</td><td class="gr-nl">hij</td><td class="gr-nl">hij</td></tr>
+    <tr><td>elle</td><td class="gr-nl">ze</td><td class="gr-nl">zij</td></tr>
+    <tr><td>nous</td><td class="gr-nl">we</td><td class="gr-nl">wij</td></tr>
+    <tr><td>vous (pl.)</td><td class="gr-nl">jullie</td><td class="gr-nl">jullie</td></tr>
+    <tr><td>ils/elles</td><td class="gr-nl">ze</td><td class="gr-nl">zij</td></tr>
+    <tr><td>vous (poli)</td><td colspan="2" class="gr-nl">u</td></tr>
+  </table>
+</div>
+<div class="gr-rule">
+  <strong>Pronoms objets</strong>
+  <table class="gr-table">
+    <tr><th>Sujet</th><th>Objet</th></tr>
+    <tr><td class="gr-nl">ik</td><td class="gr-nl">me</td></tr>
+    <tr><td class="gr-nl">je / jij</td><td class="gr-nl">je</td></tr>
+    <tr><td class="gr-nl">hij</td><td class="gr-nl">hem</td></tr>
+    <tr><td class="gr-nl">ze / zij</td><td class="gr-nl">haar (pers.) / ze (choses)</td></tr>
+    <tr><td class="gr-nl">het</td><td class="gr-nl">het</td></tr>
+    <tr><td class="gr-nl">we / wij</td><td class="gr-nl">ons</td></tr>
+    <tr><td class="gr-nl">ze / zij (pl.)</td><td class="gr-nl">hen / hun / ze</td></tr>
+  </table>
+  <div style="margin-top:8px;font-size:12px;color:var(--muted)"><strong>hun</strong> = COI sans préposition · <strong>hen</strong> = COD ou après préposition · <strong>ze</strong> = toujours COD</div>
+</div>
+<div class="gr-rule">
+  <strong>Possessifs — ons vs onze</strong><br>
+  <code>ons</code> devant un <em>het</em>-woord singulier — <code>onze</code> partout ailleurs
+  <div class="gr-eg"><span class="gr-nl">ons huis</span><span class="gr-arr">|</span><span class="gr-nl">onze auto</span><span class="gr-arr">|</span><span class="gr-nl">onze vrienden</span></div>
+</div>`,
+    exercises: [
+      { p: 'Je parle le néerlandais. → _____ spreek Nederlands.', a: 'ik' },
+      { p: 'Elle travaille dans un restaurant. → _____ werkt in een restaurant.', a: 'ze/zij' },
+      { p: 'Nous sommes malades. → _____ zijn ziek.', a: 'we/wij' },
+      { p: 'Il neige. → _____ sneeuwt.', a: 'het', h: 'Verbe impersonnel' },
+      { p: 'Mijn zus — "son œil" → _____ oog', a: 'haar', h: 'Possessif féminin 3sg' },
+      { p: 'Ik zie mijn vrienden → Ik zie _____ (= je les vois)', a: 'ze/hen', h: 'COD personnes pluriel' },
+      { p: 'Ik geef _____ een cadeau. (= je leur donne)', a: 'hun', h: 'COI sans préposition' },
+      { p: '_____ huis (het huis, 1pl)', a: 'ons', h: 'ons devant het-woord' },
+      { p: '_____ auto (de auto, 1pl)', a: 'onze', h: 'onze devant de-woord' },
+      { p: 'Meneer, ik heb _____ boek. (= votre livre, forme polie)', a: 'uw' },
+    ]
+  },
+  {
+    id: 'adjectif',
+    title: "3. Accord de l'adjectif",
+    subtitle: 'Épithète vs attribut — règle du -e',
+    theory: `
+<div class="gr-rule">
+  <strong>Adjectif attribut → INVARIABLE</strong> (suit le verbe)
+  <div class="gr-eg"><span class="gr-nl">De wagen is rood.</span><span class="gr-arr">→</span><span class="gr-fr">La voiture est rouge.</span></div>
+</div>
+<div class="gr-rule">
+  <strong>Adjectif épithète → + E (règle générale)</strong>
+  <div class="gr-eg"><span class="gr-nl">de rode wagen</span><span class="gr-arr">|</span><span class="gr-nl">een mooie jongen</span><span class="gr-arr">|</span><span class="gr-nl">een lieve hond</span> <span class="gr-fr">(F→V)</span></div>
+</div>
+<div class="gr-rule">
+  <strong>⚠️ PAS DE -E</strong> si le nom est <em>het</em>-woord + singulier + indéterminé (<code>een / geen / Ø</code>)
+  <div class="gr-eg"><span class="gr-nl">een mooi huis</span><span class="gr-arr">|</span><span class="gr-nl">geen rood haar</span><span class="gr-arr">|</span><span class="gr-nl">Mooi geschenk!</span></div>
+</div>
+<div class="gr-rule">
+  <strong>Terminaison -S</strong> après <code>iets · niets · veel · wat · weinig</code>
+  <div class="gr-eg"><span class="gr-nl">iets moois</span><span class="gr-arr">|</span><span class="gr-nl">niets interessants</span><span class="gr-arr">|</span><span class="gr-nl">veel nieuws</span></div>
+</div>`,
+    exercises: [
+      { p: 'de (jong) leraar → ?', a: 'de jonge leraar' },
+      { p: 'een (mooi) huis → ? (het huis, indéterminé)', a: 'een mooi huis', h: 'het + sing. + een → pas de -e' },
+      { p: 'twee (mooi) huizen → ?', a: 'twee mooie huizen', h: 'Pluriel → toujours +e' },
+      { p: 'een (groot) stad → ? (de stad)', a: 'een grote stad', h: 'de-woord + een → +e' },
+      { p: 'het (lang) verhaal → ? (déterminé)', a: 'het lange verhaal', h: 'Déterminé het → +e' },
+      { p: 'haar (rood) auto → ?', a: 'haar rode auto' },
+      { p: 'een (dik) boek → ? (het boek, indéterminé)', a: 'een dik boek', h: 'het + sing. + indéterminé → pas de -e' },
+      { p: 'iets (interessant) → ?', a: 'iets interessants', h: 'iets → -s' },
+      { p: 'een (lief) jongen → ?', a: 'een lieve jongen', h: 'F→V' },
+      { p: 'Johan is (grappig). → ? (adjectif attribut)', a: 'grappig', h: 'Attribut → invariable' },
+      { p: 'een (dwaas) jongen → ?', a: 'een dwaze jongen', h: 'S→Z' },
+    ]
+  },
+  {
+    id: 'comparaison',
+    title: '4. Degrés de comparaison',
+    subtitle: 'Comparatifs et superlatifs',
+    theory: `
+<div class="gr-rule">
+  <strong>Égalité</strong> → <code>even ... als</code>
+  <div class="gr-eg"><span class="gr-nl">Jan is even groot als zijn broer.</span></div>
+  <strong>Infériorité</strong> → <code>niet zo ... als</code>
+  <div class="gr-eg"><span class="gr-nl">Vis is niet zo lekker als vlees.</span></div>
+</div>
+<div class="gr-rule">
+  <strong>Supériorité</strong> → <code>adjectif + -er ... dan</code>
+  <div class="gr-eg"><span class="gr-nl">Jan is groter dan zijn broer.</span></div>
+  ⚠️ Adj. terminé par -R → <code>-der</code> : <span class="gr-nl">lekkerder</span><br>
+  ⚠️ "De plus en plus" → <code>steeds + comparatif</code> ou <code>comparatif + en + comparatif</code>
+</div>
+<div class="gr-rule">
+  <strong>Superlatif</strong> → <code>adjectif + -st(e)</code>
+  <div class="gr-eg"><span class="gr-nl">de mooiste stad</span><span class="gr-arr">|</span><span class="gr-nl">het beste antwoord</span></div>
+</div>
+<div class="gr-rule">
+  <strong>Irréguliers</strong>
+  <table class="gr-table">
+    <tr><th>Positif</th><th>Comparatif</th><th>Superlatif</th></tr>
+    <tr><td class="gr-nl">goed</td><td class="gr-nl">beter</td><td class="gr-nl">het best</td></tr>
+    <tr><td class="gr-nl">graag</td><td class="gr-nl">liever</td><td class="gr-nl">het liefst</td></tr>
+    <tr><td class="gr-nl">veel</td><td class="gr-nl">meer</td><td class="gr-nl">het meest</td></tr>
+    <tr><td class="gr-nl">weinig</td><td class="gr-nl">minder</td><td class="gr-nl">het minst</td></tr>
+    <tr><td class="gr-nl">dikwijls</td><td class="gr-nl">vaker</td><td class="gr-nl">het vaakst</td></tr>
+  </table>
+</div>`,
+    exercises: [
+      { p: 'Jan est aussi grand que son frère → Jan is _____ groot _____ zijn broer.\n(tapez les 2 mots séparés par un espace)', a: 'even als' },
+      { p: 'Het huis is _____ (groter/grootste) dan een appartement.', a: 'groter', h: 'Comparatif de supériorité' },
+      { p: 'Ik ben ouder _____ jij.', a: 'dan', h: 'Supériorité → dan' },
+      { p: 'Het eten is niet zo lekker _____ gisteren.', a: 'als', h: 'Infériorité → als' },
+      { p: 'goed → comparatif de supériorité', a: 'beter' },
+      { p: 'veel → superlatif', a: 'het meest' },
+      { p: 'mooi → superlatif (dans une phrase : de _____ stad)', a: 'de mooiste stad' },
+      { p: 'De plus en plus vite → steeds _____', a: 'sneller', h: 'snel + -er' },
+      { p: 'weinig → comparatif', a: 'minder' },
+      { p: 'Vis est encore plus savoureuse → Vis is _____ dan vlees. (lekker, attention -r final)', a: 'lekkerder', h: 'Adj. terminé par -r → -der' },
+    ]
+  },
+  {
+    id: 'hebben-zijn',
+    title: '5. Hebben & Zijn',
+    subtitle: 'Avoir et être au présent',
+    theory: `
+<div class="gr-rule">
+  <table class="gr-table">
+    <tr><th>Pronom</th><th>hebben (avoir)</th><th>zijn (être)</th></tr>
+    <tr><td class="gr-nl">ik</td><td class="gr-nl">heb</td><td class="gr-nl">ben</td></tr>
+    <tr><td class="gr-nl">je / jij</td><td class="gr-nl">hebt → <em>Heb je?</em></td><td class="gr-nl">bent → <em>Ben je?</em></td></tr>
+    <tr><td class="gr-nl">u</td><td class="gr-nl">heeft</td><td class="gr-nl">is</td></tr>
+    <tr><td class="gr-nl">hij / ze / het</td><td class="gr-nl">heeft</td><td class="gr-nl">is</td></tr>
+    <tr><td class="gr-nl">we / jullie / ze</td><td class="gr-nl">hebben</td><td class="gr-nl">zijn</td></tr>
+  </table>
+  <div style="margin-top:10px;font-size:12.5px;color:var(--muted)">⚠️ Inversion avec <em>je/jij</em> : le <strong>-t</strong> disparaît → <code>Heb je?</code> / <code>Ben je?</code></div>
+</div>`,
+    exercises: [
+      { p: 'Ik _____ een jongen. (zijn)', a: 'ben' },
+      { p: 'Jullie _____ mijn vrienden. (zijn)', a: 'zijn' },
+      { p: 'Hij _____ twee broers. (hebben)', a: 'heeft' },
+      { p: 'Wij _____ veel huiswerk. (hebben)', a: 'hebben' },
+      { p: '_____ je Tom? (zijn, interrogatif)', a: 'Ben', h: 'Inversion → -t disparaît' },
+      { p: '_____ je een fiets? (hebben, interrogatif)', a: 'Heb', h: 'Inversion → -t disparaît' },
+      { p: 'Meneer, _____ U de directeur? (zijn)', a: 'is', h: 'Forme polie u → is' },
+      { p: 'We _____ veel boeken thuis. (hebben)', a: 'hebben' },
+      { p: 'De kinderen _____ honger. (hebben)', a: 'hebben' },
+      { p: 'Wat _____ je nieuwsgierig! (zijn)', a: 'ben', h: 'Exclamative → ordre normal' },
+    ]
+  },
+  {
+    id: 'present',
+    title: '6. Présent (OTT)',
+    subtitle: 'Radical + terminaisons — particule séparable',
+    theory: `
+<div class="gr-rule">
+  <strong>Radical</strong> = infinitif − <code>-en</code> (+ règles orthographe)
+  <table class="gr-table" style="margin-top:8px">
+    <tr><th>Personne</th><th>Forme</th><th>Exemple (werken)</th></tr>
+    <tr><td class="gr-nl">ik</td><td>radical</td><td class="gr-nl">werk</td></tr>
+    <tr><td class="gr-nl">je / u / hij / ze / het</td><td>radical + t</td><td class="gr-nl">werkt</td></tr>
+    <tr><td class="gr-nl">we / jullie / ze</td><td>= infinitif</td><td class="gr-nl">werken</td></tr>
+  </table>
+  <div style="margin-top:8px;font-size:12.5px;color:var(--muted)">⚠️ Inversion avec <em>je/jij</em> → le -t disparaît : <code>Je werkt</code> → <code>Werk je?</code></div>
+</div>
+<div class="gr-rule">
+  <strong>Particule séparable</strong> → la particule se place <strong>à la fin</strong> de la principale
+  <div class="gr-eg"><span class="gr-nl">op|staan → Ik sta om 7 uur <strong>op</strong>.</span></div>
+  <div class="gr-eg"><span class="gr-nl">terug|komen → Hij komt morgen <strong>terug</strong>.</span></div>
+</div>`,
+    exercises: [
+      { p: 'radical de "werken" → ?', a: 'werk' },
+      { p: 'radical de "reizen" → ?', a: 'reis', h: "Z à l'infinitif → S au radical" },
+      { p: 'hij (kijken) → ?', a: 'kijkt' },
+      { p: 'je (wonen) → ?', a: 'woont' },
+      { p: 'Werk je? → forme affirmative', a: 'je werkt', h: '-t revient à la forme affirmative' },
+      { p: 'we (maken) → ?', a: 'maken', h: 'Pluriel = infinitif' },
+      { p: 'Piet (opruimen) zijn kamer. → ? (particule séparable, sujet=hij)', a: 'ruimt ... op/ruimt zijn kamer op', h: 'particule en fin de phrase' },
+      { p: 'Hoe laat (terugkomen) hij? → ?', a: 'komt ... terug/komt hij terug', h: 'particule en fin' },
+      { p: 'Annelore (opbellen) een vriend. → ?', a: 'belt ... op/belt een vriend op' },
+      { p: 'radical de "stoppen" → ?', a: 'stop', h: 'Voyelle courte + consonne double → 1 consonne au radical' },
+    ]
+  },
+  {
+    id: 'preterit',
+    title: "7. Prétérit (OVT)",
+    subtitle: "'t kofschip — imparfait & passé simple",
+    theory: `
+<div class="gr-rule">
+  <strong>Règle : 't kofschip</strong> (= FranKlin Prend Son THé CHaud)<br>
+  Si la consonne finale du radical ∈ <code>t k f s ch p</code> → <code>-te / -ten</code><br>
+  Sinon → <code>-de / -den</code>
+  <table class="gr-table" style="margin-top:8px">
+    <tr><th>Personne</th><th class="gr-nl">werken (-te)</th><th class="gr-nl">wandelen (-de)</th></tr>
+    <tr><td class="gr-nl">ik / je / hij</td><td class="gr-nl">werkte</td><td class="gr-nl">wandelde</td></tr>
+    <tr><td class="gr-nl">we / jullie / ze</td><td class="gr-nl">werkten</td><td class="gr-nl">wandelden</td></tr>
+  </table>
+  <div style="margin-top:8px;font-size:12px;color:var(--muted)">⚠️ C'est la consonne telle qu'elle est écrite à l'infinitif qui décide : <em>leven</em> → radical <em>leef</em> → <strong>leefde</strong> (pas dans kofschip)</div>
+</div>
+<div class="gr-rule">
+  <strong>Irréguliers courants</strong>
+  <div class="gr-eg"><span class="gr-nl">zijn → was / waren</span><span class="gr-arr">|</span><span class="gr-nl">hebben → had / hadden</span></div>
+  <div class="gr-eg"><span class="gr-nl">gaan → ging / gingen</span><span class="gr-arr">|</span><span class="gr-nl">komen → kwam / kwamen</span></div>
+</div>`,
+    exercises: [
+      { p: 'werken → prétérit (ik)', a: 'werkte', h: "k ∈ 't kofschip → -te" },
+      { p: 'wandelen → prétérit (ik)', a: 'wandelde', h: "l ∉ 't kofschip → -de" },
+      { p: 'leven → prétérit (hij)', a: 'leefde', h: "F→V à l'inf., radical 'leef' ∉ kofschip → -de" },
+      { p: 'reizen → prétérit (ik)', a: 'reisde', h: "Z→S au radical, s ∈ kofschip... MAIS : Z à l'infinitif → pas dans kofschip → -de" },
+      { p: 'maken → prétérit (we)', a: 'maakten', h: "k ∈ kofschip → -ten" },
+      { p: 'zijn → prétérit (ik)', a: 'was', h: 'Irrégulier' },
+      { p: 'hebben → prétérit (we)', a: 'hadden', h: 'Irrégulier' },
+      { p: 'fietsen → prétérit (jullie)', a: 'fietsten', h: "radical 'fiets' → s ∈ kofschip → -ten" },
+      { p: 'antwoorden → prétérit (ik)', a: 'antwoordde', h: "radical 'antwoord' → d ∉ kofschip → -de" },
+    ]
+  },
+  {
+    id: 'passe-compose',
+    title: '8. Passé composé (VTT)',
+    subtitle: 'Auxiliaire + participe passé',
+    theory: `
+<div class="gr-rule">
+  <strong>Participe passé (régulier)</strong> : <code>ge + radical + d/t</code><br>
+  Même règle <em>'t kofschip</em> : radical ∈ kofschip → <code>-t</code>, sinon → <code>-d</code>
+  <div class="gr-eg"><span class="gr-nl">wonen → gewoond</span><span class="gr-arr">|</span><span class="gr-nl">werken → gewerkt</span></div>
+  <div style="margin-top:6px;font-size:12.5px">⚠️ <strong>Verbes en be-, ge-, er-, her-, ont-, ver-</strong> → pas de <code>ge-</code>
+  <div class="gr-eg"><span class="gr-nl">vertalen → vertaald</span><span class="gr-arr">|</span><span class="gr-nl">ontdekken → ontdekt</span></div>
+  </div>
+  <div style="margin-top:6px;font-size:12.5px">⚠️ <strong>Particule séparable</strong> : ge- s'insère entre particule et radical
+  <div class="gr-eg"><span class="gr-nl">uitnodigen → uitgenodigd</span><span class="gr-arr">|</span><span class="gr-nl">opruimen → opgeruimd</span></div>
+  </div>
+</div>
+<div class="gr-rule">
+  <strong>HEBBEN ou ZIJN ?</strong><br>
+  <code>zijn</code> avec : <em>zijn, worden, gaan, komen, blijven, blijken, gebeuren</em>, verbes de mouvement avec but précis, passage d'état<br>
+  <div class="gr-eg"><span class="gr-nl">Ze zijn lang gebleven.</span><span class="gr-arr">|</span><span class="gr-nl">Hij is naar buiten gefietst.</span><span class="gr-arr">|</span><span class="gr-nl">Ze is gisteren gestorven.</span></div>
+  <code>hebben</code> avec tous les autres verbes.
+</div>`,
+    exercises: [
+      { p: 'wonen → participe passé', a: 'gewoond' },
+      { p: 'werken → participe passé', a: 'gewerkt', h: "k ∈ kofschip → -t" },
+      { p: 'uitnodigen → participe passé', a: 'uitgenodigd', h: 'ge- entre particule et radical' },
+      { p: 'opruimen → participe passé', a: 'opgeruimd' },
+      { p: 'vertalen → participe passé', a: 'vertaald', h: 'ver- → pas de ge-' },
+      { p: 'kijken → participe passé (irrégulier)', a: 'gekeken' },
+      { p: 'schrijven → participe passé (irrégulier)', a: 'geschreven' },
+      { p: 'gaan → auxiliaire VTT', a: 'zijn', h: 'gaan → zijn' },
+      { p: 'slapen → auxiliaire VTT', a: 'hebben', h: "verbe intransitif d'état → hebben" },
+      { p: 'Ik _____ een brief geschreven. (auxiliaire)', a: 'heb' },
+      { p: 'Ze _____ gisteren gestorven. (auxiliaire)', a: 'is', h: "sterven = passage d'état → zijn" },
+    ]
+  },
+  {
+    id: 'negation',
+    title: '9. La négation',
+    subtitle: 'Niet vs geen — position dans la phrase',
+    theory: `
+<div class="gr-rule">
+  <strong>GEEN</strong> — remplace <em>un/une/du/de la/des</em> (groupe nominal indéterminé)<br>
+  Aussi devant un nombre ou l'heure
+  <div class="gr-eg"><span class="gr-nl">Ik heb geen auto.</span><span class="gr-arr">→</span><span class="gr-fr">Je n'ai pas de voiture.</span></div>
+  <div class="gr-eg"><span class="gr-nl">Hij is geen twaalf jaar.</span><span class="gr-arr">→</span><span class="gr-fr">Il n'a pas douze ans.</span></div>
+</div>
+<div class="gr-rule">
+  <strong>NIET</strong> — dans tous les autres cas<br>
+  <div style="margin-top:8px">
+  <strong>Devant</strong> : adjectif attribut · préposition · adverbe · particule séparable · infinitif<br>
+  <div class="gr-eg"><span class="gr-nl">De auto is <strong>niet</strong> mooi.</span><span class="gr-arr">|</span><span class="gr-nl">Ik woon <strong>niet</strong> in Luik.</span><span class="gr-arr">|</span><span class="gr-nl">Ik ruim mijn kamer <strong>niet</strong> op.</span></div>
+  <strong>Après</strong> : groupe nominal déterminé (COD défini)
+  <div class="gr-eg"><span class="gr-nl">Dat is mijn boek <strong>niet</strong>.</span><span class="gr-arr">|</span><span class="gr-nl">Hij kent dat meisje <strong>niet</strong>.</span></div>
+  </div>
+</div>`,
+    exercises: [
+      { p: "Je n'ai pas de nouvelles chaussures. → Ik heb _____ nieuwe schoenen.", a: 'geen', h: 'Indéterminé' },
+      { p: "Le père n'est pas en colère. → Vader is _____ boos.", a: 'niet', h: 'Adjectif attribut' },
+      { p: "Ce n'est pas ma chambre. → Dit is mijn kamer _____ .", a: 'niet', h: 'COD déterminé → niet après' },
+      { p: "Mon frère n'a pas de nouvelle voiture. → Mijn broer heeft _____ nieuwe auto.", a: 'geen' },
+      { p: "Il n'a pas douze ans. → Hij is _____ twaalf jaar.", a: 'geen', h: 'Devant un nombre → geen' },
+      { p: 'Je ne range pas ma chambre. → Ik ruim mijn kamer _____ op.', a: 'niet', h: 'Devant la particule séparable' },
+      { p: 'Je ne peux pas nager. → Ik kan _____ zwemmen.', a: 'niet', h: "Devant l'infinitif" },
+      { p: "Je ne veux pas de glace. → Ik wil _____ ijsje.", a: 'geen', h: 'Indéterminé' },
+      { p: 'Je ne vis pas à Liège. → Ik woon _____ in Luik.', a: 'niet', h: 'Devant une préposition' },
+      { p: 'Il ne connaît pas cette fille. → Hij kent dat meisje _____ .', a: 'niet', h: 'COD déterminé → niet après' },
+    ]
+  },
+  {
+    id: 'subordinee',
+    title: '10. Phrase subordonnée',
+    subtitle: 'Inversion, subordonnée, proposition relative',
+    theory: `
+<div class="gr-rule">
+  <strong>Ordre normal</strong> : S — V — (Temps — Manière — Lieu)
+  <div class="gr-eg"><span class="gr-nl">Ik ga morgen met de trein naar zee.</span></div>
+  <strong>Inversion</strong> : complément en 1ère position → V avant S
+  <div class="gr-eg"><span class="gr-nl">Morgen <strong>ga ik</strong> met de trein naar zee.</span></div>
+  <div style="margin-top:6px;font-size:12px;color:var(--muted)">⚠️ PAS d'inversion après : <code>ja, nee, en, maar, want, wel</code></div>
+</div>
+<div class="gr-rule">
+  <strong>Proposition subordonnée</strong> : conj. + sujet + ... + <strong>verbe conjugué en fin</strong>
+  <div class="gr-eg"><span class="gr-nl">De kinderen spelen <strong>omdat</strong> het mooi weer <strong>is</strong>.</span></div>
+  P2 en tête → inversion dans la P1 :
+  <div class="gr-eg"><span class="gr-nl"><strong>Als je morgen wil komen</strong>, <strong>moet</strong> je vroeg naar bed.</span></div>
+</div>
+<div class="gr-rule">
+  <strong>Pronoms relatifs</strong>
+  <table class="gr-table">
+    <tr><th>Antécédent</th><th>Pronom</th><th>Exemple</th></tr>
+    <tr><td>de-woord</td><td class="gr-nl">die</td><td class="gr-nl">de man die naast me zit</td></tr>
+    <tr><td>het-woord</td><td class="gr-nl">dat</td><td class="gr-nl">het kind dat huilt</td></tr>
+    <tr><td>Personne + prép.</td><td class="gr-nl">prep. + wie</td><td class="gr-nl">de vriend met wie ik reis</td></tr>
+    <tr><td>Chose + prép.</td><td class="gr-nl">waar + prép.</td><td class="gr-nl">de pen waarmee ik schrijf</td></tr>
+  </table>
+</div>`,
+    exercises: [
+      { p: 'Inversion → "Gisteren / ik / werkte / thuis" → ?', a: 'gisteren werkte ik thuis', h: 'Complément en tête → V avant S' },
+      { p: '"de man _____ naast me zit" (de man = de-woord)', a: 'die' },
+      { p: '"het huis _____ groot is" (het huis = het-woord)', a: 'dat' },
+      { p: 'Ik weet dat hij Nederlands _____ . (spreken, subordonnée)', a: 'spreekt', h: 'Verbe en fin de subordonnée' },
+      { p: '"Als het regent, _____ ik thuis blijven." (moeten) — inversion dans P1', a: 'moet', h: 'P2 en tête → inversion P1' },
+      { p: 'But : "Ik heb geld nodig _____ een auto te kopen."', a: 'om', h: 'om ... te = pour + infinitif' },
+      { p: '"de pen _____ ik schrijf" (chose + préposition met)', a: 'waarmee', h: 'Chose + préposition → waar + préposition soudée' },
+      { p: '"de vriend _____ ik reis" (personne + préposition met)', a: 'met wie', h: 'Personne + préposition → prép. + wie (séparé)' },
+      { p: 'Iets _____ ik al lang wist, is dat... (pronom relatif — chose indéfinie)', a: 'wat', h: 'Antécédent indéfini (iets, niets, alles) → wat' },
+    ]
+  },
+  {
+    id: 'verbes-irreguliers',
+    title: '11. Verbes Irréguliers',
+    subtitle: 'Infinitif · OVT (prétérit) · VTT (participe passé)',
+    theory: `
+<div class="gr-rule">
+  <strong>Moteur dédié</strong> — ce module utilise l'entraîneur spécialisé des verbes irréguliers.<br>
+  Clique <em>Entraîner →</em> pour lancer les exercices de conjugaison avec paradigme complet et correction immédiate.
+</div>
+<div class="gr-rule">
+  <strong>Rappel : auxiliaires VTT</strong>
+  <div class="gr-eg"><span class="gr-nl">zijn</span> — mouvement dirigé, passage d'état : <span class="gr-nl">gaan, komen, worden, blijven…</span></div>
+  <div class="gr-eg"><span class="gr-nl">hebben</span> — tous les autres verbes</div>
+</div>`,
+    exercises: null,
+    isVerbesModule: true,
+  },
+];
+
+/* ══════════════════════════════════════════
+   STATE
+══════════════════════════════════════════ */
+var grCurrentIdx = 0;
+var grQuizQueue  = [];
+var grQuizIdx    = 0;
+var grQuizAnswers = [];
+
+/* ══════════════════════════════════════════
+   VIEW SWITCHER
+══════════════════════════════════════════ */
+var GR_PANELS = ['gr-cards', 'gr-detail', 'gr-quiz', 'gr-summary', 'gr-verbes-embed'];
+function grShowPanel(id) {
+  GR_PANELS.forEach(function(v) {
+    var el = document.getElementById(v);
+    if (el) el.style.display = v === id ? '' : 'none';
+  });
+}
+
+/* ══════════════════════════════════════════
+   CARDS VIEW
+══════════════════════════════════════════ */
+function grShowCards() {
+  grShowPanel('gr-cards');
+  var mastered = TOPICS.filter(function(t) {
+    var p = grProgress[t.id] || {};
+    return p.status === 'mastered';
+  }).length;
+  var fillEl  = document.getElementById('gr-global-fill');
+  var countEl = document.getElementById('gr-global-count');
+  if (fillEl)  fillEl.style.width = Math.round(mastered / TOPICS.length * 100) + '%';
+  if (countEl) countEl.textContent = mastered + ' / ' + TOPICS.length + ' module' + (mastered !== 1 ? 's' : '') + ' maîtrisé' + (mastered !== 1 ? 's' : '');
+
+  var grid = document.getElementById('gr-modules-grid');
+  if (!grid) return;
+  grid.innerHTML = TOPICS.map(function(t, i) { return grCardHtml(t, i); }).join('');
+  grid.querySelectorAll('[data-graction="theory"]').forEach(function(btn) {
+    btn.addEventListener('click', function(e) { e.stopPropagation(); grShowDetail(parseInt(this.dataset.gridx, 10)); });
+  });
+  grid.querySelectorAll('[data-graction="test"]').forEach(function(btn) {
+    btn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      var idx = parseInt(this.dataset.gridx, 10);
+      if (TOPICS[idx] && TOPICS[idx].isVerbesModule) grShowVerbesEmbed();
+      else grLaunchQuiz(idx);
+    });
+  });
+}
+
+function grCardHtml(t, i) {
+  var p = grProgress[t.id] || {};
+  var history = p.scores_history || [];
+  var avg  = history.length ? Math.round(history.reduce(function(s, v) { return s + v; }, 0) / history.length) : null;
+  var best = p.best_score != null ? p.best_score : null;
+  var trend = history.length >= 2 ? history[history.length - 1] - history[history.length - 2] : null;
+  var status = p.status || 'todo';
+  var avgCls = avg >= 80 ? 'good' : avg >= 60 ? 'warning' : 'danger';
+  var statusLabels = { todo: 'À faire', in_progress: 'En cours', mastered: '✓ Maîtrisé' };
+  var trendHtml = trend !== null
+    ? '<span class="gr-trend ' + (trend > 0 ? 'up' : trend < 0 ? 'down' : '') + '">'
+      + (trend > 0 ? '↑ +' : trend < 0 ? '↓ ' : '→ ') + Math.abs(trend) + '%</span>'
+    : '';
+  var almostHtml = (status === 'in_progress' && avg !== null && avg >= 70)
+    ? '<div style="font-size:11px;color:#f59e0b;margin-top:4px">Plus que ' + (80 - avg) + '% !</div>' : '';
+  return '<div class="gr-module-card">'
+    + '<div class="gr-card-top">'
+    + '<div class="gr-card-title">' + t.title + '</div>'
+    + '<div class="gr-card-status ' + status + '">' + (statusLabels[status] || status) + '</div>'
+    + '</div>'
+    + (avg !== null
+      ? '<div class="gr-card-scores"><span class="gr-card-avg ' + avgCls + '">' + avg + '%</span>'
+        + '<span class="gr-card-best">Meilleur : ' + best + '%</span>' + trendHtml + '</div>'
+        + '<div class="gr-card-track"><div class="gr-card-fill ' + avgCls + '" style="width:' + Math.min(avg, 100) + '%"></div></div>'
+        + almostHtml
+      : '<div class="gr-card-not-started">Pas encore testé</div>')
+    + '<div class="gr-card-btns">'
+    + '<button class="gr-btn" data-graction="theory" data-gridx="' + i + '">📖 Théorie</button>'
+    + '<button class="gr-btn primary" data-graction="test" data-gridx="' + i + '">' + (t.isVerbesModule ? '🔤 Entraîner →' : '🎯 Tester →') + '</button>'
+    + '</div>'
+    + '</div>';
+}
+
+/* ══════════════════════════════════════════
+   DETAIL VIEW
+══════════════════════════════════════════ */
+function grShowDetail(idx) {
+  grCurrentIdx = idx;
+  grShowPanel('gr-detail');
+  var t = TOPICS[idx];
+  var content = document.getElementById('gr-detail-content');
+  if (!content) return;
+  content.innerHTML = '<div class="gr-detail-header">'
+    + '<div class="gr-detail-title">' + t.title + '</div>'
+    + '<div class="gr-detail-subtitle">' + t.subtitle + '</div>'
+    + '</div>'
+    + '<div class="gr-section"><div class="gr-section-title">Règles</div>' + (t.theory || '') + '</div>'
+    + '<div class="gr-detail-launch">'
+    + (t.isVerbesModule
+      ? '<button class="gr-btn primary" id="gr-detail-launch">🔤 Entraîner →</button>'
+      : '<button class="gr-btn primary" id="gr-detail-launch">🎯 Lancer le test →</button>')
+    + '</div>';
+  var launchBtn = content.querySelector('#gr-detail-launch');
+  if (launchBtn) {
+    launchBtn.addEventListener('click', function() {
+      if (t.isVerbesModule) grShowVerbesEmbed();
+      else grLaunchQuiz(idx);
+    });
+  }
+}
+
+/* ══════════════════════════════════════════
+   QUIZ ENGINE
+══════════════════════════════════════════ */
+function grLaunchQuiz(idx) {
+  grCurrentIdx = idx;
+  var exs = (TOPICS[idx].exercises || []).slice();
+  for (var i = exs.length - 1; i > 0; i--) {
+    var j = Math.floor(Math.random() * (i + 1));
+    var tmp = exs[i]; exs[i] = exs[j]; exs[j] = tmp;
+  }
+  grQuizQueue = exs;
+  grQuizIdx   = 0;
+  grQuizAnswers = [];
+  grShowPanel('gr-quiz');
+  grShowQuestion();
+}
+
+function grShowQuestion() {
+  var total = grQuizQueue.length;
+  var q     = grQuizQueue[grQuizIdx];
+  var progFill = document.getElementById('grq-prog-fill');
+  var progText = document.getElementById('grq-prog-text');
+  if (progFill) progFill.style.width = (grQuizIdx / total * 100) + '%';
+  if (progText) progText.textContent = (grQuizIdx + 1) + ' / ' + total;
+  var tag = document.getElementById('grq-module-tag');
+  if (tag) tag.textContent = TOPICS[grCurrentIdx].title;
+  var prompt = document.getElementById('grq-prompt');
+  if (prompt) prompt.innerHTML = q.p.replace(/\n/g, '<br>') + (q.h ? ' <em style="color:var(--muted);font-size:12px">(' + q.h + ')</em>' : '');
+  var input    = document.getElementById('grq-answer-input');
+  var checkBtn = document.getElementById('grq-check-btn');
+  var feedback = document.getElementById('grq-feedback');
+  var hint     = document.getElementById('grq-rule-hint');
+  var nextRow  = document.getElementById('grq-next-row');
+  if (input)    { input.value = ''; input.disabled = false; input.className = 'qz-answer-input'; setTimeout(function(){ input.focus(); }, 50); }
+  if (checkBtn) { checkBtn.disabled = false; checkBtn.textContent = 'Vérifier'; }
+  if (feedback) { feedback.textContent = ''; feedback.className = 'qz-feedback'; }
+  if (hint)     hint.style.display = 'none';
+  if (nextRow)  nextRow.style.display = 'none';
+}
+
+function grDoCheck() {
+  var q        = grQuizQueue[grQuizIdx];
+  var input    = document.getElementById('grq-answer-input');
+  var checkBtn = document.getElementById('grq-check-btn');
+  var feedback = document.getElementById('grq-feedback');
+  var hint     = document.getElementById('grq-rule-hint');
+  var nextRow  = document.getElementById('grq-next-row');
+  if (!input || input.disabled || !input.value.trim()) return;
+  var given = input.value;
+  var ok    = grCheck(given, q.a);
+  input.disabled = true;
+  input.className = 'qz-answer-input ' + (ok ? 'input-ok' : 'input-bad');
+  if (checkBtn) checkBtn.disabled = true;
+  if (feedback) {
+    feedback.textContent = ok ? '✓ Correct !' : '✗ Réponse attendue : ' + q.a;
+    feedback.className   = 'qz-feedback ' + (ok ? 'ok' : 'err') + ' show';
+  }
+  if (!ok && hint) {
+    hint.style.display = 'block';
+    hint.innerHTML = '📖 <strong>Rappel :</strong> ' + (q.h ? '<em>' + q.h + '</em> — ' : '') + 'Consultez la théorie du module pour la règle complète.';
+  }
+  if (nextRow) nextRow.style.display = 'flex';
+  grQuizAnswers.push({ q: q, correct: ok, given: given });
+}
+
+function grAdvance() {
+  grQuizIdx++;
+  if (grQuizIdx >= grQuizQueue.length) grFinishQuiz();
+  else grShowQuestion();
+}
+
+async function grFinishQuiz() {
+  var correct  = grQuizAnswers.filter(function(a) { return a.correct; }).length;
+  var total    = grQuizAnswers.length;
+  var moduleId = TOPICS[grCurrentIdx].id;
+  grShowPanel('gr-summary');
+
+  var pct = total > 0 ? Math.round(correct / total * 100) : 0;
+  document.getElementById('grs-score-big').textContent = correct + ' / ' + total;
+  document.getElementById('grs-score-sub').textContent = pct + '%';
+  document.getElementById('grs-stars').textContent     = pct >= 80 ? '⭐⭐⭐' : pct >= 50 ? '⭐⭐' : '⭐';
+  document.getElementById('grs-correct').textContent   = correct;
+  document.getElementById('grs-wrong').textContent     = total - correct;
+
+  var result = await grSaveProgress(moduleId, correct, total);
+  if (result) {
+    var trendEl = document.getElementById('grs-trend');
+    if (trendEl && result.trend !== null) {
+      var trendSign = result.trend > 0 ? '↑ +' : result.trend < 0 ? '↓ ' : '→ ';
+      var trendClr  = result.trend > 0 ? 'var(--success)' : result.trend < 0 ? 'var(--danger)' : 'var(--muted)';
+      trendEl.innerHTML = '<span style="color:' + trendClr + '">' + trendSign + Math.abs(result.trend) + '% vs test précédent</span>'
+        + '<span style="color:var(--muted);margin-left:12px">Moy. glissante : ' + result.avg + '%</span>';
+    }
+    if (!result.wasMastered && result.status === 'mastered') grCelebrateMastery(grCurrentIdx);
+  }
+
+  var missed    = grQuizAnswers.filter(function(a) { return !a.correct; });
+  var missedSec = document.getElementById('grs-missed-section');
+  var missedList = document.getElementById('grs-missed-list');
+  if (missed.length && missedSec && missedList) {
+    missedSec.style.display = 'block';
+    missedList.innerHTML = missed.map(function(a) {
+      return '<div class="qz-missed-item">'
+        + '<span class="qz-missed-word">' + (typeof escHtml === 'function' ? escHtml(a.q.p.replace(/\n/g, ' ')) : a.q.p.replace(/\n/g, ' ')) + '</span>'
+        + '<span style="color:var(--muted);font-family:\'DM Mono\',monospace;font-size:13px;text-decoration:line-through">' + (typeof escHtml === 'function' ? escHtml(a.given || '—') : a.given || '—') + '</span>'
+        + '<span class="qz-missed-answer">→ ' + (typeof escHtml === 'function' ? escHtml(a.q.a) : a.q.a) + '</span>'
+        + '</div>';
+    }).join('');
+  } else if (missedSec) { missedSec.style.display = 'none'; }
+}
+
+function grCelebrateMastery(topicIdx) {
+  var t = TOPICS[topicIdx] || {};
+  var toast = document.createElement('div');
+  toast.className = 'gr-mastery-toast';
+  toast.textContent = '🎉 Module maîtrisé : ' + t.title + ' ! +40 XP';
+  document.body.appendChild(toast);
+  setTimeout(function() { if (toast.parentNode) toast.parentNode.removeChild(toast); }, 4000);
+}
+
+/* ══════════════════════════════════════════
+   VERBES EMBED
+══════════════════════════════════════════ */
+function grShowVerbesEmbed() {
+  grShowPanel('gr-verbes-embed');
+  var show = ['vb-setup', 'vb-ref-link-row'];
+  var hide = ['vb-quiz', 'vb-summary', 'vb-progress-panel', 'vb-ref-panel'];
+  show.forEach(function(id) { var el = document.getElementById(id); if (el) el.style.display = ''; });
+  hide.forEach(function(id) { var el = document.getElementById(id); if (el) el.style.display = 'none'; });
+  if (typeof vbUpdateNote === 'function') vbUpdateNote();
+}
+
+/* ══════════════════════════════════════════
+   INIT
+══════════════════════════════════════════ */
+document.addEventListener('DOMContentLoaded', function() {
+  var gramTab = document.querySelector('[data-tab="grammar"]');
+  if (gramTab) {
+    gramTab.addEventListener('click', function() {
+      var grid = document.getElementById('gr-modules-grid');
+      if (grid && !grid.children.length) grShowCards();
+    });
+  }
+
+  document.addEventListener('click', function(e) {
+    var t = e.target.closest('[id]');
+    if (!t) return;
+    var id = t.id;
+    if (id === 'gr-detail-back')  { grShowCards(); return; }
+    if (id === 'gr-verbes-back')  { grShowCards(); return; }
+    if (id === 'grs-btn-back')    { grShowCards(); return; }
+    if (id === 'grs-btn-restart') { grLaunchQuiz(grCurrentIdx); return; }
+    if (id === 'grq-next-btn')    { grAdvance(); return; }
+    if (id === 'grq-check-btn')   { grDoCheck(); return; }
+  });
+
+  document.addEventListener('keydown', function(e) {
+    if (e.key !== 'Enter') return;
+    var input = document.getElementById('grq-answer-input');
+    if (document.activeElement !== input) return;
+    var checkBtn = document.getElementById('grq-check-btn');
+    if (checkBtn && !checkBtn.disabled) grDoCheck();
+  });
+
+  document.addEventListener('lazypo:profile', async function() {
+    if (!window.sb) return;
+    try {
+      var r = await window.sb.auth.getUser();
+      if (r.data && r.data.user) {
+        await grLoadProgress(r.data.user.id);
+        var grid = document.getElementById('gr-modules-grid');
+        if (grid && grid.children.length) grShowCards();
+      }
+    } catch(_) {}
+  });
+});
+
+})();
+</script>
+
 </body>
 </html>
