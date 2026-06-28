@@ -9,9 +9,12 @@
   if (path !== lower) window.location.replace(lower);
 </script>
 <meta charset="UTF-8">
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LazyPO — Login</title>
-<link href="https://fonts.googleapis.com/css2?family=Permanent+Marker&family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<meta name="description" content="LazyPO internal productivity suite — employee login">
+<meta name="robots" content="noindex, nofollow">
+<link rel="stylesheet" href="fonts.css">
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -235,6 +238,43 @@ body {
 }
 .msg.show { display: block; }
 
+/* ── signup avatar zone ── */
+.su-avatar-zone {
+  display: flex; align-items: center; gap: 14px;
+  padding: 10px 0 4px;
+}
+.su-avatar-preview {
+  width: 56px; height: 56px; border-radius: 50%; flex-shrink: 0;
+  background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+  display: flex; align-items: center; justify-content: center;
+  overflow: hidden; position: relative;
+  box-shadow: 0 0 0 2px rgba(96,165,250,0.2);
+}
+.su-avatar-preview img {
+  position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover;
+}
+.su-avatar-fallback {
+  font-size: 20px; font-weight: 700; color: #fff;
+  font-family: 'DM Sans', sans-serif; position: relative; z-index: 1;
+}
+.su-avatar-actions { display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 0; }
+.su-avatar-pick {
+  display: flex; flex-direction: column; gap: 2px;
+  cursor: pointer; padding: 8px 12px;
+  background: var(--surface2); border: 1px dashed var(--border2);
+  border-radius: var(--r);
+  transition: border-color 0.15s, background 0.15s;
+  font-size: 13px; color: var(--text);
+}
+.su-avatar-pick:hover { border-color: var(--accent); background: rgba(59,130,246,0.06); }
+.su-avatar-hint { font-size: 10.5px; color: var(--muted); letter-spacing: 0.02em; }
+.su-avatar-remove {
+  align-self: flex-start; background: none; border: none;
+  color: var(--muted); font: 500 11px 'DM Sans', sans-serif;
+  cursor: pointer; padding: 2px 0; text-decoration: underline;
+}
+.su-avatar-remove:hover { color: #f87171; }
+
 /* ── loading spinner ── */
 .spinner {
   display: inline-block;
@@ -285,14 +325,42 @@ body {
 
   <!-- Sign up form (hidden by default) -->
   <form class="form" id="form-signup" style="display:none" onsubmit="handleSignup(event)">
+
+    <!-- Avatar (optional) -->
+    <div class="su-avatar-zone">
+      <div class="su-avatar-preview" id="suAvatarPreview">
+        <span class="su-avatar-fallback" id="suAvatarInitial">?</span>
+      </div>
+      <div class="su-avatar-actions">
+        <label class="su-avatar-pick" for="signup-avatar">
+          <span id="suAvatarLabel">Add a photo</span>
+          <span class="su-avatar-hint">PNG / JPG · max 2MB · optional</span>
+        </label>
+        <input id="signup-avatar" type="file" accept="image/png,image/jpeg,image/webp" onchange="handleAvatarPick(event)" hidden>
+        <button type="button" class="su-avatar-remove" id="suAvatarRemove" onclick="clearAvatar()" hidden>Remove</button>
+      </div>
+    </div>
+
+    <div class="field">
+      <label for="signup-username">Username</label>
+      <input id="signup-username" type="text" placeholder="3–20 chars, letters/digits/_"
+             required minlength="3" maxlength="20" pattern="[a-zA-Z0-9_]+" autocomplete="username"
+             oninput="updateAvatarInitial()">
+    </div>
     <div class="field">
       <label for="signup-email">Email</label>
-      <input id="signup-email" type="email" placeholder="you@example.com" required autocomplete="email">
+      <input id="signup-email" type="email" placeholder="you@example.com" required autocomplete="email"
+             oninput="updateAvatarInitial()">
     </div>
     <div class="field">
       <label for="signup-password">Password</label>
       <input id="signup-password" type="password" placeholder="At least 6 characters" required autocomplete="new-password" minlength="6">
     </div>
+    <div class="field">
+      <label for="signup-password2">Confirm password</label>
+      <input id="signup-password2" type="password" placeholder="Type it again" required autocomplete="new-password" minlength="6">
+    </div>
+
     <button class="btn-primary" id="btn-signup" type="submit">Create account</button>
   </form>
 
@@ -320,7 +388,7 @@ body {
 </div>
 
 <!-- Supabase JS v2 -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase.min.js"></script>
 <script>
 // ─────────────────────────────────────────────────────────
 // CONFIG — replace with your project's values
@@ -328,16 +396,44 @@ body {
 const SUPABASE_URL  = 'https://hrvxhnmtvzvrsmmmmtsv.supabase.co';
 const SUPABASE_ANON = 'sb_publishable_Mj-FuPZcN_oTeLQ0ME84yQ_uulPdJ4c';
 
-// After successful login, redirect here
+// After successful login, redirect here unless a ?next= was passed
+// by the Worker gate (e.g. user hit a deep link unauthenticated).
 const REDIRECT_AFTER_LOGIN = 'index.html';
+function _postLoginTarget(){
+  try {
+    var qp = new URLSearchParams(location.search).get('next');
+    if (!qp) return REDIRECT_AFTER_LOGIN;
+    // Reject anything that isn't a same-origin path under /pro/
+    // (defence against open-redirect via a crafted next param).
+    if (!qp.startsWith('/pro/')) return REDIRECT_AFTER_LOGIN;
+    if (qp.startsWith('//')) return REDIRECT_AFTER_LOGIN;
+    return qp;
+  } catch(_) { return REDIRECT_AFTER_LOGIN; }
+}
 
 // ─────────────────────────────────────────────────────────
 const { createClient } = supabase;
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
 
+// Helper — sets the Worker-gate cookie from a Supabase session object.
+// Mirrors window.LazyAuth.setSessionCookie() but inlined so we don't
+// depend on auth.js being loaded (login.html doesn't include it).
+function _setLazypoCookie(session){
+  if (!session || !session.access_token) return;
+  var expiresIn = Number(session.expires_in) > 0 ? Number(session.expires_in) : 3600;
+  var secure = location.protocol === 'https:' ? '; Secure' : '';
+  var path = location.pathname.indexOf('/pro/') === 0 ? '/pro' : '/';
+  document.cookie =
+    'lazypo_jwt=' + encodeURIComponent(session.access_token) +
+    '; Path=' + path + '; Max-Age=' + expiresIn + '; SameSite=Lax' + secure;
+}
+
 // Redirect already-authenticated users
 sb.auth.getSession().then(({ data: { session } }) => {
-  if (session) window.location.href = REDIRECT_AFTER_LOGIN;
+  if (session) {
+    _setLazypoCookie(session);
+    window.location.href = _postLoginTarget();
+  }
 });
 
 // ── tab switching ──────────────────────────────────────
@@ -390,7 +486,7 @@ async function handleLogin(e) {
   const password = document.getElementById('login-password').value;
 
   setLoading('btn-login', true, 'Signing in…');
-  const { error } = await sb.auth.signInWithPassword({ email, password });
+  const { data: signInData, error } = await sb.auth.signInWithPassword({ email, password });
   setLoading('btn-login', false, 'Sign in');
 
   if (error) {
@@ -402,28 +498,109 @@ async function handleLogin(e) {
       await sb.auth.signOut();
       showMsg('Your account is pending approval. You\'ll get access as soon as it\'s approved.', 'success');
     } else {
+      // Reset the inactivity timer on fresh login so session.js doesn't
+      // immediately force-logout on the next page using a stale timestamp.
+      try { localStorage.setItem('lazypo:lastActivity', String(Date.now())); } catch (_) {}
+      // Set the Worker-gate cookie BEFORE the redirect — otherwise the
+      // next page would 302 right back to login.
+      _setLazypoCookie(signInData && signInData.session);
       showMsg('Signed in! Redirecting…', 'success');
-      setTimeout(() => window.location.href = REDIRECT_AFTER_LOGIN, 800);
+      setTimeout(() => window.location.href = _postLoginTarget(), 800);
     }
   }
+}
+
+// ── avatar picker ───────────────────────────────────────
+let pendingAvatarDataUrl = null;
+
+function updateAvatarInitial() {
+  const u = document.getElementById('signup-username').value.trim();
+  const e = document.getElementById('signup-email').value.trim();
+  const seed = u || e.split('@')[0] || '?';
+  const initialEl = document.getElementById('suAvatarInitial');
+  if (!initialEl.parentElement.querySelector('img')) {
+    initialEl.textContent = (seed[0] || '?').toUpperCase();
+  }
+}
+
+function handleAvatarPick(e) {
+  const file = e.target.files?.[0];
+  if (!file) return;
+  if (file.size > 2 * 1024 * 1024) {
+    showMsg('Avatar too large — max 2MB.');
+    e.target.value = '';
+    return;
+  }
+  clearMsg();
+  const reader = new FileReader();
+  reader.onload = ev => {
+    pendingAvatarDataUrl = ev.target.result;
+    const preview = document.getElementById('suAvatarPreview');
+    preview.querySelectorAll('img').forEach(i => i.remove());
+    const img = document.createElement('img');
+    img.src = pendingAvatarDataUrl;
+    preview.appendChild(img);
+    document.getElementById('suAvatarLabel').textContent = 'Replace photo';
+    document.getElementById('suAvatarRemove').hidden = false;
+  };
+  reader.readAsDataURL(file);
+}
+
+function clearAvatar() {
+  pendingAvatarDataUrl = null;
+  document.getElementById('signup-avatar').value = '';
+  document.getElementById('suAvatarPreview').querySelectorAll('img').forEach(i => i.remove());
+  document.getElementById('suAvatarLabel').textContent = 'Add a photo';
+  document.getElementById('suAvatarRemove').hidden = true;
+  updateAvatarInitial();
 }
 
 // ── sign up ────────────────────────────────────────────
 async function handleSignup(e) {
   e.preventDefault();
   clearMsg();
-  const email    = document.getElementById('signup-email').value.trim();
-  const password = document.getElementById('signup-password').value;
+  const username  = document.getElementById('signup-username').value.trim();
+  const email     = document.getElementById('signup-email').value.trim();
+  const password  = document.getElementById('signup-password').value;
+  const password2 = document.getElementById('signup-password2').value;
+
+  if (!/^[a-zA-Z0-9_]{3,20}$/.test(username)) {
+    showMsg('Username must be 3–20 chars, letters/digits/underscore only.'); return;
+  }
+  if (password !== password2) {
+    showMsg('Passwords do not match.'); return;
+  }
+
+  // Build absolute URL of the login page on the current origin so the
+  // confirmation email always points back here (not to localhost).
+  const confirmRedirect = new URL('login.html', window.location.href).toString();
 
   setLoading('btn-signup', true, 'Creating account…');
-  const { error } = await sb.auth.signUp({ email, password });
+  const { error } = await sb.auth.signUp({
+    email,
+    password,
+    options: {
+      emailRedirectTo: confirmRedirect,
+      data: { username },          // → trigger reads from raw_user_meta_data
+    },
+  });
   setLoading('btn-signup', false, 'Create account');
 
   if (error) {
     showMsg(error.message);
-  } else {
-    showMsg('Account created! Check your email to confirm.', 'success');
+    return;
   }
+
+  // Stash avatar dataURL keyed by email — auth.js will upload it on first login
+  // (Storage RLS requires an authenticated session, which we don't have yet
+  // when email confirmation is enabled).
+  if (pendingAvatarDataUrl) {
+    try {
+      localStorage.setItem('lazypo:pendingAvatar:' + email.toLowerCase(), pendingAvatarDataUrl);
+    } catch (_) { /* quota — silent */ }
+  }
+
+  showMsg('Account created! Check your email to confirm.', 'success');
 }
 
 // ── forgot password ────────────────────────────────────
@@ -432,7 +609,7 @@ async function handleForgotPassword() {
   if (!email) { showMsg('Enter your email first, then click Forgot password.'); return; }
 
   const { error } = await sb.auth.resetPasswordForEmail(email, {
-    redirectTo: window.location.href.replace(/[^/]*$/, 'login.html'),
+    redirectTo: new URL('login.html', window.location.href).toString(),
   });
   if (error) {
     showMsg(error.message);
@@ -446,14 +623,14 @@ async function handleOAuth(provider) {
   clearMsg();
   const { error } = await sb.auth.signInWithOAuth({
     provider,
-    options: { redirectTo: window.location.href.replace(/[^/]*$/, REDIRECT_AFTER_LOGIN) },
+    options: { redirectTo: new URL(REDIRECT_AFTER_LOGIN, window.location.href).toString() },
   });
   if (error) showMsg(error.message);
 }
 </script>
 <script src="focusfm.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/vanta@0.5.24/dist/vanta.net.min.js"></script>
+<script src="three.min.js"></script>
+<script src="vanta.net.min.js"></script>
 <script>
 VANTA.NET({
   el: '#vanta-bg',

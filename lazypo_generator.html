@@ -2,12 +2,14 @@
 <html lang="fr">
 <head>
 <script>if(location.protocol==="http:"&&location.hostname!=="localhost"&&location.hostname!=="127.0.0.1")location.replace("https:"+location.href.slice(5));</script>
+<script src="auth-gate.js"></script>
 <meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests">
 <meta charset="UTF-8">
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LazyPO — SoW Email Generator</title>
-<link href="https://fonts.googleapis.com/css2?family=Permanent+Marker&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<link rel="stylesheet" href="fonts.css">
+<script src="xlsx.min.js"></script>
 <style>
 :root {
   --navy: #002060; --navy-mid: #0a3575; --blue: #1e3a6e;
@@ -53,6 +55,32 @@ header .spacer { flex: 1; }
 .btn-success:hover { background: #059669; }
 .btn:active { transform: scale(.97); }
 .btn:disabled { opacity: .4; cursor: not-allowed; transform: none; pointer-events: none; }
+
+/* Export HTML dropdown (mirrors jira_dashboard.html — download / copy
+   the standalone version of this feature). */
+.dropdown { position: relative; display: inline-flex; }
+.dropdown-menu {
+  position: absolute; top: calc(100% + 6px); right: 0;
+  background: #fff; color: var(--text);
+  border: 1px solid var(--border); border-radius: var(--r);
+  padding: 6px; min-width: 240px;
+  box-shadow: 0 12px 32px rgba(15,23,42,.18);
+  z-index: 200; display: none;
+}
+.dropdown.open .dropdown-menu { display: block; }
+.dropdown-item {
+  display: flex; flex-direction: column; gap: 2px;
+  padding: 9px 12px; border-radius: var(--r-sm);
+  cursor: pointer; transition: background .15s;
+}
+.dropdown-item:hover { background: #f1f5fb; }
+.dropdown-item-title { font-size: 13px; font-weight: 600; color: var(--text); }
+.dropdown-item-desc  { font-size: 11px; color: var(--text-muted); font-family: 'DM Mono', monospace; }
+.dropdown-footer {
+  padding: 8px 12px; font-size: 10px; color: var(--text-faint);
+  border-top: 1px solid var(--border); margin-top: 4px;
+  font-family: 'DM Mono', monospace;
+}
 
 .status-pill {
   display: none; align-items: center; gap: 6px;
@@ -115,7 +143,7 @@ input[type="text"]:focus, select:focus, textarea:focus {
   transition: all .2s; background: #fafbfd; margin-bottom: 14px; position: relative;
 }
 .drop-zone:hover, .drop-zone.dragover { border-color: var(--accent); background: var(--accent-light); }
-.drop-zone input[type="file"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; border: none; padding: 0; }
+.drop-zone input[type="file"] { position: absolute; inset: 0; opacity: 0; width: 100%; height: 100%; border: none; padding: 0; pointer-events: none; }
 .drop-icon { font-size: 28px; margin-bottom: 6px; }
 .drop-zone p { font-size: 12px; color: var(--text-muted); }
 .drop-zone p strong { color: var(--accent); }
@@ -164,6 +192,10 @@ input[type="text"]:focus, select:focus, textarea:focus {
 .tag { background: var(--tag-bg); color: var(--tag-text); font-size: 10.5px; font-weight: 500; padding: 2px 7px; border-radius: 20px; display: flex; align-items: center; gap: 3px; animation: fadeIn .15s ease; }
 .tag-x { cursor: pointer; font-size: 13px; line-height: 1; opacity: .6; }
 .tag-x:hover { opacity: 1; }
+.tag-arrow { cursor: pointer; font-size: 11px; line-height: 1; user-select: none; transition: opacity .1s; display: none; opacity: .7; }
+.tag:hover .tag-arrow { display: inline; }
+.tag-arrow:hover { opacity: 1; }
+.tag-arrow.active { display: inline; opacity: 1; font-size: 12px; }
 .tag-input { border: none; outline: none; background: transparent; font-size: 11.5px; font-family: 'DM Sans', sans-serif; color: var(--text); min-width: 70px; flex: 1; padding: 0; box-shadow: none; }
 
 .add-btn {
@@ -224,6 +256,24 @@ input[type="text"]:focus, select:focus, textarea:focus {
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
       Télécharger .eml
     </button>
+    <div class="dropdown" id="exportHtmlDropdown">
+      <button class="btn btn-ghost" onclick="toggleExportHtmlDropdown(event)" title="Export the standalone feature (offline)">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+        Export HTML
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="dropdown-menu">
+        <div class="dropdown-item" onclick="exportHTMLDownload()">
+          <span class="dropdown-item-title">Télécharger le fichier</span>
+          <span class="dropdown-item-desc">lazypo_sow.html</span>
+        </div>
+        <div class="dropdown-item" onclick="exportHTMLCopy()">
+          <span class="dropdown-item-title">Copier le code</span>
+          <span class="dropdown-item-desc">copie instantanée</span>
+        </div>
+        <div class="dropdown-footer">Standalone · ouvre par double-clic, fonctionne offline</div>
+      </div>
+    </div>
     <button class="btn btn-primary" onclick="generate()">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>
       Générer
@@ -399,59 +449,116 @@ function matchRelease(raw) {
   if (s.includes('may') || s.includes('05/')) return 'May (21 May)';
   if (s.includes('jun')) return 'June 26';
   if (s.includes('jul')) return 'July 26';
+  if (s.includes('aug')) return 'August 26';
+  if (s.includes('sep')) return 'September 26';
+  if (s.includes('oct')) return 'October 26';
+  if (s.includes('nov')) return 'November 26';
+  if (s.includes('dec')) return 'December 26';
   if (s.includes('q2')) return "Q2 26'";
   if (s.includes('q3')) return "Q3 26'";
+  if (s.includes('q4')) return "Q4 26'";
   const d = new Date(raw);
   if (!isNaN(d)) {
+    const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
     const m = d.getMonth();
     if (m === 3) return '1/04/26 (16 Apr)';
     if (m === 4) return 'May (21 May)';
-    if (m === 5) return 'June 26';
-    if (m === 6) return 'July 26';
+    return months[m] + ' 26';
   }
-  return 'TBD';
+  return raw.trim() || 'TBD';
 }
 
 function parseExcel(file) {
   const reader = new FileReader();
+  reader.onerror = () => showDropStatus('❌ Erreur lecture fichier', true);
   reader.onload = e => {
-    const wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
-    const ws = wb.Sheets[wb.SheetNames[0]];
-    const rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
-    if (!rows.length) return;
-    const colMap = {};
-    Object.keys(rows[0]).forEach(k => {
-      const kl = k.toLowerCase().trim();
-      if (kl.includes('jira') || kl.includes('ticket') || kl.includes('crm')) colMap.ticket = k;
-      if (kl.includes('epic') || kl.includes('name')) colMap.name = k;
-      if (kl.includes('desc')) colMap.desc = k;
-      if (kl.includes('benefit')) colMap.benefits = k;
-      if (kl.includes('release') || kl.includes('date')) colMap.release = k;
-    });
-    const imported = rows
-      .filter(r => String(r[colMap.name] || '').trim())
-      .map(r => ({
-        name: String(r[colMap.name] || '').trim(),
-        ticket: String(r[colMap.ticket] || '').trim(),
-        desc: String(r[colMap.desc] || '').trim(),
-        benefits: String(r[colMap.benefits] || '').split(/[,;|]/).map(b => b.trim()).filter(Boolean),
-        release: matchRelease(r[colMap.release] || '')
-      }));
-    if (imported.length) {
-      epics = imported; renderEpics();
-      const st = document.getElementById('drop-status');
-      st.style.display = 'block';
-      st.textContent = `✓ ${imported.length} epic${imported.length>1?'s':''} importé${imported.length>1?'s':''}`;
+    const buf = e.target.result;
+    // Detect HTML-disguised XLS (Jira export): first byte is '<' (0x3C)
+    // or starts with UTF-8 BOM then '<'
+    const probe = new Uint8Array(buf, 0, 4);
+    const isHtml = probe[0] === 0x3C ||
+                   (probe[0] === 0xEF && probe[1] === 0xBB && probe[2] === 0xBF && probe[3] === 0x3C);
+    if (isHtml) {
+      processRows(parseHtmlTable(new TextDecoder('utf-8').decode(buf)));
+    } else {
+      try {
+        const wb = XLSX.read(new Uint8Array(buf), { type: 'array' });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        processRows(XLSX.utils.sheet_to_json(ws, { defval: '' }));
+      } catch (err) {
+        showDropStatus('❌ Format non supporté', true);
+      }
     }
   };
   reader.readAsArrayBuffer(file);
 }
 
+function parseHtmlTable(html) {
+  const doc = new DOMParser().parseFromString(html, 'text/html');
+  // Pick the table with the most rows (Jira exports have a metadata table before the data table)
+  const tables = Array.from(doc.querySelectorAll('table'));
+  const table = tables.reduce((best, t) => t.rows.length > (best ? best.rows.length : 0) ? t : best, null);
+  if (!table) return [];
+  const rows = Array.from(table.querySelectorAll('tr'));
+  if (rows.length < 2) return [];
+  const headers = Array.from(rows[0].querySelectorAll('th,td')).map(c => c.textContent.trim());
+  return rows.slice(1).map(row => {
+    const cells = Array.from(row.querySelectorAll('td')).map(c => c.textContent.trim());
+    const obj = {};
+    headers.forEach((h, i) => { obj[h] = cells[i] !== undefined ? cells[i] : ''; });
+    return obj;
+  }).filter(r => Object.values(r).some(v => v));
+}
+
+function processRows(rows) {
+  if (!rows.length) { showDropStatus('❌ Aucune donnée trouvée', true); return; }
+
+  const colMap = {};
+  Object.keys(rows[0]).forEach(k => {
+    const kl = k.toLowerCase().trim();
+    if (kl === 'key' || kl === 'issue key' || kl.includes('ticket') || kl.includes('jira') || kl.includes('crm')) colMap.ticket = k;
+    if ((kl === 'summary' || kl.includes('name')) && !colMap.name) colMap.name = k;
+    if (kl.includes('epic') && !colMap.name) colMap.name = k;
+    if (kl.includes('desc')) colMap.desc = k;
+    if (kl.includes('benefit') || kl.includes('label')) colMap.benefits = k;
+    if ((kl.includes('fix version') || kl.includes('release')) && !colMap.release) colMap.release = k;
+    if (kl === 'sprint' && !colMap.release) colMap.release = k;
+  });
+
+  const imported = rows
+    .filter(r => String(r[colMap.name] || '').trim())
+    .map(r => ({
+      name:     String(r[colMap.name]     || '').trim(),
+      ticket:   String(r[colMap.ticket]   || '').trim(),
+      desc:     String(r[colMap.desc]     || '').trim(),
+      benefits: String(r[colMap.benefits] || '').split(/[,;|]/).map(b => b.trim()).filter(Boolean),
+      release:  matchRelease(r[colMap.release] || '')
+    }));
+
+  if (imported.length) {
+    epics = imported; renderEpics();
+    showDropStatus(`✓ ${imported.length} epic${imported.length > 1 ? 's' : ''} importé${imported.length > 1 ? 's' : ''}`);
+  } else {
+    showDropStatus('❌ 0 ligne — colonnes détectées : ' + Object.keys(rows[0]).join(', '), true);
+  }
+}
+
+function showDropStatus(msg, isError) {
+  const st = document.getElementById('drop-status');
+  st.style.display = 'block';
+  st.style.color = isError ? '#e53' : 'var(--success)';
+  st.textContent = msg;
+}
+
 const dz = document.getElementById('drop-zone');
 const fi = document.getElementById('file-input');
-dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('dragover'); });
-dz.addEventListener('dragleave', () => dz.classList.remove('dragover'));
-dz.addEventListener('drop', e => { e.preventDefault(); dz.classList.remove('dragover'); if (e.dataTransfer.files[0]) parseExcel(e.dataTransfer.files[0]); });
+
+// input a pointer-events:none → drag events tombent sur dz directement
+dz.addEventListener('dragover',  e => { e.preventDefault(); dz.classList.add('dragover'); });
+dz.addEventListener('dragleave', e => { if (!dz.contains(e.relatedTarget)) dz.classList.remove('dragover'); });
+dz.addEventListener('drop',      e => { e.preventDefault(); dz.classList.remove('dragover'); if (e.dataTransfer.files[0]) parseExcel(e.dataTransfer.files[0]); });
+// click sur le div → ouvre le file picker (remplace le comportement natif de l'input)
+dz.addEventListener('click', () => fi.click());
 fi.addEventListener('change', e => { if (e.target.files[0]) parseExcel(e.target.files[0]); });
 
 function renderEpics() {
@@ -460,7 +567,8 @@ function renderEpics() {
   epics.forEach((ep, i) => {
     const card = document.createElement('div');
     card.className = 'epic-card'; card.draggable = true; card.dataset.idx = i;
-    const optsHtml = RELEASE_OPTIONS.map(o => `<option value="${o}"${ep.release===o?' selected':''}>${o}</option>`).join('');
+    const datalistId = `rl-${i}`;
+    const datalistHtml = RELEASE_OPTIONS.map(o => `<option value="${o}">`).join('');
     card.innerHTML = `
       <div class="epic-head">
         <span class="drag-dots">⠿</span>
@@ -477,13 +585,18 @@ function renderEpics() {
           <div class="epic-field">
             <label>Bénéfices <span style="font-weight:400;color:var(--text-faint)">(Entrée pour ajouter)</span></label>
             <div class="tags-wrap" id="tw-${i}">
-              ${ep.benefits.map((b,bi)=>`<span class="tag">${b}<span class="tag-x" data-i="${i}" data-bi="${bi}">×</span></span>`).join('')}
+              ${ep.benefits.map((b,bi)=>{
+                const arrow = b.startsWith('↗ ')?'↗':b.startsWith('↘ ')?'↘':'';
+                const txt = arrow ? b.slice(2) : b;
+                return `<span class="tag" data-arrow="${arrow}"><span class="tag-arrow${arrow?' active':''}" data-i="${i}" data-bi="${bi}">${arrow||'↕'}</span><span class="tag-text">${txt}</span><span class="tag-x" data-i="${i}" data-bi="${bi}">×</span></span>`;
+              }).join('')}
               <input class="tag-input" placeholder="Ajouter..." data-idx="${i}" />
             </div>
           </div>
           <div class="epic-field" style="max-width:155px;">
             <label>Release</label>
-            <select class="epic-release">${optsHtml}</select>
+            <datalist id="${datalistId}">${datalistHtml}</datalist>
+            <input type="text" class="epic-release" list="${datalistId}" value="${(ep.release||'').replace(/"/g,'&quot;')}" placeholder="ex: Q3 26'" />
             <span class="release-preview ${relClass(ep.release)}">${relLabel(ep.release)}</span>
           </div>
         </div>
@@ -493,7 +606,7 @@ function renderEpics() {
     card.querySelector('.epic-name-input').addEventListener('input', e => { epics[i].name = e.target.value; });
     card.querySelector('.epic-ticket').addEventListener('input', e => { epics[i].ticket = e.target.value; });
     card.querySelector('.epic-desc').addEventListener('input', e => { epics[i].desc = e.target.value; });
-    card.querySelector('.epic-release').addEventListener('change', e => {
+    card.querySelector('.epic-release').addEventListener('input', e => {
       epics[i].release = e.target.value;
       const p = card.querySelector('.release-preview');
       p.className = `release-preview ${relClass(e.target.value)}`;
@@ -510,6 +623,15 @@ function renderEpics() {
       }
     });
     card.querySelectorAll('.tag-x').forEach(x => x.addEventListener('click', () => { epics[i].benefits.splice(+x.dataset.bi,1); renderEpics(); }));
+    card.querySelectorAll('.tag-arrow').forEach(btn => btn.addEventListener('click', () => {
+      const bi = +btn.dataset.bi;
+      const cur = epics[i].benefits[bi];
+      const hasUp = cur.startsWith('↗ '), hasDown = cur.startsWith('↘ ');
+      if (!hasUp && !hasDown) epics[i].benefits[bi] = '↗ ' + cur;
+      else if (hasUp) epics[i].benefits[bi] = '↘ ' + cur.slice(2);
+      else epics[i].benefits[bi] = cur.slice(2);
+      renderEpics();
+    }));
     card.addEventListener('dragstart', e => { dragSrc = i; card.classList.add('dragging'); e.dataTransfer.effectAllowed = 'move'; });
     card.addEventListener('dragend', () => card.classList.remove('dragging'));
     card.addEventListener('dragover', e => { e.preventDefault(); card.classList.add('drag-over'); });
@@ -545,7 +667,11 @@ function syncEpics() {
   document.querySelectorAll('.epic-desc').forEach((el,i) => { if(epics[i]) epics[i].desc = el.value; });
   epics.forEach((ep,i) => {
     const tags = document.querySelectorAll(`#tw-${i} .tag`);
-    if (tags.length) ep.benefits = [...tags].map(t => t.textContent.replace('×','').trim());
+    if (tags.length) ep.benefits = [...tags].map(t => {
+      const arrow = t.dataset.arrow || '';
+      const txt = t.querySelector('.tag-text')?.textContent.trim() || '';
+      return arrow ? arrow + ' ' + txt : txt;
+    });
   });
 }
 
@@ -637,7 +763,7 @@ function buildEmailHtml() {
   return `<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
 <head>
-<script>if(location.protocol==="http:"&&location.hostname!=="localhost"&&location.hostname!=="127.0.0.1")location.replace("https:"+location.href.slice(5));</script>
+<script>if(location.protocol==="http:"&&location.hostname!=="localhost"&&location.hostname!=="127.0.0.1")location.replace("https:"+location.href.slice(5));<\/script>
 <meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests">
 <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -746,7 +872,7 @@ function buildEmailHtml() {
 
 </td></tr></table>
 <!--[if mso]></td></tr></table><![endif]-->
-<script src="focusfm.js"></script>
+<script src="focusfm.js"><\/script>
 </body>
 </html>`;
 }
@@ -813,6 +939,75 @@ function copyEmailHtml() {
   });
 }
 
+// ── EXPORT HTML (standalone feature) — same pattern as jira_dashboard.html
+//    Strips auth scripts, resets the preview iframe and disables the export
+//    buttons in the clone so the file works offline by double-click.
+function toggleExportHtmlDropdown(e) {
+  if (e) e.stopPropagation();
+  const dd = document.getElementById('exportHtmlDropdown');
+  dd.classList.toggle('open');
+}
+document.addEventListener('click', e => {
+  if (!e.target.closest('#exportHtmlDropdown')) {
+    document.getElementById('exportHtmlDropdown')?.classList.remove('open');
+  }
+});
+
+function buildExportHTML() {
+  const doc = document.documentElement.cloneNode(true);
+  // Drop the auth pipeline — exported file must run standalone.
+  doc.querySelectorAll(
+    'script[src*="auth"], script[src*="popup"], script[src*="sidebar"],' +
+    ' script[src*="focusfm"], script[src*="supabase"], script[src*="demo"]'
+  ).forEach(s => s.remove());
+  doc.querySelectorAll('script').forEach(s => {
+    if (s.textContent && s.textContent.includes('LazyAuth.requireModule')) s.remove();
+  });
+  // Sidebar widget shouldn't render in the exported file.
+  doc.querySelectorAll('.sb-shell, .sb-rail, .sb-panel, .sb-backdrop').forEach(el => el.remove());
+  // Reset preview to its empty state — don't ship our current draft.
+  const frame = doc.querySelector('#preview-frame');
+  if (frame) { frame.removeAttribute('srcdoc'); frame.setAttribute('style', 'flex:1;border:none;background:#fff;display:none;'); }
+  const empty = doc.querySelector('#preview-empty');
+  if (empty) empty.style.display = '';
+  // Disable the Export HTML button in the clone (no recursive exports
+  // pointing at a now-empty document state).
+  const dd = doc.querySelector('#exportHtmlDropdown');
+  if (dd) dd.remove();
+  // Action buttons that depend on a generated email come back disabled.
+  ['copy-btn', 'eml-btn'].forEach(id => {
+    const b = doc.querySelector('#' + id);
+    if (b) b.setAttribute('disabled', '');
+  });
+  return '<!DOCTYPE html>\n' + doc.outerHTML;
+}
+
+function exportHTMLDownload() {
+  const html = buildExportHTML();
+  const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+  const url  = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'lazypo_sow.html';
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 200);
+  document.getElementById('exportHtmlDropdown').classList.remove('open');
+}
+
+function exportHTMLCopy() {
+  const html = buildExportHTML();
+  navigator.clipboard.writeText(html).then(() => {
+    document.getElementById('exportHtmlDropdown').classList.remove('open');
+    // Reuse the existing copy status pill briefly
+    const pill = document.getElementById('status-pill');
+    if (pill) {
+      const orig = pill.innerHTML;
+      pill.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> Code copié`;
+      pill.classList.add('show');
+      setTimeout(() => { pill.innerHTML = orig; pill.classList.remove('show'); }, 1800);
+    }
+  });
+}
+
 // ── DOWNLOAD .EML ──
 function downloadEml() {
   if (!lastEmailHtml) return;
@@ -835,7 +1030,7 @@ function downloadEml() {
     `Prioritization requests cannot be accepted after ${dl}.`, '',
     'Best regards,', 'Simon Goffin',
     'Product Owner CLM PB & DPnxt Onboarding | PB Digital',
-    'T +32 2 662 86 64 | M +32 479 48 76 08', 's.goffin@degroofpetercam.com',
+    'T +32 2 662 86 64 | M +32 479 48 76 08', 'goffin.simon@gmail.com',
   ].join('\n');
 
   const boundary = '----=_AltPart_DPnxt_CLM_' + Date.now();
@@ -847,8 +1042,8 @@ function downloadEml() {
   const eml = [
     'MIME-Version: 1.0',
     `Date: ${date}`,
-    'From: Simon Goffin <s.goffin@degroofpetercam.com>',
-    'To: Colleagues <colleagues@degroofpetercam.com>',
+    'From: Simon Goffin <goffin.simon@gmail.com>',
+    'To: Colleagues <goffin.simon@gmail.com>',
     `Subject: ${subj}`,
     `Content-Type: multipart/alternative;`,
     `\tboundary="${boundary}"`,
@@ -880,14 +1075,17 @@ function downloadEml() {
 renderThemeSwatches();
 renderEpics();
 attachLiveListeners();
-</script>
-<script src="popup.js"></script>
-<script src="sidebar.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="auth.js"></script>
-<script>document.addEventListener("DOMContentLoaded", function(){ LazyAuth.requireAuthOrPopup(); });</script>
-<script>
-/* ── Demo Mode ── */
+
+/* ── Demo Mode ──
+   IMPORTANT : doit vivre DANS le même bloc script outer pour partager
+   la portée lexicale (let epics) avec renderEpics() et generate(). Si
+   on le sortait dans un bloc séparé, l'assignation `epics = [...]`
+   créerait un window.epics fantôme et renderEpics rendrait toujours
+   DEFAULT_EPICS — d'où le bug "demo mode → pas d'aperçu email".
+   Note: ne JAMAIS écrire la sous-chaîne fermante de script
+   (</[s]cript>) littéralement dans ce bloc, sinon le parser HTML
+   ferme prématurément ici, et tout le code suivant devient texte
+   inerte (à la place : <\/script> qui évite la fermeture). */
 window.loadDemoData = function () {
   /* Form fields */
   document.getElementById('email-title').value    = 'Scope of Work — PI 2026.2';
@@ -917,7 +1115,8 @@ window.loadDemoData = function () {
     objList.appendChild(item);
   });
 
-  /* Epics */
+  /* Epics — reassigns the let-bound `epics` in this very scope so
+     renderEpics() picks up the new array. */
   epics = [
     {
       name: 'Authentication Overhaul', ticket: 'PLT-101',
@@ -948,6 +1147,11 @@ window.loadDemoData = function () {
   generate();
 };
 </script>
+<script src="popup.js"></script>
+<script src="sidebar.js"></script>
+<script src="supabase.min.js"></script>
+<script src="auth.js"></script>
+<script>document.addEventListener("DOMContentLoaded", function(){ LazyAuth.requireModule('scope'); });</script>
 <script src="demo.js"></script>
 <script src="focusfm.js"></script>
 </body>

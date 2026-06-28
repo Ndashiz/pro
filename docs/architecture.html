@@ -413,14 +413,157 @@
   ::-webkit-scrollbar-track { background: var(--surface); }
   ::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
   ::-webkit-scrollbar-thumb:hover { background: #444; }
+
+  /* ─── Mobile hamburger + backdrop (hidden on desktop) ─── */
+  .menu-toggle {
+    position: fixed;
+    top: 16px;
+    left: 16px;
+    width: 44px; height: 44px;
+    display: none;
+    align-items: center; justify-content: center;
+    background: var(--surface);
+    border: 1px solid var(--border2);
+    border-radius: 10px;
+    color: var(--text);
+    cursor: pointer;
+    z-index: 200;
+    box-shadow: 0 4px 12px rgba(0,0,0,.4);
+    transition: background .15s;
+  }
+  .menu-toggle:hover { background: var(--surface2); }
+  .menu-toggle svg { width: 22px; height: 22px; stroke: currentColor; stroke-width: 2; fill: none; }
+  .menu-toggle .icon-close { display: none; }
+  body.nav-open .menu-toggle .icon-open  { display: none; }
+  body.nav-open .menu-toggle .icon-close { display: block; }
+
+  .toc-backdrop {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,.6);
+    backdrop-filter: blur(2px);
+    z-index: 90;
+    opacity: 0;
+    transition: opacity .2s;
+  }
+  body.nav-open .toc-backdrop { opacity: 1; }
+
+  /* ─── Tablet (≤ 1100px) — réduit le padding ─── */
+  @media (max-width: 1100px) {
+    .main { padding: 56px 48px 100px; }
+    .hero h1 { font-size: 42px; }
+  }
+
+  /* ─── Mobile (≤ 900px) — TOC en drawer ─── */
+  @media (max-width: 900px) {
+    body { display: block; }
+
+    .menu-toggle { display: inline-flex; }
+
+    .toc {
+      transform: translateX(-100%);
+      transition: transform .25s ease-out;
+      width: 280px;
+      box-shadow: 4px 0 24px rgba(0,0,0,.5);
+    }
+    body.nav-open .toc { transform: translateX(0); }
+    body.nav-open .toc-backdrop { display: block; }
+
+    .main {
+      margin-left: 0;
+      padding: 80px 24px 80px;
+      max-width: 100%;
+    }
+
+    .hero { margin-bottom: 56px; }
+    .hero-eyebrow { font-size: 11px; letter-spacing: 1.5px; }
+    .hero h1 { font-size: 34px; letter-spacing: -1px; }
+    .hero-desc { font-size: 15px; }
+    .hero-meta {
+      flex-wrap: wrap;
+      gap: 20px 24px;
+      margin-top: 24px;
+      padding-top: 24px;
+    }
+    .hero-meta-item { flex: 1 1 calc(50% - 12px); min-width: 120px; }
+    .hero-meta-item .value { font-size: 14px; }
+
+    .section { margin-bottom: 56px; }
+    .section h2 { font-size: 22px; }
+    .section h3 { font-size: 15px; margin: 22px 0 10px; }
+    .section p { font-size: 14.5px; line-height: 1.65; }
+
+    .section-header { gap: 12px; margin-bottom: 24px; }
+    .section-num { width: 28px; height: 28px; font-size: 12px; }
+
+    .card-grid { grid-template-columns: 1fr; gap: 12px; }
+    .card { padding: 18px; }
+    .card-sm { padding: 14px 16px; }
+
+    .stack-chips { gap: 6px; }
+    .chip { padding: 5px 11px; font-size: 12px; }
+
+    .diagram-wrap { padding: 20px 14px; margin: 16px -4px 24px; border-radius: 10px; }
+    .diagram-caption { font-size: 11px; }
+
+    /* Tables scrollables horizontalement sur mobile */
+    .data-table,
+    .section table {
+      display: block;
+      overflow-x: auto;
+      white-space: nowrap;
+      -webkit-overflow-scrolling: touch;
+    }
+    .data-table thead, .data-table tbody, .data-table tr {
+      display: table;
+      width: max-content;
+      min-width: 100%;
+    }
+    .data-table td, .data-table th { white-space: normal; }
+    .data-table th, .data-table td { padding: 9px 12px; font-size: 13px; }
+
+    pre { padding: 14px 16px; border-radius: 8px; margin: 14px -4px; }
+    pre code { font-size: 12px; }
+
+    hr.sep { margin: 36px 0; }
+
+    .info-box, .warn-box { padding: 13px 15px; font-size: 13px; }
+  }
+
+  /* ─── Small mobile (≤ 480px) — encore plus serré ─── */
+  @media (max-width: 480px) {
+    .main { padding: 76px 16px 64px; }
+    .hero h1 { font-size: 28px; }
+    .hero-desc { font-size: 14px; }
+    .hero-meta-item { flex: 1 1 100%; }
+    .section h2 { font-size: 20px; }
+    .menu-toggle { width: 40px; height: 40px; top: 12px; left: 12px; }
+    .diagram-wrap { padding: 16px 10px; }
+  }
+
+  /* ─── Reduced motion ─── */
+  @media (prefers-reduced-motion: reduce) {
+    .toc, .toc-backdrop, .menu-toggle { transition: none; }
+    html { scroll-behavior: auto; }
+  }
 </style>
 </head>
 <body>
 
 <!-- ══════════════════════════════════════════
+     MOBILE HAMBURGER TOGGLE + BACKDROP
+══════════════════════════════════════════ -->
+<button class="menu-toggle" id="menuToggle" aria-label="Ouvrir le menu" aria-expanded="false" aria-controls="tocNav">
+  <svg class="icon-open"  viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16" stroke-linecap="round"/></svg>
+  <svg class="icon-close" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" stroke-linecap="round"/></svg>
+</button>
+<div class="toc-backdrop" id="tocBackdrop" aria-hidden="true"></div>
+
+<!-- ══════════════════════════════════════════
      SIDEBAR / TABLE OF CONTENTS
 ══════════════════════════════════════════ -->
-<nav class="toc">
+<nav class="toc" id="tocNav">
   <div class="toc-logo">
     <div class="logo-mark">Lazy<span>PO</span></div>
     <div class="doc-label">Documentation Technique</div>
@@ -436,9 +579,14 @@
   <a href="#tables">Détail des tables</a>
   <a href="#rls">Sécurité RLS</a>
 
+  <div class="toc-section">Sécurité</div>
+  <a href="#security">★ Architecture de sécurité</a>
+  <a href="#auth">Authentification</a>
+  <a href="#worker-gate">Cloudflare Worker (gate)</a>
+  <a href="#threat-model">Threat model</a>
+
   <div class="toc-section">Fonctionnalités</div>
   <a href="#spa">Navigation SPA</a>
-  <a href="#auth">Authentification</a>
   <a href="#focusfm">Focus FM · Spotify</a>
   <a href="#quiz">Knowledge Quiz</a>
   <a href="#livenote">LiveNote · Realtime</a>
@@ -462,7 +610,7 @@
 
   <!-- ─── HERO ─── -->
   <div class="hero" id="top">
-    <div class="hero-eyebrow">v2.0 · Avril 2026</div>
+    <div class="hero-eyebrow">v2.2 · Juin 2026 · /pro migration + assets self-hosted</div>
     <h1>Architecture<br>Technique <span>LazyPO</span></h1>
     <p class="hero-desc">Documentation complète de l'architecture applicative — base de données, flux de communication, modules partagés, et intégrations externes.</p>
     <div class="hero-meta">
@@ -480,7 +628,11 @@
       </div>
       <div class="hero-meta-item">
         <div class="label">Déploiement</div>
-        <div class="value">Apache · ndashiz.be</div>
+        <div class="value">GitHub Pages + Cloudflare Worker</div>
+      </div>
+      <div class="hero-meta-item">
+        <div class="label">URL</div>
+        <div class="value">ndashiz.be/pro/</div>
       </div>
     </div>
   </div>
@@ -507,7 +659,7 @@ graph TB
         FM["focusfm.js\nSpotify Player"]
         DEMO["demo.js\nDonnées fictives"]
 
-        subgraph PAGES["Pages / Outils"]
+        subgraph PAGES["Pages / Outils (/pro/*)"]
             P1["🏠 index.html"]
             P2["✉️ lazypo_generator.html"]
             P3["📋 sprintplanner.html"]
@@ -518,20 +670,35 @@ graph TB
         end
     end
 
+    subgraph EDGE["☁️ Cloudflare Edge"]
+        direction TB
+        CFW["Worker auth-gate\nndashiz.be/pro/*\nverify JWT ES256"]
+        CFDNS["DNS proxy + HSTS\n+ Bot Fight Mode"]
+    end
+
+    subgraph ORIGIN["📦 GitHub Pages (origine statique)"]
+        GHP["Ndashiz/lazypo · main\nauto-deploy on push"]
+    end
+
     subgraph BACKEND["☁️  Supabase (Backend as a Service)"]
         direction LR
         SBAUTH["Auth\n(PKCE/email)"]
-        SBDB["PostgreSQL\n5 tables"]
+        SBDB["PostgreSQL\n10 tables"]
         SBREALTIME["Realtime\n(WebSocket)"]
         SBSTORAGE["Storage\n(avatars, livenote-temp)"]
     end
 
     subgraph EXTERNAL["🌐  Services Externes"]
         SPOTIFY["Spotify API\nWeb Playback SDK"]
-        GFONTS["Google Fonts\nDM Sans / DM Mono"]
-        CDN["CDN (jsDelivr)\nXLSX · PptxGenJS · CodeMirror"]
     end
 
+    subgraph SELF["📁 Assets self-hosted (juin 2026)"]
+        FONTS["fonts/ DM Sans / DM Mono\n(plus de Google Fonts CDN)"]
+        LIBS["supabase.min.js · xlsx · pptxgen\ncodemirror · mermaid · three/vanta"]
+    end
+
+    CLIENT -->|"GET /pro/*"| EDGE
+    EDGE --> ORIGIN
     SB -->|"swap HTML\n+ re-run scripts"| PAGES
     AUTH --> SBAUTH
     SESS --> SBDB
@@ -539,8 +706,7 @@ graph TB
     P5 --> SBREALTIME
     P6 --> SBDB
     P7 --> SBSTORAGE
-    CLIENT --> GFONTS
-    CLIENT --> CDN
+    CLIENT --> SELF
       </div>
       <div class="diagram-caption">Fig. 1 — Vue d'ensemble de l'architecture LazyPO</div>
     </div>
@@ -567,7 +733,8 @@ graph TB
       <div class="chip"><div class="dot" style="background:#a78bfa"></div>PptxGenJS</div>
       <div class="chip"><div class="dot" style="background:#f472b6"></div>CodeMirror</div>
       <div class="chip"><div class="dot" style="background:#60a5fa"></div>Three.js + Vanta.NET</div>
-      <div class="chip"><div class="dot" style="background:#666"></div>Apache (.htaccess)</div>
+      <div class="chip"><div class="dot" style="background:#f38020"></div>Cloudflare Worker (auth gate)</div>
+      <div class="chip"><div class="dot" style="background:#9ca3af"></div>GitHub Pages (origine statique)</div>
     </div>
 
     <table class="data-table">
@@ -595,7 +762,7 @@ graph TB
         <tr>
           <td>Database</td>
           <td>PostgreSQL via Supabase</td>
-          <td>5 tables, RLS par utilisateur</td>
+          <td>10 tables, RLS par utilisateur</td>
           <td><span class="badge badge-green">Production</span></td>
         </tr>
         <tr>
@@ -617,9 +784,21 @@ graph TB
           <td><span class="badge badge-amber">Premium requis</span></td>
         </tr>
         <tr>
-          <td>Serveur</td>
-          <td>Apache 2 (.htaccess)</td>
-          <td>HTTPS redirect, URL lowercase, CSP headers</td>
+          <td>Origine</td>
+          <td>GitHub Pages</td>
+          <td>Hosting statique du repo <code>Ndashiz/lazypo</code> (auto-deploy sur push <code>main</code>)</td>
+          <td><span class="badge badge-green">Production</span></td>
+        </tr>
+        <tr>
+          <td>Edge / Gate</td>
+          <td>Cloudflare Worker</td>
+          <td>Auth gate serveur sur <code>ndashiz.be/pro/*</code>, cache verdict 60s</td>
+          <td><span class="badge badge-green">Production</span></td>
+        </tr>
+        <tr>
+          <td>DNS / CDN</td>
+          <td>Cloudflare (free plan)</td>
+          <td>Proxy DNS, HSTS, Bot Fight Mode, Full strict SSL, cache ~10 min</td>
           <td><span class="badge badge-green">Production</span></td>
         </tr>
       </tbody>
@@ -723,7 +902,7 @@ sequenceDiagram
       <h2>Schéma Entité-Relation</h2>
     </div>
 
-    <p>La base de données comporte <strong>5 tables</strong> dans le schéma public, toutes liées à <code>auth.users</code> (géré par Supabase) avec cascade delete.</p>
+    <p>La base de données comporte <strong>10 tables</strong> dans le schéma public, toutes liées à <code>auth.users</code> (géré par Supabase) avec cascade delete sur les tables propriétaires.</p>
 
     <div class="diagram-wrap">
       <div class="mermaid">
@@ -740,6 +919,7 @@ erDiagram
         text avatar_url
         boolean is_admin
         boolean is_approved
+        text[] allowed_modules
         timestamptz created_at
     }
 
@@ -749,7 +929,6 @@ erDiagram
         text device_info
         timestamptz last_seen
         boolean is_active
-        timestamptz created_at
     }
 
     VOCABULARY {
@@ -759,9 +938,8 @@ erDiagram
         text target_translation
         text language_pair
         text example_sentence
+        text tips
         boolean is_system
-        timestamptz created_at
-        timestamptz updated_at
     }
 
     QUIZ_PROGRESS {
@@ -770,9 +948,51 @@ erDiagram
         uuid word_id FK
         int correct
         int attempts
-        timestamptz last_tested
         float ease_factor
         int interval_days
+    }
+
+    QUIZ_SESSIONS {
+        uuid id PK
+        uuid user_id FK
+        text display_name
+        text avatar_url
+        int score
+        int total
+        text mode
+        text lang
+        jsonb words
+        uuid_array word_ids
+        timestamptz created_at
+    }
+
+    QUIZ_SESSION_COMMENTS {
+        uuid id PK
+        uuid session_id FK
+        uuid user_id FK
+        text display_name
+        text avatar_url
+        text content
+        timestamptz created_at
+    }
+
+    QUIZ_SESSION_REACTIONS {
+        uuid id PK
+        uuid session_id FK
+        uuid user_id FK
+        text type
+        timestamptz created_at
+    }
+
+    VOCAB_SHARES {
+        uuid id PK
+        uuid sender_id FK
+        uuid recipient_id FK
+        text sender_name
+        jsonb payload
+        text status
+        timestamptz created_at
+        timestamptz responded_at
     }
 
     LIVENOTE_DOCS {
@@ -781,8 +1001,6 @@ erDiagram
         text title
         text content
         text mode
-        timestamptz created_at
-        timestamptz updated_at
         timestamptz auto_delete_at
     }
 
@@ -790,9 +1008,13 @@ erDiagram
     AUTH_USERS ||--o{ USER_SESSIONS : "1-N"
     AUTH_USERS ||--o{ VOCABULARY : "1-N"
     AUTH_USERS ||--o{ QUIZ_PROGRESS : "1-N"
+    AUTH_USERS ||--o{ QUIZ_SESSIONS : "post"
+    AUTH_USERS ||--o{ VOCAB_SHARES : "send/receive"
     VOCABULARY ||--o{ QUIZ_PROGRESS : "1-N"
+    QUIZ_SESSIONS ||--o{ QUIZ_SESSION_COMMENTS : "1-N"
+    QUIZ_SESSIONS ||--o{ QUIZ_SESSION_REACTIONS : "1-N"
       </div>
-      <div class="diagram-caption">Fig. 3 — Diagramme Entité-Relation complet</div>
+      <div class="diagram-caption">Fig. 3 — Diagramme Entité-Relation complet (incluant Multi feed et Vocab Shares)</div>
     </div>
 
     <div class="info-box">
@@ -881,6 +1103,74 @@ erDiagram
         <tr><td>auto_delete_at</td><td>timestamptz</td><td>nullable</td><td>Expiration en 24h si activée</td></tr>
       </tbody>
     </table>
+
+    <h3>quiz_sessions <span class="badge badge-blue">Multi feed</span></h3>
+    <p>Snapshot d'une partie de quiz, posté automatiquement par <code>postMultiSession()</code> à la fin d'une session normale (pas en mode Challenge ni Démo).</p>
+    <table class="data-table">
+      <thead><tr><th>Colonne</th><th>Type</th><th>Contrainte</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td>id</td><td>uuid</td><td>PK</td><td></td></tr>
+        <tr><td>user_id</td><td>uuid</td><td>FK → auth.users</td><td></td></tr>
+        <tr><td>display_name</td><td>text</td><td></td><td>Copie du <code>profiles.username</code> au moment du post</td></tr>
+        <tr><td>avatar_url</td><td>text</td><td></td><td>Copie de l'avatar au moment du post</td></tr>
+        <tr><td>score</td><td>int</td><td></td><td>Bonnes réponses</td></tr>
+        <tr><td>total</td><td>int</td><td></td><td>Total questions</td></tr>
+        <tr><td>duration_sec</td><td>int</td><td></td><td>Durée de la session en secondes</td></tr>
+        <tr><td>mode</td><td>text</td><td></td><td><code>'vocab'</code> | <code>'verbes'</code></td></tr>
+        <tr><td>lang</td><td>text</td><td></td><td>Filtre langue actif (<code>EN→FR</code>, <code>nl</code>, <code>all</code>)</td></tr>
+        <tr><td>direction</td><td>text</td><td>default 'auto'</td><td><code>auto</code> | <code>forward</code> | <code>reverse</code></td></tr>
+        <tr><td>word_ids</td><td>uuid[]</td><td>nullable</td><td>UUIDs propres au vocabulaire de l'auteur (legacy, peu utile cross-user)</td></tr>
+        <tr><td>words</td><td>jsonb</td><td>nullable</td><td>Snapshot des mots <code>[{source_word, target_translation, language_pair, example_sentence, tips}]</code> — permet à <em>Challenge Back</em> de relancer le quiz cross-user</td></tr>
+        <tr><td>created_at</td><td>timestamptz</td><td>default now()</td><td></td></tr>
+      </tbody>
+    </table>
+
+    <h3>quiz_session_comments <span class="badge badge-blue">Multi feed</span></h3>
+    <p>Commentaires postés sous une session du fil d'activité. Aussi utilisé par le bouton <em>Publier mon résultat</em> de Challenge Back qui insère un commentaire formaté sur la session d'origine.</p>
+    <table class="data-table">
+      <thead><tr><th>Colonne</th><th>Type</th><th>Contrainte</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td>id</td><td>uuid</td><td>PK</td><td></td></tr>
+        <tr><td>session_id</td><td>uuid</td><td>FK → quiz_sessions</td><td></td></tr>
+        <tr><td>user_id</td><td>uuid</td><td>FK → auth.users</td><td></td></tr>
+        <tr><td>display_name</td><td>text</td><td></td><td>Nom affiché (snapshot)</td></tr>
+        <tr><td>avatar_url</td><td>text</td><td>nullable</td><td>Avatar (parfois absent — hydraté depuis <code>profiles</code> au render)</td></tr>
+        <tr><td>content</td><td>text</td><td></td><td>Texte du commentaire (max ~200 chars)</td></tr>
+        <tr><td>created_at</td><td>timestamptz</td><td>default now()</td><td></td></tr>
+      </tbody>
+    </table>
+
+    <h3>quiz_session_reactions <span class="badge badge-blue">Multi feed</span></h3>
+    <p>Réactions emoji (🔥/💪/👏) sur une session. Une seule réaction par <code>(session_id, user_id, type)</code>.</p>
+    <table class="data-table">
+      <thead><tr><th>Colonne</th><th>Type</th><th>Contrainte</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td>id</td><td>uuid</td><td>PK</td><td></td></tr>
+        <tr><td>session_id</td><td>uuid</td><td>FK → quiz_sessions</td><td></td></tr>
+        <tr><td>user_id</td><td>uuid</td><td>FK → auth.users</td><td></td></tr>
+        <tr><td>display_name</td><td>text</td><td></td><td></td></tr>
+        <tr><td>type</td><td>text</td><td>check (fire|muscle|clap)</td><td>Emoji de réaction</td></tr>
+        <tr><td>created_at</td><td>timestamptz</td><td>default now()</td><td></td></tr>
+      </tbody>
+    </table>
+    <p><strong>Contrainte unique :</strong> <code>(session_id, user_id, type)</code> — upsert utilisé pour toggle.</p>
+
+    <h3>vocab_shares <span class="badge badge-purple">Vocab Share</span></h3>
+    <p>Envoi direct de listes de vocabulaire entre membres LazyPO. Le destinataire voit un popup à la prochaine ouverture de <code>quiz.html</code>.</p>
+    <table class="data-table">
+      <thead><tr><th>Colonne</th><th>Type</th><th>Contrainte</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td>id</td><td>uuid</td><td>PK · gen_random_uuid()</td><td></td></tr>
+        <tr><td>sender_id</td><td>uuid</td><td>FK → auth.users (cascade)</td><td></td></tr>
+        <tr><td>recipient_id</td><td>uuid</td><td>FK → auth.users (cascade)</td><td></td></tr>
+        <tr><td>sender_name</td><td>text</td><td>not null</td><td>Snapshot du nom (au cas où le profil change après envoi)</td></tr>
+        <tr><td>payload</td><td>jsonb</td><td>not null</td><td><code>{ v: 1, from, words: [{s, t, l, e?, p?}] }</code> — clés courtes pour minimiser la taille</td></tr>
+        <tr><td>status</td><td>text</td><td>check (pending|accepted|declined)</td><td>Default <code>'pending'</code></td></tr>
+        <tr><td>created_at</td><td>timestamptz</td><td>default now()</td><td></td></tr>
+        <tr><td>responded_at</td><td>timestamptz</td><td>nullable</td><td>Auto-rempli par trigger au passage hors <code>'pending'</code></td></tr>
+      </tbody>
+    </table>
+    <p><strong>Contrainte :</strong> <code>sender_id ≠ recipient_id</code> (no self-share). <strong>Index :</strong> <code>(recipient_id, status, created_at desc)</code> pour le polling rapide côté destinataire.</p>
   </section>
 
   <!-- ══════════════════════════════════════════
@@ -910,10 +1200,15 @@ flowchart LR
     <table class="data-table">
       <thead><tr><th>Table</th><th>Policy</th><th>Règle</th></tr></thead>
       <tbody>
-        <tr><td>profiles</td><td>own_profile</td><td><code>auth.uid() = id</code></td></tr>
+        <tr><td>profiles</td><td>own_profile</td><td><code>auth.uid() = id</code> (lecture cross-user limitée à <code>username, avatar_url</code>)</td></tr>
         <tr><td>user_sessions</td><td>own_sessions</td><td><code>auth.uid() = user_id</code></td></tr>
         <tr><td>vocabulary</td><td>own_vocabulary</td><td><code>auth.uid() = user_id</code></td></tr>
         <tr><td>quiz_progress</td><td>own_progress</td><td><code>auth.uid() = user_id</code></td></tr>
+        <tr><td>quiz_sessions</td><td>read_authenticated · insert_own</td><td>Lecture authentifiée (fil public), insert <code>auth.uid() = user_id</code></td></tr>
+        <tr><td>quiz_session_comments</td><td>read_authenticated · insert_own</td><td>Lecture authentifiée, insert <code>auth.uid() = user_id</code></td></tr>
+        <tr><td>quiz_session_reactions</td><td>read_authenticated · upsert_own</td><td>Lecture authentifiée, upsert <code>auth.uid() = user_id</code></td></tr>
+        <tr><td>vocab_shares</td><td>sender_insert · sender_select · recipient_select · recipient_update</td>
+            <td>Sender peut <code>INSERT</code> + <code>SELECT</code> ses envois. Recipient peut <code>SELECT</code> + <code>UPDATE</code> (accept/decline) ce qui lui est destiné.</td></tr>
         <tr><td>livenote_docs</td><td>public_read</td><td>Lecture publique, écriture authentifiée</td></tr>
       </tbody>
     </table>
@@ -970,49 +1265,366 @@ flowchart TD
   <!-- ══════════════════════════════════════════
        8. AUTHENTIFICATION
   ══════════════════════════════════════════ -->
+  <!-- ══════════════════════════════════════════
+       ★ ARCHITECTURE DE SÉCURITÉ
+  ══════════════════════════════════════════ -->
+  <section class="section" id="security">
+    <div class="section-header">
+      <div class="section-num">★</div>
+      <h2>Architecture de sécurité</h2>
+    </div>
+
+    <p>LazyPO est hébergé sur <strong>GitHub Pages</strong> (statique, pas de serveur applicatif). Avant Mai 2026, l'authentification était <em>100% côté client</em> — le HTML protégé était téléchargeable par n'importe qui via <code>curl</code>, le contrôle d'accès reposait uniquement sur du JavaScript qui s'exécutait après livraison.</p>
+
+    <p>Depuis <a href="https://github.com/Ndashiz/lazypo/pull/112" target="_blank">PR #112</a>, un <strong>Cloudflare Worker</strong> intercepte chaque requête à <code>ndashiz.be/pro/*</code> et valide un cookie de session <em>avant</em> que le HTML soit livré. Le contenu protégé n'est jamais servi à un visiteur non authentifié.</p>
+
+    <h3>Vue d'ensemble — defense in depth</h3>
+
+    <div class="diagram-wrap">
+      <div class="mermaid">
+flowchart TB
+    classDef edge fill:#1e3a5f,stroke:#3b82f6,color:#e8e8e8
+    classDef worker fill:#1a2a1a,stroke:#34d399,color:#e8e8e8
+    classDef origin fill:#2a1a2a,stroke:#a78bfa,color:#e8e8e8
+    classDef client fill:#3a2a1a,stroke:#fbbf24,color:#e8e8e8
+    classDef threat fill:#3a1a1a,stroke:#f87171,color:#fff
+
+    subgraph L1[L1 · Edge perimeter — Cloudflare Worker]
+        direction TB
+        W1[Lit cookie lazypo_jwt]:::worker
+        W2[Vérifie signature ES256 via JWKS]:::worker
+        W3[Check exp + sub]:::worker
+        W4{Valide ?}:::worker
+        W1 --> W2 --> W3 --> W4
+    end
+
+    subgraph L2[L2 · Cookie sync — auth.js]
+        direction TB
+        C1[Mirror access_token Supabase<br>vers cookie lazypo_jwt]:::client
+        C2[Refresh sur TOKEN_REFRESHED]:::client
+        C3[Clear sur SIGNED_OUT]:::client
+    end
+
+    subgraph L3[L3 · UX gate — auth-gate.js]
+        direction TB
+        G1[Hide html jusqu'à profile load]:::client
+        G2[Fail-closed timeout 5s]:::client
+    end
+
+    subgraph L4[L4 · Application — page-level checks]
+        direction TB
+        A1[requireModule allowed_modules]:::client
+        A2[RLS Supabase sur la DB]:::client
+    end
+
+    Attacker[🎭 Visiteur non authentifié]:::threat -->|GET /pro/jira_dashboard.html| L1
+    L1 -.->|invalide → 302 login| Block[🚫 HTML JAMAIS servi]:::threat
+    L1 -->|valide| L4
+    L2 -->|alimente cookie| L1
+    L3 -.->|améliore UX seulement| L4
+      </div>
+      <div class="diagram-caption">Fig. 6 — Quatre couches de défense. La couche L1 (Worker) est le vrai gardien ; L2/L3/L4 sont des couches complémentaires.</div>
+    </div>
+
+    <p>Quatre couches, chacune avec un rôle distinct :</p>
+
+    <table style="width:100%; border-collapse:collapse; margin:18px 0; font-size:14px;">
+      <thead>
+        <tr style="background:var(--surface2); border-bottom:1px solid var(--border2);">
+          <th style="text-align:left; padding:10px;">Couche</th>
+          <th style="text-align:left; padding:10px;">Rôle</th>
+          <th style="text-align:left; padding:10px;">Côté</th>
+          <th style="text-align:left; padding:10px;">Bypassable ?</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr style="border-bottom:1px solid var(--border);">
+          <td style="padding:10px; color:var(--green); font-weight:600;">L1 · Cloudflare Worker</td>
+          <td style="padding:10px;">Bloque le HTML si JWT cookie absent ou invalide</td>
+          <td style="padding:10px;">Edge (serveur)</td>
+          <td style="padding:10px; color:var(--green);">Non — point d'entrée unique</td>
+        </tr>
+        <tr style="border-bottom:1px solid var(--border);">
+          <td style="padding:10px; color:var(--amber); font-weight:600;">L2 · Cookie sync (auth.js)</td>
+          <td style="padding:10px;">Maintient le cookie aligné avec la session Supabase</td>
+          <td style="padding:10px;">Client</td>
+          <td style="padding:10px; color:var(--muted);">Oui (mais ne sert qu'à <em>poser</em> le cookie — sans cookie pas d'accès)</td>
+        </tr>
+        <tr style="border-bottom:1px solid var(--border);">
+          <td style="padding:10px; color:var(--amber); font-weight:600;">L3 · UX gate (auth-gate.js)</td>
+          <td style="padding:10px;">Évite le flash de contenu protégé pendant le chargement</td>
+          <td style="padding:10px;">Client</td>
+          <td style="padding:10px; color:var(--red);">Oui — uniquement esthétique</td>
+        </tr>
+        <tr>
+          <td style="padding:10px; color:var(--accent); font-weight:600;">L4 · App + RLS</td>
+          <td style="padding:10px;">Module gate + Row-Level Security sur Supabase</td>
+          <td style="padding:10px;">Client + DB</td>
+          <td style="padding:10px; color:var(--muted);">Client : oui via DevTools — DB : non grâce à RLS</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3>Pourquoi avant c'était cassé</h3>
+
+    <p>Une faille architecturale rendait toute correction côté client illusoire :</p>
+
+    <div class="diagram-wrap">
+      <div class="mermaid">
+sequenceDiagram
+    actor Attacker as 🎭 Attaquant
+    participant Browser as Browser
+    participant GH as GitHub Pages
+    participant DB as Supabase (RLS)
+
+    Note over Attacker,GH: AVANT — pas de gate côté serveur
+    Attacker->>Browser: curl ndashiz.be/pro/jira_dashboard.html
+    Browser->>GH: GET /pro/jira_dashboard.html
+    GH-->>Browser: 200 + HTML COMPLET (sans auth check)
+    Note right of Browser: Contenu protégé déjà téléchargé.<br>auth-gate.js / requireModule()<br>n'arrivent qu'APRÈS, et ne sont<br>que du JS bypassable.
+    Browser-->>Attacker: ✅ HTML lisible (DevTools, curl, view-source)
+      </div>
+      <div class="diagram-caption">Fig. 7 — Le problème de fond : sur un site statique, tout JS qui s'exécute sur la page est <em>déjà</em> trop tard pour empêcher l'accès.</div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════
+       8. AUTHENTIFICATION
+  ══════════════════════════════════════════ -->
   <section class="section" id="auth">
     <div class="section-header">
       <div class="section-num">08</div>
       <h2>Authentification — auth.js</h2>
     </div>
 
-    <p>L'authentification utilise <strong>Supabase Auth</strong> avec email/password + un système d'<strong>approbation manuelle</strong> par un admin. Sans approbation, l'utilisateur voit une page d'attente.</p>
+    <p>Stack auth :</p>
+    <ul style="padding-left:24px; margin-bottom:18px;">
+      <li><strong>Supabase Auth</strong> avec email/password — émet des JWT signés en <strong>ES256</strong> (asymmetric, JWKS public).</li>
+      <li><strong>Approbation manuelle</strong> via <code>profiles.is_approved</code> — un user signupé n'a pas accès tant qu'un admin n'a pas approuvé.</li>
+      <li><strong>Cookie <code>lazypo_jwt</code></strong> miroir du <code>access_token</code>, Path=/pro, SameSite=Lax, Secure (https uniquement). Lu par le Worker pour gater le HTML.</li>
+    </ul>
+
+    <h3>Cycle de vie du cookie de session</h3>
+
+    <div class="diagram-wrap">
+      <div class="mermaid">
+stateDiagram-v2
+    [*] --> NoCookie
+    NoCookie --> Login: Visite /pro/* sans cookie
+    Login --> Login: signInWithPassword
+    Login --> CookieSet: Succès (Supabase session)
+    CookieSet --> CookieSet: TOKEN_REFRESHED auto (~hourly)
+    CookieSet --> CookieRefreshed: USER_UPDATED
+    CookieRefreshed --> CookieSet
+    CookieSet --> NoCookie: signOut OU expires_at dépassé
+    Login --> NoCookie: Approval pending (signOut auto)
+
+    note right of Login
+      login.html
+      - signInWithPassword
+      - _setLazypoCookie() inline
+        avant le redirect
+    end note
+
+    note right of CookieSet
+      auth.js
+      - onAuthStateChange listener
+      - mirror Supabase session
+        vers cookie lazypo_jwt
+      - Max-Age = session.expires_in
+    end note
+      </div>
+      <div class="diagram-caption">Fig. 8 — Le cookie suit toujours la session Supabase. Pas de cookie = pas d'accès côté Worker.</div>
+    </div>
+
+    <h3>Flux complet — login + accès page protégée</h3>
 
     <div class="diagram-wrap">
       <div class="mermaid">
 sequenceDiagram
-    actor User as 👤 Utilisateur
-    participant App as Application
-    participant Auth as Supabase Auth
+    actor User as 👤 User
+    participant CF as ☁️ Cloudflare Worker
+    participant GH as GitHub Pages
+    participant Supa as Supabase Auth
     participant DB as PostgreSQL
 
-    User->>App: Saisit email + mot de passe
-    App->>Auth: signInWithPassword()
-    Auth-->>App: session JWT
+    User->>CF: GET /pro/jira_dashboard.html
+    CF->>CF: Pas de cookie lazypo_jwt
+    CF-->>User: 302 → /pro/login.html?next=...
 
-    App->>DB: SELECT * FROM profiles WHERE id = user_id
-    DB-->>App: { is_approved: bool, is_admin: bool }
+    User->>CF: GET /pro/login.html
+    Note right of CF: Page publique, pass-through
+    CF->>GH: GET /pro/login.html
+    GH-->>CF: 200 HTML
+    CF-->>User: 200 HTML login
 
-    alt is_approved = false
-        App-->>User: 🔒 Page "En attente d'approbation"
-    else is_approved = true
-        App-->>User: ✅ Accès accordé
-        App->>App: loadUserWidget()
-        App->>Auth: import session.js (lazy)
-    end
+    User->>Supa: signInWithPassword(email, pwd)
+    Supa-->>User: session JWT (ES256)
 
-    Note over App,DB: Inscription (signUp)
-    User->>App: Formulaire inscription
-    App->>Auth: signUp()
-    Auth->>DB: INSERT INTO profiles (id, username, is_approved=false)
-    DB-->>App: profil créé
-    App-->>User: 📧 Email de confirmation + attente approbation
+    User->>DB: SELECT is_approved, is_admin FROM profiles
+    DB-->>User: { is_approved: true, is_admin: false }
+
+    Note right of User: login.html appelle<br>_setLazypoCookie(session)<br>AVANT le redirect
+    User->>User: document.cookie = lazypo_jwt=...
+
+    User->>CF: GET /pro/jira_dashboard.html (avec cookie)
+    CF->>CF: Lit cookie, vérifie ES256 vs JWKS
+    CF->>GH: GET /pro/jira_dashboard.html (forward)
+    GH-->>CF: 200 HTML
+    CF-->>User: 200 HTML ✅
       </div>
-      <div class="diagram-caption">Fig. 6 — Flux d'authentification et d'approbation</div>
+      <div class="diagram-caption">Fig. 9 — Premier accès à une page protégée : bounce login, puis retour authentifié avec le cookie posé synchroneusement par login.html avant le redirect.</div>
     </div>
 
+    <h3>Approbation utilisateur</h3>
+
+    <p>Un user fraîchement signupé n'a pas accès tant que <code>profiles.is_approved = false</code>. Le check est fait dans <code>login.html</code> immédiatement après <code>signInWithPassword</code> :</p>
+
+    <ul style="padding-left:24px; margin-bottom:14px;">
+      <li>Si <strong>not approved</strong> → <code>signOut</code> immédiat + message "Pending approval"</li>
+      <li>Si <strong>approved</strong> → cookie posé, redirect vers <code>next</code> (param renommé depuis <code>return_to</code> en juin 2026 pour passer sous le radar des heuristiques anti-phishing) ou <code>index.html</code></li>
+    </ul>
+
     <h3>Gestion de l'avatar</h3>
-    <p>Les avatars sont uploadés dans le bucket Supabase Storage <code>avatars</code> avec le chemin <code>{user_id}/avatar.{ext}</code>. Le bucket est en lecture publique, écriture authentifiée.</p>
+
+    <p>Les avatars sont uploadés dans le bucket Supabase Storage <code>avatars</code> avec le chemin <code>{user_id}/avatar.{ext}</code>. Le bucket est en lecture publique, écriture authentifiée (RLS).</p>
+  </section>
+
+  <!-- ══════════════════════════════════════════
+       8B. CLOUDFLARE WORKER GATE
+  ══════════════════════════════════════════ -->
+  <section class="section" id="worker-gate">
+    <div class="section-header">
+      <div class="section-num">8B</div>
+      <h2>Cloudflare Worker — gate serveur</h2>
+    </div>
+
+    <p>Le Worker (<a href="https://github.com/Ndashiz/lazypo/blob/main/worker/src/worker.js" target="_blank"><code>worker/src/worker.js</code></a>) est déployé sur la route <code>ndashiz.be/pro/*</code>. Pour chaque requête, il décide en quelques ms si la requête passe au cache Cloudflare/origine ou si elle est rejetée vers <code>login.html</code>.</p>
+
+    <h3>Logique de décision</h3>
+
+    <div class="diagram-wrap">
+      <div class="mermaid">
+flowchart TD
+    classDef ok fill:#1a2a1a,stroke:#34d399,color:#e8e8e8
+    classDef bad fill:#3a1a1a,stroke:#f87171,color:#fff
+    classDef step fill:#1a1a1a,stroke:#374151,color:#e8e8e8
+    classDef decision fill:#1e3a5f,stroke:#3b82f6,color:#e8e8e8
+
+    A[Requête sur ndashiz.be/pro/*]:::step --> B{Path public ?<br>login.html, favicon,<br>.js, .css, .svg, etc.}:::decision
+    B -- Oui --> PASS1[fetch origine GitHub Pages]:::ok
+    B -- Non --> C{Cookie lazypo_jwt<br>présent ?}:::decision
+    C -- Non --> R1[302 → login.html<br>?next=...]:::bad
+    C -- Oui --> D{JWT bien formé ?<br>3 parts, alg=ES256,<br>kid présent}:::decision
+    D -- Non --> R2[302 → login.html]:::bad
+    D -- Oui --> E{exp futur ?<br>sub présent ?}:::decision
+    E -- Non --> R3[302 → login.html]:::bad
+    E -- Oui --> F[Fetch JWKS<br>cache 1h Cloudflare]:::step
+    F --> G{kid présent<br>dans JWKS ?}:::decision
+    G -- Non --> H[Refresh JWKS<br>handle rotation]:::step
+    H --> I{kid présent<br>après refresh ?}:::decision
+    I -- Non --> R4[302 → login.html]:::bad
+    G -- Oui --> J[Verify ECDSA P-256 SHA-256]:::step
+    I -- Oui --> J
+    J --> K{Signature OK ?}:::decision
+    K -- Non --> R5[302 → login.html]:::bad
+    K -- Oui --> CACHE[Cache verdict 60s<br>caches.default]:::step
+    CACHE --> PASS2[fetch origine GitHub Pages]:::ok
+      </div>
+      <div class="diagram-caption">Fig. 10 — Algorithme du Worker. <strong>Fail-closed</strong> sur toute exception (catch global redirige vers login).</div>
+    </div>
+
+    <h3>Caches</h3>
+
+    <p>Deux couches de cache pour minimiser la charge :</p>
+
+    <ul style="padding-left:24px; margin-bottom:14px;">
+      <li><strong>JWKS cache (1h)</strong> — la liste des clés publiques de Supabase est récupérée une fois par heure, stockée dans <code>caches.default</code> au PoP. Un kid manquant déclenche un refresh immédiat (gère la rotation).</li>
+      <li><strong>Token verdict cache (60s)</strong> — pour chaque JWT vu, on cache le verdict (200 ok ou 401 bad) pendant 60s. Un user qui charge 20 ressources avec le même JWT = 1 vérification crypto + 19 cache hits.</li>
+    </ul>
+
+    <h3>Coût</h3>
+
+    <p>Cloudflare Workers free tier : <strong>100 000 requêtes/jour</strong>. LazyPO sit à quelques milliers/jour → gratuit indéfiniment.</p>
+
+    <h3>Déploiement</h3>
+
+    <p>Voir <a href="https://github.com/Ndashiz/lazypo/blob/main/worker/README.md" target="_blank"><code>worker/README.md</code></a>. Commandes en bref :</p>
+
+    <pre style="background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:14px; overflow-x:auto; font-family:'DM Mono',monospace; font-size:13px;"><code>cd worker
+npm install -g wrangler   # une fois
+wrangler login            # une fois
+wrangler deploy           # après chaque changement de worker.js</code></pre>
+  </section>
+
+  <!-- ══════════════════════════════════════════
+       8C. THREAT MODEL
+  ══════════════════════════════════════════ -->
+  <section class="section" id="threat-model">
+    <div class="section-header">
+      <div class="section-num">8C</div>
+      <h2>Threat model</h2>
+    </div>
+
+    <p>Liste des vecteurs d'attaque identifiés lors de l'incident de Mai 2026, et comment chacun est désormais fermé.</p>
+
+    <table style="width:100%; border-collapse:collapse; margin:18px 0; font-size:13px;">
+      <thead>
+        <tr style="background:var(--surface2); border-bottom:2px solid var(--accent);">
+          <th style="text-align:left; padding:10px;">#</th>
+          <th style="text-align:left; padding:10px;">Vecteur</th>
+          <th style="text-align:left; padding:10px;">Avant</th>
+          <th style="text-align:left; padding:10px;">Mitigation</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr style="border-bottom:1px solid var(--border); vertical-align:top;">
+          <td style="padding:10px; color:var(--red); font-weight:600;">V1</td>
+          <td style="padding:10px;"><code>auth-gate.js</code> révélait le contenu après 3s peu importe l'état d'auth</td>
+          <td style="padding:10px;">3s de patience → contenu visible même sans session valide</td>
+          <td style="padding:10px; color:var(--green);">Worker bloque la livraison HTML. <code>auth-gate.js</code> redirige vers login après 5s au lieu de révéler.</td>
+        </tr>
+        <tr style="border-bottom:1px solid var(--border); vertical-align:top;">
+          <td style="padding:10px; color:var(--red); font-weight:600;">V2</td>
+          <td style="padding:10px;"><code>auth-gate.js</code> acceptait n'importe quel localStorage avec <code>access_token</code></td>
+          <td style="padding:10px;">Forge en JS : <code>localStorage.setItem(..., '{"access_token":"x"}')</code></td>
+          <td style="padding:10px; color:var(--green);">Vérification stricte côté client (3-part JWT + exp futur). Surtout : le Worker valide la signature ES256 côté serveur — un faux cookie ne passe pas.</td>
+        </tr>
+        <tr style="border-bottom:1px solid var(--border); vertical-align:top;">
+          <td style="padding:10px; color:var(--red); font-weight:600;">V3</td>
+          <td style="padding:10px;"><code>_showModuleLockOverlay</code> = simple <code>&lt;div&gt;</code> z-indexé</td>
+          <td style="padding:10px;">DevTools → supprimer le div → accès au contenu</td>
+          <td style="padding:10px; color:var(--amber);"><strong>Partiellement</strong> mitigé : le Worker garantit que tu es au moins authentifié. Module-level gate côté client reste DevTools-bypassable. Mitigation principale = RLS Supabase sur la DATA.</td>
+        </tr>
+        <tr style="border-bottom:1px solid var(--border); vertical-align:top;">
+          <td style="padding:10px; color:var(--red); font-weight:600;">V4</td>
+          <td style="padding:10px;"><code>requireModule()</code> async dans <code>DOMContentLoaded</code> → DOM déjà parsé</td>
+          <td style="padding:10px;">Contenu protégé visible 100-500ms avant la décision auth</td>
+          <td style="padding:10px; color:var(--green);">Le HTML n'est pas livré du tout si pas authentifié (Worker). Le problème de race disparaît.</td>
+        </tr>
+        <tr style="border-bottom:1px solid var(--border); vertical-align:top;">
+          <td style="padding:10px; color:var(--red); font-weight:600;">V5</td>
+          <td style="padding:10px;"><code>_fetchAllowedModules</code> fail-open à <code>['quiz']</code> sur erreur Supabase</td>
+          <td style="padding:10px;">Supabase down → tous les users obtenaient l'accès au module quiz</td>
+          <td style="padding:10px; color:var(--amber);">Note interne : à durcir vers <code>[]</code> en cas d'erreur. Tracking issue séparée.</td>
+        </tr>
+        <tr style="vertical-align:top;">
+          <td style="padding:10px; color:var(--red); font-weight:600;">V6</td>
+          <td style="padding:10px;"><code>DEV_SESSION</code> activé automatiquement sur tout hostname localhost-class</td>
+          <td style="padding:10px;">Pas exploitable directement en prod, mais le code restait actif et pouvait être élargi par erreur</td>
+          <td style="padding:10px; color:var(--green);">Bypass dev nécessite désormais <strong>opt-in explicite</strong> : <code>window.__ENABLE_LOCAL_BYPASS=true</code> OU <code>sessionStorage 'lazypo:enableLocalBypass'</code>. <strong>Plus jamais activé automatiquement.</strong></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3>Risques résiduels (assumés)</h3>
+
+    <ul style="padding-left:24px; margin-bottom:14px;">
+      <li><strong>Cookie non HttpOnly</strong> — Supabase JS le pose côté client, donc impossible de mettre <code>HttpOnly</code>. Une XSS pourrait exfiltrer le JWT. Mitigation : CSP stricte (à formaliser), pas d'<code>innerHTML</code> avec contenu user.</li>
+      <li><strong>Latence de révocation cross-device</strong> — sign out sur appareil A, le JWT reste valide sur appareil B jusqu'à <code>exp</code> (~1h). Acceptable pour notre modèle de menace.</li>
+      <li><strong>Module gate client-only</strong> — un user authentifié peut DevTools-supprimer le lock overlay et voir une page d'un module auquel il n'a pas accès. La <em>donnée</em> reste protégée par RLS Supabase ; seules les coques HTML sont visibles.</li>
+      <li><strong>Sécurité de Cloudflare elle-même</strong> — toute compromission du compte CF ou de la zone <code>ndashiz.be</code> permettrait de retirer le Worker. Mitigation : 2FA obligatoire sur le compte CF.</li>
+    </ul>
   </section>
 
   <!-- ══════════════════════════════════════════
@@ -1158,6 +1770,104 @@ flowchart LR
         <tr><td>Import</td><td>Automatiquement <code>is_system: true</code></td><td>Ajout manuel via formulaire</td></tr>
       </tbody>
     </table>
+
+    <h3>Onglet Multi — Fil d'activité communautaire</h3>
+    <p>L'onglet 👥 Multi affiche un fil temps-réel des sessions postées par les autres joueurs, alimenté par <code>quiz_sessions</code> + <code>quiz_session_comments</code> + <code>quiz_session_reactions</code>. Chaque session affiche : avatar/nom, mode (Vocabulaire / Verbes), score %, réactions emoji et thread de commentaires.</p>
+
+    <table class="data-table">
+      <thead><tr><th>Sous-feature</th><th>Comportement</th></tr></thead>
+      <tbody>
+        <tr><td>Auto-post</td><td><code>postMultiSession()</code> à la fin d'une session non-challenge ; insère un snapshot complet (incl. <code>words[]</code>) pour Challenge Back cross-user.</td></tr>
+        <tr><td>Hydratation avatars commentaires</td><td><code>hydrateCommentAvatars()</code> batch-fetch <code>profiles.avatar_url</code> pour les commentaires anciens dont la colonne <code>avatar_url</code> était NULL. Cache <code>__profileAvatarCache</code> pour éviter les requêtes répétées.</td></tr>
+        <tr><td>Top 5 leaderboard</td><td><code>renderLeaderboard()</code> limite à 5 lignes ; si l'utilisateur courant est hors-podium, sa ligne est ajoutée séparément avec son vrai rang.</td></tr>
+        <tr><td>Mode démo admin</td><td>Bouton <code>#multi-demo-btn</code> révélé via <code>lazypo:profile</code> event (admin only). Génère 100 sessions fictives en mémoire avec IDs préfixés <code>demo-*</code> ; guards dans <code>toggleReaction</code> + <code>submitComment</code> empêchent toute écriture DB. Bannière + bouton « Quitter le mode démo ».</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Challenge Back — Re-jouer le quiz d'un autre joueur</h3>
+    <p>Bouton 🎯 Challenge Back disponible sur chaque session du feed (à condition qu'elle ait un <code>words[]</code> snapshot ou des <code>word_ids</code>). Lance le quiz avec exactement les mêmes mots, puis affiche un écran de fin spécifique.</p>
+
+    <div class="diagram-wrap">
+      <div class="mermaid">
+flowchart TD
+    CB["🎯 Click Challenge Back"] --> META["Lit feedData[sid]\n→ originalMeta"]
+    META --> LAUNCH["launchChallengeQuiz(words, ids, meta)"]
+    LAUNCH --> CTX["Set challengeContext\n{ sessionId, name, score, total, avatar }"]
+    CTX --> PLAY["Quiz s'exécute"]
+    PLAY --> END["endSession()"]
+    END --> SKIP["Skip postMultiSession\n(évite duplication feed)"]
+    SKIP --> SUMMARY["showChallengeSummary()"]
+
+    SUMMARY --> CARD1["Bannière VS\nme score vs them score"]
+    SUMMARY --> CARD2["Verdict\n🏆 Victoire / 💪 Défaite / 🤝 Égalité"]
+    SUMMARY --> CARD3["📢 Publier\n→ commentaire sur session d'origine"]
+    SUMMARY --> CARD4["📚 Sélecteur de mots\nchoix manuel à ajouter au vocab"]
+    SUMMARY --> CARD5["← Retour au Multi\nclear context, switchTab('multi')"]
+
+    style CTX fill:#1e2a3f,stroke:#a78bfa
+    style SUMMARY fill:#1e3a5f,stroke:#3b82f6
+    style CARD3 fill:#0f2a1a,stroke:#34d399
+    style CARD4 fill:#0f2a1a,stroke:#34d399
+      </div>
+      <div class="diagram-caption">Fig. 9b — Flux Challenge Back end-to-end</div>
+    </div>
+
+    <h3>Vocab Share — Partage de listes de vocabulaire</h3>
+    <p>Bouton 🔗 Partager ma liste dans la barre d'outils du Vocabulary tab. Deux mécanismes coexistent :</p>
+
+    <table class="data-table">
+      <thead><tr><th>Mécanisme</th><th>Description</th><th>Backend</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>🔗 Lien</td>
+          <td>Encode <code>{v, from, words[]}</code> en base64 dans l'URL hash (<code>quiz.html#import=...</code>). Auto-trim si la base64 dépasse <code>SHARE_URL_SAFE_BYTES</code> (30 KB).</td>
+          <td><span class="badge badge-muted">Aucun — auto-porteur</span></td>
+        </tr>
+        <tr>
+          <td>📤 Direct member</td>
+          <td>Dropdown des autres membres LazyPO (dérivé des <code>quiz_sessions</code> récentes), insert dans <code>vocab_shares</code> avec status <code>'pending'</code>.</td>
+          <td><span class="badge badge-blue">vocab_shares table</span></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p>Le modal Share dispose d'un <strong>filtre langue</strong> (Toutes / EN→FR / NL→FR), de boutons explicites <strong>Tout sélectionner</strong> / <strong>Tout désélectionner</strong> qui respectent le filtre actif, et n'a <em>aucune limite hardcodée</em> sur le nombre de mots.</p>
+
+    <div class="diagram-wrap">
+      <div class="mermaid">
+sequenceDiagram
+    participant S as 👤 Sender
+    participant SApp as Sender App
+    participant DB as Supabase
+    participant RApp as Recipient App
+    participant R as 👤 Recipient
+
+    S->>SApp: Clic 🔗 Partager · sélectionne mots · 📤 Envoyer à un membre
+    SApp->>DB: INSERT vocab_shares { sender, recipient, payload, status: 'pending' }
+    DB-->>SApp: ✓ inserted
+    SApp-->>S: Toast "📤 Liste envoyée à {Recipient}"
+
+    Note over R,RApp: Plus tard…
+    R->>RApp: Ouvre quiz.html (auth résolue)
+    RApp->>RApp: lazypo:profile fired
+    RApp->>DB: SELECT * FROM vocab_shares WHERE recipient_id=me AND status='pending'
+    DB-->>RApp: row(s) found
+    RApp-->>R: 📚 Popup "A player has shared vocabulary with you"
+
+    alt Accept
+        R->>RApp: Clic Accept
+        RApp->>DB: UPDATE status='accepted'
+        RApp-->>R: Ouvre modal d'import (checkboxes)
+        R->>RApp: Sélectionne mots · + Ajouter au vocabulaire
+        RApp->>DB: INSERT INTO vocabulary (batch)
+    else Decline
+        R->>RApp: Clic Decline
+        RApp->>DB: UPDATE status='declined'
+        RApp->>DB: re-poll for other pending
+    end
+      </div>
+      <div class="diagram-caption">Fig. 9c — Flux Vocab Share direct (sender → recipient popup)</div>
+    </div>
   </section>
 
   <!-- ══════════════════════════════════════════
@@ -1359,12 +2069,16 @@ graph TB
     end
 
     subgraph SUPABASE["☁️ Supabase"]
-        subgraph PG["PostgreSQL"]
+        subgraph PG["PostgreSQL (10 tables)"]
             T1["profiles"]
             T2["user_sessions"]
             T3["vocabulary"]
             T4["quiz_progress"]
             T5["livenote_docs"]
+            T6["quiz_sessions"]
+            T7["quiz_session_comments"]
+            T8["quiz_session_reactions"]
+            T9["vocab_shares"]
         end
         subgraph STORE["Storage Buckets"]
             B1["avatars/\n(public read)"]
@@ -1430,28 +2144,34 @@ graph TB
           <td><span class="badge badge-amber">PKCE</span></td>
         </tr>
         <tr>
-          <td>Google Fonts</td>
-          <td><code>fonts.googleapis.com</code></td>
-          <td>DM Sans, DM Mono</td>
-          <td><span class="badge badge-muted">Public</span></td>
+          <td>Cloudflare Edge</td>
+          <td><code>ndashiz.be</code> (proxy + Worker)</td>
+          <td>Auth gate sur <code>/pro/*</code>, DNS, HSTS, Bot Fight Mode, cache ~10 min</td>
+          <td><span class="badge badge-green">Free tier</span></td>
         </tr>
         <tr>
-          <td>jsDelivr CDN</td>
-          <td><code>cdn.jsdelivr.net</code></td>
-          <td>Mermaid, PptxGenJS, CodeMirror</td>
-          <td><span class="badge badge-muted">Public</span></td>
+          <td>GitHub Pages</td>
+          <td><code>ndashiz.github.io/lazypo</code></td>
+          <td>Origine statique derrière Cloudflare</td>
+          <td><span class="badge badge-green">Free tier</span></td>
         </tr>
         <tr>
-          <td>Cloudflare CDN</td>
-          <td><code>cdnjs.cloudflare.com</code></td>
-          <td>XLSX.js</td>
-          <td><span class="badge badge-muted">Public</span></td>
+          <td>Fonts (DM Sans, DM Mono)</td>
+          <td><code>/pro/fonts/</code></td>
+          <td>Self-hosted depuis juin 2026 (suppression dépendance Google Fonts CDN)</td>
+          <td><span class="badge badge-purple">Self-hosted</span></td>
         </tr>
         <tr>
-          <td>Three.js / Vanta</td>
-          <td><code>cdn.jsdelivr.net/npm/vanta</code></td>
-          <td>Fond animé page d'accueil</td>
-          <td><span class="badge badge-muted">Public</span></td>
+          <td>Librairies front-end</td>
+          <td><code>supabase.min.js</code> · <code>xlsx.min.js</code> · <code>pptxgen.min.js</code> · <code>codemirror.min.js</code> · <code>html2pdf.min.js</code> · <code>three.min.js</code> · <code>vanta.net.min.js</code> · <code>papaparse.min.js</code></td>
+          <td>Self-hosted depuis juin 2026 (PR <a href="https://github.com/Ndashiz/lazypo/commit/c823105" target="_blank">c823105</a> + <a href="https://github.com/Ndashiz/lazypo/commit/1294cbc" target="_blank">1294cbc</a>) — supprime dépendance jsDelivr/cdnjs/Cloudflare CDN, élimine risque supply-chain CDN tiers</td>
+          <td><span class="badge badge-purple">Self-hosted</span></td>
+        </tr>
+        <tr>
+          <td>Mermaid (docs uniquement)</td>
+          <td><code>cdn.jsdelivr.net/npm/mermaid@10</code></td>
+          <td>Diagrammes de cette page de documentation</td>
+          <td><span class="badge badge-amber">CDN (doc only)</span></td>
         </tr>
       </tbody>
     </table>
@@ -1481,6 +2201,7 @@ graph TB
         <tr><td>fm_pkce_verifier</td><td>focusfm.js</td><td>string</td><td>PKCE code_verifier (OAuth flow)</td></tr>
         <tr><td>fm_pkce_state</td><td>focusfm.js</td><td>string</td><td>State CSRF protection (OAuth flow)</td></tr>
         <tr><td>fm_return_url</td><td>focusfm.js</td><td>string (URL)</td><td>URL de retour post-OAuth</td></tr>
+        <tr><td>lazypo:lastActivity</td><td>session.js</td><td>number (ms)</td><td>Timestamp de la dernière activité utilisateur. Persisté pour survivre aux <code>visibilitychange</code> (onglet en arrière-plan ≠ reset du timer d'inactivité). Effacé au signOut.</td></tr>
         <tr><td>jiraQueries</td><td>jirarepo.html</td><td>JSON array</td><td>Requêtes JQL sauvegardées</td></tr>
       </tbody>
     </table>
@@ -1492,9 +2213,94 @@ graph TB
 
   <hr class="sep">
 
+  <!-- ══════════════════════════════════════════
+       18. CHANGELOG
+  ══════════════════════════════════════════ -->
+  <section class="section" id="changelog">
+    <div class="section-header">
+      <div class="section-num">18</div>
+      <h2>★ Dernières modifs</h2>
+    </div>
+
+    <p>Changements significatifs des dernières releases — pour le détail complet voir <code>git log</code> ou les PR mergées sur <code>main</code>.</p>
+
+    <h3>Juin 2026 · <code>1294cbc</code> + <code>c823105</code> — 🛡️ Self-host de tous les assets CDN</h3>
+    <ul style="padding-left: 24px; margin-bottom: 18px;">
+      <li><strong>Suppression jsDelivr / cdnjs / Cloudflare CDN</strong> : <code>supabase.min.js</code>, <code>xlsx</code>, <code>pptxgen</code>, <code>codemirror</code>, <code>html2pdf</code>, <code>three</code>, <code>vanta.net</code>, <code>papaparse</code> sont désormais dans le repo et servis depuis <code>/pro/*.js</code>.</li>
+      <li><strong>Suppression Google Fonts CDN</strong> : DM Sans + DM Mono téléchargés dans <code>/pro/fonts/</code>, déclarés via <code>fonts.css</code> avec <code>font-display: swap</code>.</li>
+      <li><strong>Pourquoi</strong> : élimine le risque supply-chain CDN tiers (compromission d'un CDN = injection de JS sur LazyPO) et améliore les perfs (toutes les ressources passent par le cache Cloudflare en front de GitHub Pages).</li>
+      <li><strong>Reste sur CDN</strong> : Mermaid (uniquement sur cette page de doc, pas sur l'app), Spotify SDK (forcément externe).</li>
+    </ul>
+
+    <h3>Juin 2026 · <code>2bb317b</code> — 🪤 Rename <code>return_to</code> → <code>next</code></h3>
+    <ul style="padding-left: 24px; margin-bottom: 18px;">
+      <li>Le paramètre de redirection post-login s'appelle désormais <code>next</code> (au lieu de <code>return_to</code>) — moins susceptible d'être flaggé par les heuristiques anti-phishing de Chrome/Edge/Outlook.</li>
+      <li>Mis à jour dans <code>worker/src/worker.js</code>, <code>auth-gate.js</code>, <code>auth.js</code>, <code>login.html</code>.</li>
+    </ul>
+
+    <h3>Juin 2026 · <code>ec20e1a</code> — 🚚 Migration <code>/lazypo</code> → <code>/pro</code></h3>
+    <ul style="padding-left: 24px; margin-bottom: 18px;">
+      <li>Tous les paths URL hardcodés <code>/lazypo/...</code> migrent vers <code>/pro/...</code> : route du Worker, <code>Path</code> du cookie <code>lazypo_jwt</code>, redirect URI Spotify, liens du footer, callbacks.</li>
+      <li>Le repo GitHub reste nommé <code>Ndashiz/lazypo</code> — c'est l'URL publique qui change pour une route plus courte/lisible.</li>
+      <li>Fichiers touchés : <code>auth.js</code>, <code>email_confirm.html</code>, <code>focusfm.js</code>, <code>login.html</code>, <code>spotify-callback.html</code>, <code>sprintplanner.html</code>, <code>worker/src/worker.js</code>, <code>worker/wrangler.toml</code>.</li>
+    </ul>
+
+    <h3>Juin 2026 · <code>df18000</code> — 🧹 Multi · xp-breakdown panel</h3>
+    <ul style="padding-left: 24px; margin-bottom: 18px;">
+      <li>Le panneau de décomposition XP est désormais inséré juste après la <code>.lb-card</code> ; le multi-sous-classement a été supprimé (UI plus claire).</li>
+    </ul>
+
+    <h3>Mai-juin 2026 · PR #113 → #122 — 🛠️ Polish Jira Dashboard / SoW</h3>
+    <ul style="padding-left: 24px; margin-bottom: 18px;">
+      <li><strong>SPA</strong> (#114) : <code>sidebar.js</code> ré-exécutait les scripts inline mais skippait les <code>&lt;script src=&gt;</code> externes injectés par la nouvelle page → fix.</li>
+      <li><strong>countdown.js</strong> (#115) : suppression du <code>fetch('projet.json')</code> dead-code qui crachait un 404 dans la console.</li>
+      <li><strong>SoW Generator</strong> (#116 → #118) : fix demo preview (<code>&lt;/script&gt;</code> littéral cassait le parser), addresses email defaults migrent vers <code>goffin.simon@gmail.com</code>, nouveau bouton « Export HTML » (Télécharger / Copier).</li>
+      <li><strong>Jira Dashboard</strong> (#119 → #122) : parser CSV réel (5 → 117 lignes sur un fichier de 116 tickets), release section reflète vraiment Fix Version/s, export standalone vraiment standalone-usable (pas de self-strip de son propre script).</li>
+    </ul>
+
+    <h3>Mai 2026 · PR #112 — 🔒 Server-side auth gate (Cloudflare Worker)</h3>
+    <ul style="padding-left: 24px; margin-bottom: 18px;">
+      <li><strong>Incident</strong> : login bypass récurrent (3ème fois). Root cause = site statique + auth 100% côté client = HTML protégé téléchargeable par tout visiteur.</li>
+      <li><strong>Fix architectural</strong> : nouveau Cloudflare Worker (<code>worker/src/worker.js</code>) sur la route <code>ndashiz.be/pro/*</code> qui valide un cookie <code>lazypo_jwt</code> en <strong>ES256 via JWKS</strong> AVANT que le HTML soit servi.</li>
+      <li><strong>Cookie sync</strong> : <code>auth.js</code> mirror automatique du <code>access_token</code> Supabase sur les events <code>SIGNED_IN</code> / <code>TOKEN_REFRESHED</code> / <code>USER_UPDATED</code> / <code>INITIAL_SESSION</code>, clear sur <code>SIGNED_OUT</code>. <code>login.html</code> pose le cookie inline synchroneusement avant le redirect (anti-race).</li>
+      <li><strong>Durcissement</strong> : <code>auth-gate.js</code> retire le "reveal after 3s no matter what" (fail-closed, redirige vers login). <code>DEV_SESSION</code> bypass nécessite désormais opt-in explicite (plus d'activation auto sur localhost).</li>
+      <li><strong>Diagrammes</strong> : voir section <a href="#security">★ Architecture de sécurité</a>, <a href="#worker-gate">Cloudflare Worker</a> et <a href="#threat-model">Threat model</a>.</li>
+      <li><strong>Coût</strong> : $0 — free tier Cloudflare Workers (100k req/jour, on est très en dessous).</li>
+    </ul>
+
+    <h3>Mai 2026 · PR #84 — Vocab Share rework</h3>
+    <ul style="padding-left: 24px; margin-bottom: 18px;">
+      <li><strong>Filtre par langue</strong> dans le modal Share (pills Toutes / EN→FR / NL→FR).</li>
+      <li><strong>Tout sélectionner / Tout désélectionner</strong> explicites, respectent le filtre langue actif.</li>
+      <li><strong>Suppression de la limite SHARE_MAX_WORDS=200</strong> ; auto-trim si l'URL dépasse 30 KB avec warning.</li>
+      <li><strong>Envoi direct à un membre</strong> via la nouvelle table <code>vocab_shares</code> (RLS sender insert+select / recipient select+update). Dropdown alimenté par les <code>quiz_sessions</code>.</li>
+      <li><strong>Popup destinataire</strong> en anglais : <em>« A player has shared vocabulary with you »</em>, déclenché au <code>lazypo:profile</code> event.</li>
+      <li>Schéma SQL : <a href="../vocab_shares_schema.sql" target="_blank"><code>vocab_shares_schema.sql</code></a> (à exécuter dans Supabase SQL Editor avant que la feature ne fonctionne).</li>
+    </ul>
+
+    <h3>Mai 2026 · PR #83 — Multi tab + Challenge Back + URL share</h3>
+    <ul style="padding-left: 24px; margin-bottom: 18px;">
+      <li><strong>Mode démo admin</strong> sur l'onglet Multi (100 sessions fictives, IDs <code>demo-*</code>, aucune écriture DB).</li>
+      <li><strong>Challenge Back end-game</strong> : écran VS dédié avec verdict 🏆/💪/🤝, bouton « Publier mon résultat » (commentaire sur la session d'origine), sélecteur de mots à ajouter au vocab, retour Multi.</li>
+      <li><strong>Hydratation des avatars</strong> de commentaires depuis <code>profiles</code> (pour les anciens commentaires sans <code>avatar_url</code>).</li>
+      <li><strong>Top 5 leaderboard</strong> (au lieu de top 10) avec ligne « moi » hors-podium si nécessaire.</li>
+      <li><strong>Partage par lien URL</strong> (<code>quiz.html#import=&lt;base64&gt;</code>) avec modal d'import auto-ouverte.</li>
+      <li><strong>Sidebar dedup</strong> : suppression de l'item « My Account » (le widget user en bas l'expose déjà via dropdown).</li>
+    </ul>
+
+    <h3>Avril 2026 · PR #79 / #78 / #77 — Avatar pipeline</h3>
+    <ul style="padding-left: 24px; margin-bottom: 18px;">
+      <li>Détection vraie de l'inaccessibilité d'un avatar (<code>Image()</code> probe au lieu de <code>fetch HEAD</code>).</li>
+      <li>Pipeline d'upload entièrement revu (noms uniques, vérification end-to-end).</li>
+      <li>Fix profile photo affichage.</li>
+    </ul>
+  </section>
+
+  <hr class="sep">
+
   <!-- ─── Footer ─── -->
   <div style="text-align:center; color: var(--muted); font-size: 13px; font-family: 'DM Mono', monospace; padding-top: 16px;">
-    LazyPO · Documentation Technique · Avril 2026
+    LazyPO · Documentation Technique · v2.2 · Juin 2026
   </div>
 
 </main>
@@ -1547,6 +2353,37 @@ graph TB
   }, { rootMargin: '-30% 0px -60% 0px' });
 
   sections.forEach(s => observer.observe(s));
+
+  /* ─── Mobile TOC toggle ─── */
+  const menuBtn   = document.getElementById('menuToggle');
+  const backdrop  = document.getElementById('tocBackdrop');
+
+  function openNav()  {
+    document.body.classList.add('nav-open');
+    menuBtn.setAttribute('aria-expanded', 'true');
+    menuBtn.setAttribute('aria-label', 'Fermer le menu');
+  }
+  function closeNav() {
+    document.body.classList.remove('nav-open');
+    menuBtn.setAttribute('aria-expanded', 'false');
+    menuBtn.setAttribute('aria-label', 'Ouvrir le menu');
+  }
+  function toggleNav() {
+    if (document.body.classList.contains('nav-open')) closeNav(); else openNav();
+  }
+
+  menuBtn.addEventListener('click', toggleNav);
+  backdrop.addEventListener('click', closeNav);
+  links.forEach(a => a.addEventListener('click', () => {
+    if (window.matchMedia('(max-width: 900px)').matches) closeNav();
+  }));
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && document.body.classList.contains('nav-open')) closeNav();
+  });
+  /* Si l'utilisateur agrandit la fenêtre, ferme proprement le drawer */
+  window.matchMedia('(max-width: 900px)').addEventListener('change', e => {
+    if (!e.matches) closeNav();
+  });
 </script>
 
 </body>

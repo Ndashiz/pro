@@ -1,0 +1,843 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<script>if(location.protocol==="http:"&&location.hostname!=="localhost"&&location.hostname!=="127.0.0.1")location.replace("https:"+location.href.slice(5));</script>
+<script src="auth-gate.js"></script>
+<meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests">
+<meta charset="UTF-8">
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LazyPO — GIF Repo</title>
+<link rel="stylesheet" href="fonts.css">
+<script src="supabase.min.js"></script>
+<style>
+:root {
+  --navy: #002060; --navy-border: #0a3575;
+  --bg: #0f172a; --card: #1e293b; --card-border: #334155; --card-hover: #243047;
+  --text: #e2e8f0; --text-muted: #94a3b8; --text-dim: #64748b;
+  --blue: #3b82f6; --blue-light: #60a5fa; --blue-pale: #93c5fd;
+  --green: #10b981; --green-light: #34d399;
+  --red: #ef4444; --red-light: #f87171;
+  --amber: #f59e0b; --amber-light: #fbbf24;
+  --r: 10px;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { min-height: 100%; font-family: 'DM Sans', system-ui, sans-serif; background: var(--bg); color: var(--text); }
+
+/* ── Header ─────────────────────────────── */
+.header { display: flex; align-items: center; gap: 20px; position: sticky; top: 0; z-index: 100; background: var(--navy); border-bottom: 3px solid var(--navy-border); padding: 14px 28px; }
+.logo { font-family: 'Permanent Marker', cursive; font-size: 26px; color: #fff; transform: rotate(-1.5deg); letter-spacing: 1px; line-height: 1; text-shadow: 3px 3px 0 rgba(59,130,246,.4), -1px -1px 0 rgba(255,255,255,.1); }
+.logo span { color: var(--blue-light); }
+.subtitle { font-size: 12px; color: var(--blue-pale); margin-top: 4px; }
+.spacer { flex: 1; }
+.header-actions { display: flex; gap: 10px; align-items: center; }
+
+/* ── Buttons ─────────────────────────────── */
+.btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 500; border: none; cursor: pointer; white-space: nowrap; transition: background .15s, border-color .15s; line-height: 1; font-family: inherit; }
+.btn-ghost { background: transparent; color: #fff; border: 1px solid rgba(255,255,255,.25); }
+.btn-ghost:hover { background: rgba(255,255,255,.08); }
+.btn-primary { background: var(--blue); color: #fff; border: 1px solid transparent; }
+.btn-primary:hover { background: #2563eb; }
+
+/* ── Layout ─────────────────────────────── */
+.container { max-width: 1200px; margin: 0 auto; padding: 28px 28px 64px; }
+
+/* ── Paste zone ─────────────────────────── */
+.paste-zone {
+  border: 2px dashed var(--card-border); border-radius: 14px;
+  background: var(--card); padding: 36px 24px; text-align: center;
+  cursor: pointer; transition: border-color .2s, background .2s;
+  margin-bottom: 28px; user-select: none;
+}
+.paste-zone:hover, .paste-zone.drag-over { border-color: var(--blue); background: rgba(59,130,246,.06); }
+.paste-zone.drag-over { border-style: solid; }
+.paste-icon { font-size: 36px; margin-bottom: 10px; opacity: .6; }
+.paste-title { font-size: 16px; font-weight: 600; color: var(--text); margin-bottom: 6px; }
+.paste-hint { font-size: 13px; color: var(--text-muted); }
+kbd { background: rgba(255,255,255,.08); border: 1px solid var(--card-border); border-radius: 5px; padding: 2px 7px; font-family: 'DM Mono', monospace; font-size: 12px; color: var(--text); }
+
+/* ── Toolbar ─────────────────────────────── */
+.toolbar { display: flex; align-items: center; gap: 12px; margin-bottom: 22px; }
+.search-wrap { flex: 1; max-width: 360px; position: relative; }
+.search-wrap input {
+  width: 100%; background: var(--card); border: 1px solid var(--card-border);
+  border-radius: 8px; color: var(--text); font-size: 13px; font-family: inherit;
+  padding: 9px 14px 9px 36px; outline: none; transition: border-color .2s;
+}
+.search-wrap input:focus { border-color: var(--blue); }
+.search-icon { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); color: var(--text-dim); width: 16px; height: 16px; pointer-events: none; }
+.count-label { font-size: 13px; color: var(--text-muted); margin-left: auto; }
+
+/* ── GIF Grid ───────────────────────────── */
+.gif-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 16px;
+}
+.gif-card {
+  background: var(--card); border: 1px solid var(--card-border);
+  border-radius: 12px; overflow: hidden;
+  transition: border-color .2s, transform .15s, box-shadow .15s;
+  position: relative;
+}
+.gif-card:hover { border-color: var(--blue); transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,.35); }
+
+/* preview area */
+.gif-preview {
+  width: 100%; aspect-ratio: 16/10; object-fit: cover;
+  display: block; background: #0a0f1a;
+}
+
+/* card footer */
+.gif-footer { padding: 10px 12px 12px; }
+.gif-actions { display: flex; gap: 6px; margin: 8px 0 6px; }
+.gif-btn {
+  flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 5px;
+  padding: 7px 10px; border-radius: 8px; font-size: 12px; font-weight: 600;
+  border: 1px solid; cursor: pointer; font-family: inherit; transition: background .15s;
+}
+.gif-btn.copy-btn { background: rgba(59,130,246,.15); border-color: rgba(96,165,250,.35); color: var(--blue-light); }
+.gif-btn.copy-btn:hover { background: rgba(59,130,246,.3); }
+.gif-btn.edit-btn { background: rgba(255,255,255,.05); border-color: var(--card-border); color: var(--text-muted); }
+.gif-btn.edit-btn:hover { background: rgba(255,255,255,.1); color: var(--text); }
+.gif-meta { display: flex; align-items: center; justify-content: space-between; margin-top: 5px; }
+.gif-usage {
+  font-size: 11px; color: var(--text-dim); font-family: 'DM Mono', monospace;
+  display: flex; align-items: center; gap: 4px;
+}
+.gif-usage.hot { color: var(--amber-light); }
+.gif-size { font-size: 11px; color: var(--text-dim); }
+
+/* locked overlay (hagra in search results) */
+.gif-overlay {
+  position: absolute; inset: 0; background: rgba(0,0,0,.3);
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0; transition: opacity .15s; cursor: pointer;
+}
+.gif-card.locked .gif-overlay { opacity: 1; }
+.gif-card.locked { cursor: pointer; }
+
+/* ── Tags ────────────────────────────────── */
+.gif-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 5px; min-height: 22px; align-items: flex-start; }
+.gif-tag {
+  display: inline-flex; align-items: center; gap: 3px;
+  background: rgba(59,130,246,.12); border: 1px solid rgba(59,130,246,.25);
+  border-radius: 6px; padding: 2px 7px; font-size: 11px; font-weight: 500;
+  color: var(--blue-pale); line-height: 1.4;
+}
+.gif-tag.hagra-tag { background: rgba(239,68,68,.12); border-color: rgba(248,113,113,.25); color: var(--red-light); }
+.tag-del { background: none; border: none; color: var(--text-dim); cursor: pointer; font-size: 12px; line-height: 1; padding: 0; font-family: inherit; }
+.tag-del:hover { color: var(--red-light); }
+.tag-add { background: rgba(255,255,255,.05); border: 1px solid var(--card-border); border-radius: 6px; color: var(--text-dim); cursor: pointer; font-size: 11px; padding: 2px 7px; font-family: inherit; transition: border-color .15s; }
+.tag-add:hover { border-color: var(--blue); color: var(--blue-light); }
+.tag-input { background: var(--bg); border: 1px solid var(--blue); border-radius: 6px; color: var(--text); font-size: 11px; font-family: inherit; padding: 2px 7px; outline: none; width: 90px; }
+
+/* ── Hagra toggle ────────────────────────── */
+.hagra-btn { background: transparent; border: 1px solid transparent; color: var(--text-dim); border-radius: 8px; font-size: 13px; cursor: pointer; padding: 7px 10px; font-family: inherit; transition: color .15s, border-color .15s, background .15s; }
+.hagra-btn:hover { color: var(--text-muted); border-color: var(--card-border); }
+.hagra-btn.active { color: var(--red-light); border-color: rgba(248,113,113,.3); background: rgba(239,68,68,.06); }
+
+/* ── Locked card (hagra in search results) ── */
+.gif-card.locked .gif-preview { filter: blur(10px); }
+.gif-card.locked .gif-overlay { opacity: 1; background: rgba(0,0,0,.3); cursor: pointer; }
+.lock-overlay { display: flex; flex-direction: column; align-items: center; gap: 6px; pointer-events: none; }
+.lock-icon { font-size: 30px; }
+.lock-hint { font-size: 11px; color: rgba(255,255,255,.75); font-weight: 500; }
+
+/* ── Empty state ─────────────────────────── */
+.empty-state { text-align: center; padding: 64px 24px; color: var(--text-dim); }
+.empty-state p { font-size: 15px; margin-top: 12px; }
+.empty-state span { font-size: 48px; display: block; margin-bottom: 8px; opacity: .4; }
+
+/* ── Toast ───────────────────────────────── */
+.toast {
+  position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%) translateY(80px);
+  background: #1e293b; border: 1px solid var(--card-border); color: var(--text);
+  border-radius: 10px; padding: 12px 20px; font-size: 13px; font-weight: 500;
+  z-index: 9999; transition: transform .25s ease, opacity .25s;
+  opacity: 0; pointer-events: none; display: flex; align-items: center; gap: 8px;
+  box-shadow: 0 8px 24px rgba(0,0,0,.5);
+}
+.toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+.toast.ok  { border-color: rgba(52,211,153,.4); }
+.toast.err { border-color: rgba(248,113,113,.4); }
+
+/* ── Label modal (new gif) ───────────────── */
+.modal-backdrop {
+  position: fixed; inset: 0; background: rgba(0,0,0,.7);
+  z-index: 500; display: flex; align-items: center; justify-content: center;
+  opacity: 0; pointer-events: none; transition: opacity .2s;
+}
+.modal-backdrop.open { opacity: 1; pointer-events: all; }
+.modal {
+  background: var(--card); border: 1px solid var(--card-border); border-radius: 14px;
+  padding: 28px; width: 360px; max-width: 90vw;
+}
+.modal h2 { font-size: 16px; font-weight: 700; margin-bottom: 6px; }
+.modal p  { font-size: 13px; color: var(--text-muted); margin-bottom: 18px; }
+.modal input {
+  width: 100%; background: var(--bg); border: 1px solid var(--card-border);
+  border-radius: 8px; color: var(--text); font-size: 14px; font-family: inherit;
+  padding: 10px 14px; outline: none; margin-bottom: 16px; transition: border-color .2s;
+}
+.modal input[type="text"]:focus { border-color: var(--blue); }
+.modal-radio {
+  flex: 1; display: flex; align-items: center; justify-content: center; gap: 7px;
+  padding: 9px 12px; border-radius: 8px; border: 1px solid var(--card-border);
+  cursor: pointer; font-size: 13px; font-weight: 500; color: var(--text-muted);
+  transition: border-color .15s, background .15s; user-select: none;
+}
+.modal-radio:has(input:checked) { border-color: var(--blue); background: rgba(59,130,246,.1); color: var(--text); }
+.modal-radio input { display: none; }
+.modal-preview { width: 100%; max-height: 160px; object-fit: contain; border-radius: 8px; margin-bottom: 16px; background: #0a0f1a; display: none; }
+.modal-actions { display: flex; gap: 10px; justify-content: flex-end; }
+
+/* ── Copy lightbox ───────────────────────── */
+.lightbox {
+  position: fixed; inset: 0; background: rgba(0,0,0,.82);
+  z-index: 600; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 20px;
+  opacity: 0; pointer-events: none; transition: opacity .2s;
+}
+.lightbox.open { opacity: 1; pointer-events: all; }
+.lightbox img { max-width: 90vw; max-height: 60vh; border-radius: 10px; display: block; cursor: context-menu; }
+.lightbox-label { font-size: 15px; font-weight: 600; color: #fff; }
+.lightbox-hint {
+  background: rgba(59,130,246,.18); border: 1px solid rgba(96,165,250,.35);
+  border-radius: 10px; padding: 14px 22px; text-align: center; max-width: 380px;
+}
+.lightbox-hint strong { display: block; color: var(--blue-light); font-size: 14px; margin-bottom: 4px; }
+.lightbox-hint span { font-size: 12px; color: var(--text-muted); }
+.lightbox-close {
+  position: absolute; top: 20px; right: 24px;
+  background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.2);
+  color: #fff; border-radius: 8px; padding: 6px 14px; cursor: pointer;
+  font-size: 13px; font-family: inherit;
+}
+.lightbox-close:hover { background: rgba(255,255,255,.2); }
+.lightbox-dl {
+  background: transparent; border: 1px solid rgba(255,255,255,.25); color: #fff;
+  border-radius: 8px; padding: 8px 18px; cursor: pointer; font-size: 13px; font-family: inherit;
+  display: inline-flex; align-items: center; gap: 6px;
+}
+.lightbox-dl:hover { background: rgba(255,255,255,.08); }
+
+/* ── Responsive ──────────────────────────── */
+@media (max-width: 600px) {
+  .gif-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+  .container { padding: 16px 16px 48px; }
+}
+</style>
+</head>
+<body>
+
+<header class="header">
+  <div>
+    <div class="logo">Lazy<span>PO</span></div>
+    <div class="subtitle">GIF Repo</div>
+  </div>
+  <div class="spacer"></div>
+  <div class="header-actions">
+    <a href="index.html" class="btn btn-ghost">← Home</a>
+  </div>
+</header>
+
+<div class="container">
+
+  <!-- Paste zone -->
+  <input type="file" id="file-input" accept="image/*" style="display:none" />
+  <div class="paste-zone" id="paste-zone">
+    <div class="paste-icon">🎞️</div>
+    <div class="paste-title">Add a GIF</div>
+    <div class="paste-hint"><strong>Click to browse</strong>, drag & drop, or press <kbd>Ctrl</kbd>+<kbd>V</kbd> to paste</div>
+  </div>
+
+  <!-- Toolbar -->
+  <div class="toolbar">
+    <div class="search-wrap">
+      <svg class="search-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8">
+        <circle cx="9" cy="9" r="6"/><path d="M14 14l4 4" stroke-linecap="round"/>
+      </svg>
+      <input type="search" id="search-input" placeholder="Search by label…" autocomplete="off" />
+    </div>
+    <span class="count-label" id="count-label"></span>
+    <button class="hagra-btn" id="hagra-btn" title="Mode privé">🔒</button>
+  </div>
+
+  <!-- Grid -->
+  <div class="gif-grid" id="gif-grid"></div>
+
+  <!-- Empty state -->
+  <div class="empty-state" id="empty-state" style="display:none">
+    <span>🎞️</span>
+    <p id="empty-msg">No GIFs yet — paste one to get started.</p>
+  </div>
+
+</div>
+
+<!-- Label modal -->
+<div class="modal-backdrop" id="modal">
+  <div class="modal">
+    <h2>New GIF</h2>
+    <p>Add a label to find this GIF later.</p>
+    <img class="modal-preview" id="modal-preview" alt="" />
+    <div class="gif-tags" id="modal-tags" style="min-height:0;margin-bottom:8px"></div>
+    <input type="text" id="modal-label" placeholder="Label, puis Entrée pour en ajouter…" maxlength="80" />
+    <div style="display:flex;gap:8px;margin-bottom:16px">
+      <label class="modal-radio" id="modal-radio-normal">
+        <input type="radio" name="modal-visibility" value="normal" checked />
+        <span>🌐 Normal</span>
+      </label>
+      <label class="modal-radio" id="modal-radio-hagra">
+        <input type="radio" name="modal-visibility" value="hagra" />
+        <span>🔒 Hagra</span>
+      </label>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" id="modal-cancel">Cancel</button>
+      <button class="btn btn-primary" id="modal-save">Save GIF</button>
+    </div>
+  </div>
+</div>
+
+<!-- Edit modal -->
+<div class="modal-backdrop" id="edit-modal">
+  <div class="modal" style="width:420px">
+    <h2>Modifier le GIF</h2>
+    <img class="modal-preview" id="edit-preview" style="display:block" alt="" />
+    <div style="margin-bottom:14px">
+      <div style="font-size:12px;color:var(--text-muted);margin-bottom:8px;font-weight:600;text-transform:uppercase;letter-spacing:.05em">Labels</div>
+      <div class="gif-tags" id="edit-tags"></div>
+    </div>
+    <label style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:rgba(239,68,68,.06);border:1px solid rgba(248,113,113,.2);border-radius:8px;cursor:pointer;margin-bottom:16px;font-size:13px;color:var(--text-muted)">
+      <input type="checkbox" id="edit-hagra" style="width:16px;height:16px;accent-color:var(--red-light)" />
+      🔒 Catégorie hagra (contenu privé)
+    </label>
+    <div class="modal-actions" style="justify-content:space-between">
+      <button class="btn" id="edit-delete" style="background:rgba(239,68,68,.15);border:1px solid rgba(248,113,113,.3);color:var(--red-light)">🗑 Supprimer</button>
+      <button class="btn btn-ghost" id="edit-close">Fermer</button>
+    </div>
+  </div>
+</div>
+
+<!-- Copy lightbox -->
+<div class="lightbox" id="lightbox">
+  <button class="lightbox-close" id="lightbox-close">✕ Fermer</button>
+  <div class="lightbox-label" id="lightbox-label"></div>
+  <img id="lightbox-img" src="" alt="" />
+  <div class="lightbox-hint">
+    <strong>Clic-droit → Copier l'image</strong>
+    <span>puis colle directement dans Teams, Slack, Outlook…</span>
+  </div>
+  <button class="lightbox-dl" id="lightbox-dl">⬇ Télécharger le GIF</button>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script src="auth.js"></script>
+<script src="sidebar.js"></script>
+<script>
+/* ══════════════════════════════════════════════════════════
+   GIF REPO — Supabase Storage + table
+   SQL setup (run once in Supabase SQL editor):
+
+   create table public.gif_items (
+     id           text primary key,
+     user_id      uuid references auth.users(id) on delete cascade not null,
+     labels       jsonb not null default '[]',
+     usage_count  int not null default 0,
+     created_at   timestamptz not null default now(),
+     last_used_at timestamptz,
+     storage_path text not null,
+     size_bytes   bigint,
+     mime_type    text
+   );
+   alter table public.gif_items enable row level security;
+   create policy "gif_own" on public.gif_items
+     using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+   -- Storage bucket: create "gifs" bucket (Private) in Dashboard → Storage, then:
+   create policy "gifs_select" on storage.objects
+     for select using (bucket_id = 'gifs' and auth.uid()::text = (storage.foldername(name))[1]);
+   create policy "gifs_insert" on storage.objects
+     for insert with check (bucket_id = 'gifs' and auth.uid()::text = (storage.foldername(name))[1]);
+   create policy "gifs_delete" on storage.objects
+     for delete using (bucket_id = 'gifs' and auth.uid()::text = (storage.foldername(name))[1]);
+══════════════════════════════════════════════════════════ */
+
+const BUCKET = 'gifs';
+const TABLE  = 'gif_items';
+
+let allGifs     = [];
+let currentUser = null;
+let pendingBlob = null;
+let showHagra   = false;
+const revealedIds = new Set();
+
+/* ── Supabase CRUD ─────────────────────────────────────── */
+
+function uid() {
+  return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+}
+
+async function loadAndRender() {
+  if (!currentUser) {
+    const { data: { session } } = await window.sb.auth.getSession();
+    currentUser = session?.user ?? null;
+    if (!currentUser) return;
+  }
+
+  setLoading(true);
+  try {
+    const { data, error } = await window.sb.from(TABLE).select('*').eq('user_id', currentUser.id);
+    if (error) throw error;
+
+    const signedUrls = {};
+    await Promise.all((data || []).map(async g => {
+      const { data: u } = await window.sb.storage.from(BUCKET).createSignedUrl(g.storage_path, 3600);
+      if (u?.signedUrl) signedUrls[g.storage_path] = u.signedUrl;
+    }));
+
+    allGifs = (data || []).map(g => ({ ...g, signedUrl: signedUrls[g.storage_path] || '' }));
+  } catch (err) {
+    toast('Erreur chargement GIFs', 'err');
+    console.error(err);
+  }
+  setLoading(false);
+  render(document.getElementById('search-input').value.trim().toLowerCase());
+}
+
+function setLoading(on) {
+  document.getElementById('gif-grid').style.opacity = on ? '.4' : '1';
+}
+
+async function dbSave(blob, labels) {
+  const id   = uid();
+  const path = `${currentUser.id}/${id}`;
+  const mime = blob.type || 'image/gif';
+
+  const { error: upErr } = await window.sb.storage.from(BUCKET)
+    .upload(path, blob, { contentType: mime, upsert: false });
+  if (upErr) throw upErr;
+
+  const row = {
+    id, user_id: currentUser.id, labels,
+    usage_count: 0, created_at: new Date().toISOString(),
+    last_used_at: null, storage_path: path,
+    size_bytes: blob.size, mime_type: mime,
+  };
+  const { error: insErr } = await window.sb.from(TABLE).insert(row);
+  if (insErr) throw insErr;
+
+  const { data: u } = await window.sb.storage.from(BUCKET).createSignedUrl(path, 3600);
+  return { ...row, signedUrl: u?.signedUrl || '' };
+}
+
+async function dbUpdate(gif) {
+  await window.sb.from(TABLE).update({
+    labels: gif.labels, usage_count: gif.usage_count, last_used_at: gif.last_used_at,
+  }).eq('id', gif.id);
+}
+
+async function dbDelete(gif) {
+  await window.sb.storage.from(BUCKET).remove([gif.storage_path]);
+  await window.sb.from(TABLE).delete().eq('id', gif.id);
+}
+
+function render(filter) {
+  const grid  = document.getElementById('gif-grid');
+  const empty = document.getElementById('empty-state');
+  const count = document.getElementById('count-label');
+
+  const isHagra = g => (g.labels || []).map(l => l.toLowerCase()).includes('hagra');
+  let list;
+  if (showHagra) {
+    list = allGifs.filter(g => isHagra(g));
+  } else if (filter) {
+    // Include hagra GIFs in search results — shown as locked unless revealed
+    list = allGifs.filter(g => (g.labels || []).some(l => l.toLowerCase().includes(filter)));
+  } else {
+    list = allGifs.filter(g => !isHagra(g));
+  }
+  list = list.sort((a, b) => (b.usageCount - a.usageCount) || (b.createdAt - a.createdAt));
+
+  count.textContent = list.length ? `${list.length} GIF${list.length > 1 ? 's' : ''}` : '';
+
+  if (!list.length) {
+    grid.innerHTML = '';
+    empty.style.display = 'block';
+    document.getElementById('empty-msg').textContent = filter
+      ? `No GIF matching "${filter}".`
+      : 'No GIFs yet — paste one to get started.';
+    return;
+  }
+
+  empty.style.display = 'none';
+  grid.innerHTML = '';
+
+  list.forEach(gif => {
+    const hot  = gif.usage_count >= 5;
+    const size = formatSize(gif.size_bytes || 0);
+
+    const card = document.createElement('div');
+    card.className = 'gif-card';
+    card.dataset.id = gif.id;
+    const primaryLabel = gif.labels[0] || 'Untitled';
+    const visibleLabels = gif.labels.filter(l => l.toLowerCase() !== 'hagra');
+    const tagsHtml = visibleLabels.map(l =>
+      `<span class="gif-tag">${esc(l)}</span>`
+    ).join('') + (gif.labels.some(l => l.toLowerCase() === 'hagra') ? `<span class="gif-tag hagra-tag">🔒</span>` : '');
+
+    const locked = !showHagra && isHagra(gif) && !revealedIds.has(gif.id);
+
+    if (locked) {
+      card.className = 'gif-card locked';
+      card.innerHTML = `
+        <img class="gif-preview" src="${esc(gif.signedUrl)}" alt="" loading="lazy" />
+        <div class="gif-overlay">
+          <div class="lock-overlay">
+            <span class="lock-icon">🔒</span>
+            <span class="lock-hint">Cliquer pour révéler</span>
+          </div>
+        </div>
+        <div class="gif-footer">
+          <div class="gif-tags">${tagsHtml}</div>
+          <div class="gif-meta"><span class="gif-size">${size}</span></div>
+        </div>`;
+      card.addEventListener('click', () => {
+        revealedIds.add(gif.id);
+        render(document.getElementById('search-input').value.trim().toLowerCase());
+      });
+      grid.appendChild(card);
+      return;
+    }
+
+    card.innerHTML = `
+      <img class="gif-preview" src="${esc(gif.signedUrl)}" alt="${esc(primaryLabel)}" loading="lazy" />
+      <div class="gif-footer">
+        <div class="gif-tags">${tagsHtml}</div>
+        <div class="gif-actions">
+          <button class="gif-btn copy-btn">
+            <svg width="12" height="12" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><rect x="7" y="7" width="11" height="11" rx="2"/><path d="M3 13V3h10"/></svg>
+            Copier
+          </button>
+          <button class="gif-btn edit-btn">✏️ Modifier</button>
+        </div>
+        <div class="gif-meta">
+          <span class="gif-usage${hot ? ' hot' : ''}">
+            ${hot ? '🔥' : '📋'} ${gif.usage_count} cop${gif.usage_count === 1 ? 'y' : 'ies'}
+          </span>
+          <span class="gif-size">${size}</span>
+        </div>
+      </div>`;
+
+    card.querySelector('.copy-btn').addEventListener('click', () => copyGif(gif, card));
+    card.querySelector('.edit-btn').addEventListener('click', () => openEditModal(gif, card));
+
+    grid.appendChild(card);
+  });
+}
+
+/* ── Copy to clipboard ─────────────────────────────────── */
+
+async function copyGif(gif, card) {
+  gif.usage_count  = (gif.usage_count || 0) + 1;
+  gif.last_used_at = new Date().toISOString();
+  allGifs = allGifs.map(g => g.id === gif.id ? gif : g);
+  dbUpdate(gif);
+  if (card) {
+    const hot   = gif.usage_count >= 5;
+    const badge = card.querySelector('.gif-usage');
+    if (badge) {
+      badge.className = `gif-usage${hot ? ' hot' : ''}`;
+      badge.textContent = `${hot ? '🔥' : '📋'} ${gif.usage_count} cop${gif.usage_count === 1 ? 'y' : 'ies'}`;
+    }
+  }
+  try {
+    const resp    = await fetch(gif.signedUrl);
+    const blob    = await resp.blob();
+    const dataUrl = await new Promise((res, rej) => {
+      const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej;
+      r.readAsDataURL(blob);
+    });
+    const html = `<img src="${dataUrl}" alt="${gif.labels[0] || ''}">`;
+    await navigator.clipboard.write([new ClipboardItem({ 'text/html': new Blob([html], { type: 'text/html' }) })]);
+    toast(`✓ "${gif.labels[0] || 'GIF'}" copié ! Colle dans Teams/Slack/Outlook.`, 'ok');
+  } catch (err) {
+    openLightbox(gif);
+  }
+}
+
+/* ── Copy lightbox ─────────────────────────────────────── */
+
+let lightboxGif = null;
+const lightbox      = document.getElementById('lightbox');
+const lightboxImg   = document.getElementById('lightbox-img');
+const lightboxLbl   = document.getElementById('lightbox-label');
+const lightboxDl    = document.getElementById('lightbox-dl');
+const lightboxClose = document.getElementById('lightbox-close');
+
+function openLightbox(gif) {
+  lightboxGif     = gif;
+  lightboxImg.src = gif.signedUrl;
+  lightboxLbl.textContent = (gif.labels && gif.labels[0]) || '';
+  lightbox.classList.add('open');
+}
+
+function closeLightbox() { lightbox.classList.remove('open'); }
+lightboxClose.addEventListener('click', closeLightbox);
+lightbox.addEventListener('click', e => { if (e.target === lightbox) closeLightbox(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeLightbox(); });
+
+lightboxDl.addEventListener('click', async () => {
+  if (!lightboxGif) return;
+  const resp = await fetch(lightboxGif.signedUrl);
+  const blob = await resp.blob();
+  const a = document.createElement('a');
+  a.href     = URL.createObjectURL(blob);
+  a.download = ((lightboxGif.labels && lightboxGif.labels[0]) || 'gif').replace(/[^a-z0-9_\- ]/gi, '_') + '.gif';
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+});
+
+/* ── Paste / drag-drop ─────────────────────────────────── */
+
+document.addEventListener('paste', e => {
+  const items = [...(e.clipboardData?.items || [])];
+  const imgItem = items.find(i => i.type.startsWith('image/'));
+  if (!imgItem) return;
+  e.preventDefault();
+  const blob = imgItem.getAsFile();
+  if (!blob) return;
+  openLabelModal(blob);
+});
+
+const pasteZone = document.getElementById('paste-zone');
+const fileInput  = document.getElementById('file-input');
+
+pasteZone.addEventListener('click',    () => fileInput.click());
+pasteZone.addEventListener('dragover',  e => { e.preventDefault(); pasteZone.classList.add('drag-over'); });
+pasteZone.addEventListener('dragleave', e => { if (!pasteZone.contains(e.relatedTarget)) pasteZone.classList.remove('drag-over'); });
+pasteZone.addEventListener('drop', e => {
+  e.preventDefault();
+  pasteZone.classList.remove('drag-over');
+  const file = e.dataTransfer.files[0];
+  if (!file || !file.type.startsWith('image/')) return;
+  openLabelModal(file);
+});
+fileInput.addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (file) openLabelModal(file);
+  fileInput.value = '';
+});
+
+/* ── Label modal ───────────────────────────────────────── */
+
+const modal       = document.getElementById('modal');
+const modalLabel  = document.getElementById('modal-label');
+const modalPrev   = document.getElementById('modal-preview');
+const modalCancel = document.getElementById('modal-cancel');
+const modalSave   = document.getElementById('modal-save');
+
+function openLabelModal(blob) {
+  pendingBlob = blob;
+  const url = URL.createObjectURL(blob);
+  modalPrev.src = url;
+  modalPrev.style.display = 'block';
+  modalLabel.value = '';
+  modal.classList.add('open');
+  setTimeout(() => modalLabel.focus(), 80);
+}
+
+function closeModal() {
+  modal.classList.remove('open');
+  if (modalPrev.src) { URL.revokeObjectURL(modalPrev.src); modalPrev.src = ''; }
+  pendingBlob   = null;
+  modalLabels   = [];
+  modalLabel.value = '';
+  renderModalTags();
+  document.querySelector('input[name="modal-visibility"][value="normal"]').checked = true;
+}
+
+modalCancel.addEventListener('click', closeModal);
+modal.addEventListener('click', e => { if (e.target === modal) closeModal(); });
+
+let modalLabels = [];
+
+function renderModalTags() {
+  const container = document.getElementById('modal-tags');
+  if (!container) return;
+  container.innerHTML = modalLabels.map((l, i) =>
+    `<span class="gif-tag">${esc(l)}<button class="tag-del" data-i="${i}">×</button></span>`
+  ).join('');
+  container.querySelectorAll('.tag-del').forEach(btn => {
+    btn.addEventListener('click', () => {
+      modalLabels.splice(+btn.dataset.i, 1);
+      renderModalTags();
+    });
+  });
+}
+
+modalLabel.addEventListener('keydown', e => {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    const val = modalLabel.value.trim().toLowerCase();
+    if (val && !modalLabels.includes(val)) {
+      modalLabels.push(val);
+      renderModalTags();
+    }
+    modalLabel.value = '';
+  }
+});
+
+modalSave.addEventListener('click', async () => {
+  if (!pendingBlob) return;
+  // Flush whatever is still typed in the input
+  const typed = modalLabel.value.trim().toLowerCase();
+  if (typed && !modalLabels.includes(typed)) modalLabels.push(typed);
+  if (!modalLabels.length) modalLabels.push('untitled gif');
+
+  const isHagra = document.querySelector('input[name="modal-visibility"]:checked')?.value === 'hagra';
+  const labels  = isHagra ? [...modalLabels, 'hagra'] : [...modalLabels];
+
+  modalSave.disabled = true;
+  modalSave.textContent = 'Saving…';
+  try {
+    const gif = await dbSave(pendingBlob, labels);
+    allGifs.push(gif);
+    closeModal();
+    render(document.getElementById('search-input').value.trim().toLowerCase());
+    toast(`✓ "${modalLabels[0]}" saved!`, 'ok');
+  } catch (err) {
+    toast(`Erreur : ${err?.message || JSON.stringify(err)}`, 'err');
+    console.error(err);
+  }
+  modalSave.disabled = false;
+  modalSave.textContent = 'Save GIF';
+});
+
+/* ── Edit modal ────────────────────────────────────────── */
+
+const editModal   = document.getElementById('edit-modal');
+const editPreview = document.getElementById('edit-preview');
+const editTagsDiv = document.getElementById('edit-tags');
+const editHagra   = document.getElementById('edit-hagra');
+const editDelete  = document.getElementById('edit-delete');
+const editClose   = document.getElementById('edit-close');
+
+let editGif  = null;
+let editCard = null;
+
+function openEditModal(gif, card) {
+  editGif  = gif;
+  editCard = card;
+  editPreview.src = gif.signedUrl;
+  editHagra.checked = (gif.labels || []).map(l => l.toLowerCase()).includes('hagra');
+  renderEditTags();
+  editModal.classList.add('open');
+}
+
+function closeEditModal() { editModal.classList.remove('open'); }
+editClose.addEventListener('click', closeEditModal);
+editModal.addEventListener('click', e => { if (e.target === editModal) closeEditModal(); });
+
+function renderEditTags() {
+  const nonHagra = (editGif.labels || []).filter(l => l.toLowerCase() !== 'hagra');
+  editTagsDiv.innerHTML = nonHagra.map((l, li) =>
+    `<span class="gif-tag">${esc(l)}<button class="tag-del" data-li="${li}">×</button></span>`
+  ).join('') + `<button class="tag-add" id="edit-tag-add">+</button>`;
+
+  editTagsDiv.querySelectorAll('.tag-del').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const label = nonHagra[+btn.dataset.li];
+      editGif.labels = editGif.labels.filter(l => l !== label);
+      await dbUpdate(editGif);
+      allGifs = allGifs.map(g => g.id === editGif.id ? editGif : g);
+      renderEditTags();
+      render(document.getElementById('search-input').value.trim().toLowerCase());
+    });
+  });
+
+  document.getElementById('edit-tag-add').addEventListener('click', () => {
+    const addBtn = document.getElementById('edit-tag-add');
+    if (editTagsDiv.querySelector('.tag-input')) return;
+    const inp = document.createElement('input');
+    inp.className = 'tag-input'; inp.placeholder = 'label…'; inp.maxLength = 40;
+    editTagsDiv.insertBefore(inp, addBtn);
+    inp.focus();
+    const commit = async () => {
+      const val = inp.value.trim().toLowerCase();
+      if (val && val !== 'hagra' && !editGif.labels.map(l => l.toLowerCase()).includes(val)) {
+        editGif.labels.push(val);
+        await dbUpdate(editGif);
+        allGifs = allGifs.map(g => g.id === editGif.id ? editGif : g);
+        render(document.getElementById('search-input').value.trim().toLowerCase());
+      }
+      renderEditTags();
+    };
+    inp.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); commit(); } if (e.key === 'Escape') renderEditTags(); });
+    inp.addEventListener('blur', commit);
+  });
+}
+
+editHagra.addEventListener('change', async () => {
+  const has = (editGif.labels || []).map(l => l.toLowerCase()).includes('hagra');
+  if (editHagra.checked && !has) editGif.labels.push('hagra');
+  if (!editHagra.checked && has) editGif.labels = editGif.labels.filter(l => l.toLowerCase() !== 'hagra');
+  await dbUpdate(editGif);
+  allGifs = allGifs.map(g => g.id === editGif.id ? editGif : g);
+  render(document.getElementById('search-input').value.trim().toLowerCase());
+});
+
+editDelete.addEventListener('click', async () => {
+  const label = (editGif.labels || [])[0] || 'ce GIF';
+  if (!confirm(`Supprimer "${label}" ?`)) return;
+  editDelete.disabled = true;
+  editDelete.textContent = 'Suppression…';
+  await dbDelete(editGif);
+  allGifs = allGifs.filter(g => g.id !== editGif.id);
+  closeEditModal();
+  render(document.getElementById('search-input').value.trim().toLowerCase());
+});
+
+/* ── Hagra toggle ──────────────────────────────────────── */
+
+document.getElementById('hagra-btn').addEventListener('click', () => {
+  showHagra = !showHagra;
+  document.getElementById('hagra-btn').classList.toggle('active', showHagra);
+  document.getElementById('search-input').value = '';
+  render('');
+});
+
+/* ── Search ────────────────────────────────────────────── */
+
+document.getElementById('search-input').addEventListener('input', e => {
+  render(e.target.value.trim().toLowerCase());
+});
+
+/* ── Toast ─────────────────────────────────────────────── */
+
+let toastTimer;
+function toast(msg, type = 'ok') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = `toast ${type} show`;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+/* ── Helpers ───────────────────────────────────────────── */
+
+function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
+function formatSize(bytes) {
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(0) + ' KB';
+  return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+}
+
+/* ── Boot ──────────────────────────────────────────────── */
+loadAndRender();
+</script>
+</body>
+</html>

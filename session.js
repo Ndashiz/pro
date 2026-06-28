@@ -32,6 +32,13 @@
   const HEARTBEAT_MS        = 2 * 60 * 1000;        // 2min
   const WARN_BEFORE_MS      = 5 * 60 * 1000;        // warn 5min before timeout
 
+  /* localStorage key for persisted activity — survives tab/browser close.
+     Without this, lastActivity was reset to now() on every page boot, so
+     "2h inactivity" could never trigger if the browser was closed in
+     between. With this, we record the actual last interaction timestamp
+     and check it on boot to enforce the limit across sessions. */
+  const ACTIVITY_KEY = 'lazypo:lastActivity';
+
   /* ── State ──────────────────────────────────────────────────────── */
   let lastActivity   = Date.now();
   let sessionStart   = Date.now();
@@ -40,9 +47,40 @@
   let warnShown      = false;
   let warnEl         = null;
 
+  /* ── localStorage helpers ───────────────────────────────────────── */
+  function persistActivity(ts) {
+    try { localStorage.setItem(ACTIVITY_KEY, String(ts)); } catch (_) {}
+  }
+  function readPersistedActivity() {
+    try {
+      const raw = localStorage.getItem(ACTIVITY_KEY);
+      const n = raw ? parseInt(raw, 10) : 0;
+      return Number.isFinite(n) ? n : 0;
+    } catch (_) { return 0; }
+  }
+  function clearPersistedActivity() {
+    try { localStorage.removeItem(ACTIVITY_KEY); } catch (_) {}
+  }
+
   /* ── Activity tracking ──────────────────────────────────────────── */
+
+  /* Defense-in-depth : avant de reset le timer d'inactivité sur une
+     interaction utilisateur, on vérifie si la dernière activité connue
+     date de plus de INACTIVITY_TIMEOUT. Si oui, ça veut dire que la
+     personne revient APRÈS une longue absence — le browser a peut-être
+     gelé les timers (Safari BFCache, écran verrouillé, app en bg, etc.)
+     donc le heartbeat n'a pas pu déclencher le logout automatiquement.
+     On force le logout MAINTENANT, avant que le mousemove de "réveil"
+     n'écrase le timestamp et masque l'inactivité. */
   function onActivity() {
-    lastActivity = Date.now();
+    const now = Date.now();
+    const previous = readPersistedActivity();
+    if (previous > 0 && now - previous >= INACTIVITY_TIMEOUT && !isMusicPlaying()) {
+      forceLogout('inactivity_resume');
+      return;
+    }
+    lastActivity = now;
+    persistActivity(lastActivity);
     hideWarning();
   }
 
@@ -51,8 +89,38 @@
     document.addEventListener(evt, onActivity, { passive: true });
   });
 
+  /* Quand l'onglet redevient visible (retour de mise en veille du Mac,
+     changement d'onglet, etc.) on NE veut PAS reset le compteur — sinon
+     le simple fait de rouvrir l'ordi efface 2h d'absence. À la place :
+     on vérifie le timestamp persisté et on force la déconnexion si
+     l'inactivité a dépassé le seuil. */
   document.addEventListener('visibilitychange', () => {
-    if (!document.hidden) onActivity();
+    if (document.hidden) return;
+    if (isMusicPlaying()) return; // exception musique = activité
+    const reference = readPersistedActivity() || lastActivity;
+    if (Date.now() - reference >= INACTIVITY_TIMEOUT) {
+      forceLogout('inactivity_persistent');
+    }
+    // Pas de mise à jour de lastActivity : seule une VRAIE interaction
+    // (souris, clavier, scroll, click) compte comme reset.
+  });
+
+  /* Safari BFCache (back-forward cache) : quand l'utilisateur navigue
+     hors de LazyPO puis revient via "back", Safari restaure la page
+     entière depuis le cache mémoire — JS, timers et closures sont gelés
+     pendant l'absence et `visibilitychange` n'est PAS garanti de firer
+     au retour. L'event `pageshow` avec `event.persisted === true` est
+     l'indicateur fiable d'un restore BFCache. Idem pour le retour de
+     veille système prolongée où Safari peut suspendre setInterval. */
+  window.addEventListener('pageshow', (e) => {
+    // e.persisted = true → page restored from BFCache
+    // On vérifie systématiquement, qu'on soit BFCache ou load normal :
+    // les deux cas peuvent avoir un timestamp persisté en retard.
+    if (isMusicPlaying()) return;
+    const reference = readPersistedActivity() || lastActivity;
+    if (reference > 0 && Date.now() - reference >= INACTIVITY_TIMEOUT) {
+      forceLogout(e.persisted ? 'inactivity_bfcache' : 'inactivity_pageshow');
+    }
   });
 
   /* ── Music detection ────────────────────────────────────────────── */
@@ -140,6 +208,7 @@
   async function forceLogout(reason) {
     clearInterval(heartbeatTimer);
     heartbeatTimer = null;
+    clearPersistedActivity();
 
     if (sessionDbId && window.sb) {
       await window.sb.from('user_sessions')
@@ -161,6 +230,12 @@
       heartbeatTimer = null;
       return;
     }
+
+    // Multi-onglets safety : si un autre onglet LazyPO est actif et a
+    // mis à jour le timestamp localStorage, on l'adopte ici pour ne pas
+    // logger out par erreur cet onglet (qui croit être inactif).
+    const persistedTs = readPersistedActivity();
+    if (persistedTs > lastActivity) lastActivity = persistedTs;
 
     const inactive = Date.now() - lastActivity;
     const age      = Date.now() - sessionStart;
@@ -310,8 +385,27 @@
     if (!session) return;
 
     injectCSS();
-    sessionStart = Date.now();
-    lastActivity = Date.now();
+
+    /* Enforce inactivity timeout across browser/tab closes by reading the
+       last activity timestamp persisted to localStorage. If the user has
+       been inactive for more than INACTIVITY_TIMEOUT (even with the browser
+       closed in between), force a logout immediately — no chance to use
+       the app on resume. */
+    const persistedTs = readPersistedActivity();
+    const now = Date.now();
+    if (persistedTs > 0) {
+      const inactiveMs = now - persistedTs;
+      if (inactiveMs >= INACTIVITY_TIMEOUT) {
+        await forceLogout('inactivity_persistent');
+        return;
+      }
+      lastActivity = persistedTs;
+    } else {
+      lastActivity = now;
+      persistActivity(lastActivity);
+    }
+
+    sessionStart = now;
 
     await registerSession();
 

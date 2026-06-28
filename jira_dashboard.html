@@ -1,0 +1,1862 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<script>if(location.protocol==="http:"&&location.hostname!=="localhost"&&location.hostname!=="127.0.0.1")location.replace("https:"+location.href.slice(5));</script>
+<script src="auth-gate.js"></script>
+<meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests">
+  <meta charset="UTF-8">
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <title>LazyPO — Jira Dashboard Builder</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="fonts.css">
+  <style>
+    :root{
+      --navy:#002060; --navy-border:#0a3575;
+      --bg:#0c0c0c; --surface:#161616; --surface2:#1c1c1c;
+      --border:#222; --border2:#2a2a2a;
+      --accent:#3b82f6; --accent2:#60a5fa; --accent3:#93c5fd;
+      --text:#f0f0f0; --muted:#6b6b6b; --faint:#2e2e2e;
+      --green:#10b981; --green-light:#34d399; --green-pale:#6ee7b7;
+      --amber:#f59e0b; --amber-light:#fbbf24;
+      --red:#ef4444; --red-light:#f87171;
+      --purple:#8b5cf6; --purple-light:#a78bfa;
+    }
+
+    *{box-sizing:border-box}
+    html,body{margin:0;padding:0;min-height:100vh;font-family:'DM Sans',system-ui,sans-serif;background:var(--bg);color:var(--text)}
+    body{display:flex;flex-direction:column;position:relative;overflow-x:hidden}
+    .main-bg{position:fixed;inset:0;z-index:0;pointer-events:none;background:radial-gradient(ellipse 60% 50% at 50% 20%,rgba(20,40,80,.5) 0%,transparent 70%),radial-gradient(ellipse 40% 40% at 85% 80%,rgba(30,58,110,.15) 0%,transparent 60%)}
+
+    /* HEADER */
+    .header{display:flex;align-items:center;gap:20px;position:sticky;top:0;z-index:100;background:var(--navy);border-bottom:3px solid var(--navy-border);padding:14px 28px;color:#fff}
+    .logo-wrap{display:flex;flex-direction:column;text-decoration:none}
+    .logo{font-family:'Permanent Marker',cursive;font-size:26px;color:#fff;transform:rotate(-1.5deg);letter-spacing:1px;line-height:1;text-shadow:3px 3px 0 rgba(59,130,246,.4),-1px -1px 0 rgba(255,255,255,.1)}
+    .logo span{color:var(--accent2)}
+    .subtitle{font-size:12px;color:var(--accent3);margin-top:4px}
+    .spacer{flex:1}
+    .back-link{display:inline-flex;align-items:center;gap:6px;color:#fff;text-decoration:none;font-size:13px;padding:8px 14px;border-radius:8px;border:1px solid rgba(255,255,255,.2);transition:background .2s,border-color .2s}
+    .back-link:hover{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.4)}
+    .back-link svg{width:14px;height:14px}
+
+    /* PAGE */
+    .container{max-width:1200px;margin:32px auto;padding:0 28px;position:relative;z-index:1;flex:1;width:100%}
+
+    /* TOP BAR */
+    .topbar{display:flex;align-items:center;gap:14px;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px 18px;margin-bottom:18px;flex-wrap:wrap}
+    .topbar-title{display:flex;align-items:center;gap:10px;font-weight:600;font-size:15px}
+    .topbar-icon{width:30px;height:30px;border-radius:8px;background:rgba(59,130,246,.15);border:1px solid rgba(96,165,250,.25);display:flex;align-items:center;justify-content:center;font-size:15px;color:var(--accent2)}
+    .topbar-status{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:500;padding:4px 10px;border-radius:100px;background:rgba(16,185,129,.1);color:var(--green-light);border:1px solid rgba(16,185,129,.25);font-family:'DM Mono',monospace}
+    .topbar-status::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--green-light)}
+    .topbar-spacer{flex:1}
+    .topbar-filename{font-family:'DM Mono',monospace;font-size:12px;color:var(--muted)}
+
+    /* BUTTONS */
+    .btn{display:inline-flex;align-items:center;gap:7px;padding:9px 14px;border-radius:8px;font-size:13px;font-weight:500;border:1px solid var(--border2);background:transparent;color:var(--text);cursor:pointer;font-family:inherit;transition:background .2s,border-color .2s,color .2s;white-space:nowrap}
+    .btn:hover:not(:disabled){background:var(--surface2);border-color:var(--accent)}
+    .btn:disabled{opacity:.4;cursor:not-allowed}
+    .btn-primary{background:var(--accent);color:#fff;border-color:transparent}
+    .btn-primary:hover:not(:disabled){background:#2563eb}
+    .btn-danger{color:var(--red-light)}
+    .btn-danger:hover:not(:disabled){border-color:var(--red);background:rgba(248,113,113,.08)}
+    .btn svg{width:14px;height:14px}
+
+    /* DROPZONE */
+    .file-card{background:var(--surface);border:2px dashed var(--border2);border-radius:14px;padding:48px 24px;text-align:center;transition:border-color .2s,background .2s;cursor:pointer}
+    .file-card.dragover{border-color:var(--accent);background:rgba(59,130,246,.05)}
+    .file-card.loaded{border-style:solid;border-color:rgba(16,185,129,.4);background:rgba(16,185,129,.04);cursor:default;text-align:left;padding:20px 24px;display:flex;align-items:center;gap:18px;flex-wrap:wrap}
+    .file-card-icon{font-size:34px;color:var(--accent2)}
+    .file-card.loaded .file-card-icon{font-size:24px;color:var(--green-light)}
+    .file-card-title{font-size:16px;font-weight:600;margin:0 0 6px}
+    .file-card-meta{font-size:12px;color:var(--muted);font-family:'DM Mono',monospace}
+    .file-card.loaded .file-card-info{flex:1}
+    .file-card-status{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--green-light);font-family:'DM Mono',monospace}
+    .file-card-status::before{content:'✓';font-size:14px}
+
+    /* ACTION BAR */
+    .action-bar{display:flex;align-items:center;gap:10px;margin-bottom:18px;flex-wrap:wrap}
+    .view-toggle{display:inline-flex;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:3px;gap:2px}
+    .view-btn{padding:7px 14px;font-size:13px;font-weight:600;color:var(--muted);background:transparent;border:none;border-radius:7px;cursor:pointer;font-family:inherit;transition:background .2s,color .2s}
+    .view-btn:hover{color:var(--text)}
+    .view-btn.active{background:var(--accent);color:#fff}
+    .pi-summary{display:inline-flex;align-items:center;gap:8px;padding:8px 14px;background:rgba(59,130,246,.08);border:1px solid rgba(59,130,246,.2);border-radius:10px;font-size:12px;color:var(--accent3);font-family:'DM Mono',monospace}
+    .action-bar-spacer{flex:1}
+    .export-group{display:inline-flex;position:relative}
+    .export-group .btn:not(:last-child){border-top-right-radius:0;border-bottom-right-radius:0;border-right:none}
+    .export-group .btn:not(:first-child){border-top-left-radius:0;border-bottom-left-radius:0}
+
+    /* DROPDOWN */
+    .dropdown{position:relative}
+    .dropdown-menu{position:absolute;top:calc(100% + 6px);right:0;background:var(--surface);border:1px solid var(--border2);border-radius:10px;padding:6px;min-width:240px;box-shadow:0 12px 32px rgba(0,0,0,.5);z-index:50;display:none}
+    .dropdown.open .dropdown-menu{display:block}
+    .dropdown-item{display:flex;flex-direction:column;gap:2px;padding:9px 12px;border-radius:7px;cursor:pointer;transition:background .15s}
+    .dropdown-item:hover{background:var(--surface2)}
+    .dropdown-item-title{font-size:13px;font-weight:600;color:var(--text)}
+    .dropdown-item-desc{font-size:11px;color:var(--muted);font-family:'DM Mono',monospace}
+    .dropdown-footer{padding:8px 12px;font-size:10px;color:var(--muted);border-top:1px solid var(--border);margin-top:4px;font-family:'DM Mono',monospace}
+
+    /* CARDS */
+    .card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px}
+    .card-header{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:14px}
+    .card-title{font-size:14px;font-weight:600;color:var(--text);margin:0}
+    .card-sub{font-size:12px;color:var(--muted);margin:2px 0 0;line-height:1.4}
+    .card-total{font-size:11px;color:var(--muted);font-family:'DM Mono',monospace;text-align:right;white-space:nowrap}
+
+    /* PROGRESS */
+    .progress-card{margin-bottom:18px}
+    .progress-bar{height:18px;background:rgba(255,255,255,.04);border-radius:9px;overflow:hidden;position:relative}
+    .progress-fill{height:100%;background:linear-gradient(90deg,var(--green),var(--green-light));border-radius:9px;transition:width .6s ease}
+    .progress-label{display:flex;justify-content:space-between;align-items:center;margin-top:8px;font-size:12px;color:var(--muted);font-family:'DM Mono',monospace}
+    .progress-label .pct{font-size:14px;font-weight:700;color:var(--green-light);font-family:inherit}
+
+    /* GRID */
+    .grid-2{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin-bottom:18px}
+    @media (max-width:760px){.grid-2{grid-template-columns:1fr}}
+
+    /* BARS */
+    .bars{display:flex;flex-direction:column;gap:10px}
+    .bar-row{display:grid;grid-template-columns:1fr auto;align-items:center;gap:10px}
+    .bar-row .bar-label{font-size:13px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+    .bar-row .bar-value{font-size:13px;font-weight:600;color:var(--text);font-family:'DM Mono',monospace}
+    .bar-track{grid-column:1 / -1;height:7px;background:rgba(255,255,255,.04);border-radius:4px;overflow:hidden}
+    .bar-fill{height:100%;border-radius:4px;transition:width .6s ease}
+    .bar-purple .bar-fill{background:var(--purple-light)}
+    .bar-blue .bar-fill{background:var(--accent2)}
+    .bar-green .bar-fill{background:var(--green-light)}
+    .bar-amber .bar-fill{background:var(--amber-light)}
+    .bar-gray .bar-fill{background:#71717a}
+
+    .bar-row.warn .bar-label{color:var(--amber-light)}
+    .bar-row.warn .bar-value{color:var(--amber-light)}
+    .bar-row.warn .bar-fill{background:var(--amber-light)}
+    .warn-divider{margin:10px 0 4px;height:1px;border-top:1px dashed var(--amber);opacity:.4}
+    .warn-note{font-size:11px;color:var(--muted);margin-top:6px;font-style:italic}
+
+    /* QUICK WINS */
+    .quickwin-big{font-size:48px;font-weight:700;color:var(--green-light);line-height:1;margin:6px 0 4px}
+    .quickwin-sub{font-size:12px;color:var(--muted);font-family:'DM Mono',monospace}
+    .quickwin-pct{font-size:13px;color:var(--text);margin-top:8px}
+
+    /* STATUS LIST */
+    .status-list{display:flex;flex-direction:column;gap:0}
+    .status-row{display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--border);font-size:13px}
+    .status-row:last-child{border-bottom:none}
+    .status-row .status-label{color:var(--text)}
+    .status-row .status-count{font-weight:600;font-family:'DM Mono',monospace}
+    .status-row.muted{color:var(--muted);font-style:italic}
+    .status-row.muted .status-label{color:var(--muted)}
+    .status-row.muted .status-count{color:var(--muted)}
+
+    /* PI CONFIG */
+    .pi-config{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px;margin-bottom:18px}
+    .pi-form{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;align-items:end}
+    @media (max-width:760px){.pi-form{grid-template-columns:1fr}}
+    .field{display:flex;flex-direction:column;gap:5px}
+    .field label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;font-family:'DM Mono',monospace}
+    .field input,.field select{background:var(--bg);border:1px solid var(--border2);border-radius:8px;padding:9px 12px;color:var(--text);font-size:13px;font-family:inherit;outline:none;transition:border-color .2s}
+    .field input:focus,.field select:focus{border-color:var(--accent)}
+    .field-row{grid-column:1 / -1;font-size:11px;color:var(--muted);font-family:'DM Mono',monospace}
+
+    /* SPRINT TIMELINE */
+    .sprint-timeline{display:grid;gap:6px;margin:10px 0 18px;grid-auto-flow:column;grid-auto-columns:minmax(60px,1fr)}
+    .sprint-pill{background:rgba(255,255,255,.04);border:1px solid var(--border);padding:9px 6px;border-radius:8px;text-align:center;font-size:11px;color:var(--muted);font-family:'DM Mono',monospace}
+    .sprint-pill.current{background:rgba(59,130,246,.12);border-color:var(--accent);color:var(--accent2);font-weight:600}
+
+    /* EPIC LIST */
+    .epic-list{display:flex;flex-direction:column;gap:10px}
+    .epic-row{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center}
+    .epic-row .epic-name{font-size:13px;font-weight:600;color:var(--text);margin-bottom:3px}
+    .epic-row .epic-meta{font-size:11px;color:var(--muted);font-family:'DM Mono',monospace;display:flex;gap:10px;flex-wrap:wrap}
+    .epic-progress-wrap{display:flex;align-items:center;gap:10px;min-width:180px}
+    .epic-progress-bar{flex:1;height:7px;background:rgba(255,255,255,.05);border-radius:4px;overflow:hidden}
+    .epic-progress-fill{height:100%;border-radius:4px;transition:width .6s ease}
+    .epic-progress-pct{font-size:12px;font-weight:600;font-family:'DM Mono',monospace;min-width:42px;text-align:right}
+    .epic-row .fill-success .epic-progress-fill,.fill-success{background:var(--green-light)}
+    .epic-row .fill-success .epic-progress-pct,.epic-row.epic-success .epic-progress-pct{color:var(--green-light)}
+    .epic-row.epic-success .epic-progress-fill{background:var(--green-light)}
+    .epic-row.epic-info .epic-progress-fill{background:var(--accent2)}
+    .epic-row.epic-info .epic-progress-pct{color:var(--accent2)}
+    .epic-row.epic-warn .epic-progress-fill{background:var(--amber-light)}
+    .epic-row.epic-warn .epic-progress-pct{color:var(--amber-light)}
+    .epic-row.epic-low .epic-progress-fill{background:#71717a}
+    .epic-row.epic-low .epic-progress-pct{color:#a1a1aa}
+
+    /* HINT */
+    .hint{margin-top:18px;padding:11px 16px;background:rgba(59,130,246,.06);border:1px solid rgba(59,130,246,.2);border-radius:10px;font-size:12px;color:var(--accent3)}
+    .hint code{background:rgba(255,255,255,.05);padding:2px 6px;border-radius:4px;font-family:'DM Mono',monospace;font-size:11px;color:var(--accent3)}
+
+    /* TOAST */
+    .toast{position:fixed;bottom:24px;left:50%;transform:translate(-50%,20px);background:var(--surface2);border:1px solid var(--border2);color:var(--text);padding:11px 18px;border-radius:10px;font-size:13px;box-shadow:0 12px 32px rgba(0,0,0,.5);opacity:0;transition:opacity .25s,transform .25s;pointer-events:none;z-index:200}
+    .toast.show{opacity:1;transform:translate(-50%,0)}
+    .toast.ok{border-color:rgba(52,211,153,.4);color:var(--green-light)}
+    .toast.err{border-color:rgba(248,113,113,.4);color:var(--red-light)}
+
+    /* ERROR */
+    .error-banner{padding:11px 16px;background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.3);border-radius:10px;color:var(--red-light);font-size:13px;margin-bottom:14px}
+
+    /* SPRINT CONFIG */
+    .sprint-config-label{font-size:12px;color:var(--muted);margin-bottom:10px}
+    .sprint-config-table{display:flex;flex-direction:column;gap:6px}
+    .sprint-config-row{display:grid;grid-template-columns:50px 1fr auto 140px;gap:12px;align-items:center;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px}
+    .sprint-config-row.has-release{border-color:rgba(245,158,11,.4);background:rgba(245,158,11,.04)}
+    .scr-num{font-family:'DM Mono',monospace;font-size:13px;font-weight:600;color:var(--accent2)}
+    .sprint-config-row.has-release .scr-num{color:var(--amber-light)}
+    .scr-title{font-size:13px;font-weight:600;color:var(--text)}
+    .scr-dates{font-size:11px;color:var(--muted);font-family:'DM Mono',monospace}
+    .rel-toggle{padding:5px 11px;font-size:11px;border-radius:6px;background:transparent;border:1px solid var(--border2);color:var(--muted);cursor:pointer;font-family:inherit;white-space:nowrap;font-weight:600;transition:all .2s}
+    .rel-toggle:hover{color:var(--text);border-color:var(--amber)}
+    .rel-toggle.active{background:rgba(245,158,11,.15);border-color:rgba(245,158,11,.5);color:var(--amber-light)}
+    .rel-date{background:var(--bg);border:1px solid rgba(245,158,11,.3);border-radius:6px;padding:5px 8px;color:var(--amber-light);font-size:12px;font-family:inherit;outline:none}
+
+    /* TIMELINE w/ release marker */
+    .sprint-pill.release{background:rgba(245,158,11,.1);border-color:rgba(245,158,11,.35);color:var(--amber-light)}
+    .sprint-pill.release.current{background:rgba(245,158,11,.18)}
+
+    /* FX MAP header */
+    .fx-map-header{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px}
+
+    /* PLANNER VIEW */
+    #epicPlanner{margin-top:6px}
+    .plan-grid{display:flex;gap:0;overflow-x:auto;border:1px solid var(--border);border-radius:10px;padding:8px;background:var(--surface2)}
+    .plan-col{flex:1;min-width:200px;padding:6px 6px 16px;border-right:1px solid var(--border);display:flex;flex-direction:column}
+    .plan-col:last-child{border-right:none}
+    .plan-col.current{background:rgba(59,130,246,.04)}
+    .plan-sprint-head{padding:8px 10px;margin-bottom:10px;border-radius:8px;background:linear-gradient(180deg,rgba(59,130,246,.18),rgba(59,130,246,.04));border:1px solid rgba(59,130,246,.25);text-align:center}
+    .plan-sprint-head.has-release{background:linear-gradient(180deg,rgba(245,158,11,.18),rgba(245,158,11,.04));border-color:rgba(245,158,11,.35)}
+    .psh-num{font-family:'DM Mono',monospace;font-size:13px;font-weight:700;color:var(--accent2)}
+    .plan-sprint-head.has-release .psh-num{color:var(--amber-light)}
+    .psh-dates{font-size:10px;color:var(--muted);font-family:'DM Mono',monospace;margin-top:3px}
+    .psh-rel{margin-top:4px;font-size:9.5px;font-weight:700;color:var(--amber-light);font-family:'DM Mono',monospace;letter-spacing:.5px}
+    .plan-card{background:#1e293b;border:1px solid var(--border2);border-radius:9px;padding:8px 10px;margin-bottom:8px;position:relative;transition:transform .15s,border-color .15s;cursor:default}
+    .plan-card:hover{transform:translateY(-1px);border-color:var(--accent2)}
+    .plan-card.pc-todo{background:#1e293b;border-color:#334155}
+    .plan-card.pc-ongoing{background:linear-gradient(180deg,#3b2f1a,#1e1a12);border-color:rgba(245,158,11,.4)}
+    .plan-card.pc-completed{background:linear-gradient(180deg,#1d3a2a,#0f1a14);border-color:rgba(16,185,129,.4)}
+    .pc-pri{position:absolute;top:-9px;left:-9px;width:22px;height:22px;border-radius:50%;background:#fff;color:var(--navy);font-weight:700;font-size:11px;display:flex;align-items:center;justify-content:center;border:2px solid var(--surface);font-family:'DM Sans',sans-serif}
+    .pc-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.3px;color:#fff;margin:0 0 6px;line-height:1.3;padding-left:18px}
+    .pc-key{display:inline-block;font-size:9.5px;background:rgba(0,0,0,.35);color:#cbd5e1;padding:2px 7px;border-radius:20px;font-family:'DM Mono',monospace;margin-bottom:6px}
+    .pc-progress{display:flex;align-items:center;gap:6px}
+    .pc-progress-bar{flex:1;height:5px;background:rgba(255,255,255,.08);border-radius:3px;overflow:hidden}
+    .pc-progress-fill{height:100%;background:var(--green-light);border-radius:3px}
+    .pc-todo .pc-progress-fill{background:#94a3b8}
+    .pc-ongoing .pc-progress-fill{background:var(--amber-light)}
+    .pc-completed .pc-progress-fill{background:var(--green-light)}
+    .pc-progress-pct{font-size:10px;font-weight:600;color:var(--muted);font-family:'DM Mono',monospace;min-width:30px;text-align:right}
+
+    .plan-unassigned-label{font-family:'DM Mono',monospace;font-size:11px;color:var(--muted);margin:14px 0 8px;text-transform:uppercase;letter-spacing:.5px}
+    .plan-unassigned{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px}
+
+    /* HIDDEN */
+    .hidden{display:none !important}
+
+    @media (max-width:480px){
+      .header{padding:10px 16px}
+      .logo{font-size:20px}
+      .container{padding:0 16px;margin:20px auto}
+      .file-card{padding:32px 16px}
+    }
+
+    /* PRINT (PDF export) */
+    @media print {
+      .header,.back-link,.action-bar,.file-card,.dropdown-menu,.hint,.toast,.pi-config{display:none !important}
+      body{background:#fff;color:#000}
+      .card,.epic-row{background:#fafafa;border-color:#ccc;color:#000;break-inside:avoid}
+      .card-title,.bar-row .bar-label,.bar-row .bar-value,.epic-row .epic-name{color:#000}
+      .container{margin:0;padding:0;max-width:none}
+    }
+  </style>
+</head>
+<body>
+
+<div class="main-bg"></div>
+
+<header class="header">
+  <a href="jira.html" class="logo-wrap">
+    <div class="logo">LazyPO <span>✦</span></div>
+    <div class="subtitle">Jira › Dashboard Builder</div>
+  </a>
+  <div class="spacer"></div>
+  <a href="jira.html" class="back-link">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+    Back to Jira
+  </a>
+</header>
+
+<div class="container">
+
+  <div class="topbar">
+    <div class="topbar-title">
+      <div class="topbar-icon">📊</div>
+      Jira Dashboard Builder
+    </div>
+    <span class="topbar-status">Local · no data sent</span>
+    <div class="topbar-spacer"></div>
+    <span id="topbarFilename" class="topbar-filename"></span>
+    <button id="btnReplace" class="btn hidden" onclick="document.getElementById('fileInput').click()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0114.5-7M21 12a9 9 0 01-14.5 7M21 4v5h-5M3 20v-5h5"/></svg>
+      Replace
+    </button>
+    <div class="dropdown" id="exportHtmlDropdown">
+      <button class="btn btn-primary" onclick="toggleDropdown('exportHtmlDropdown', event)" title="Export the empty standalone app (no data)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+        Export HTML
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="dropdown-menu">
+        <div class="dropdown-item" onclick="exportHTMLDownload()">
+          <span class="dropdown-item-title">Download the file</span>
+          <span class="dropdown-item-desc">jira_dashboard.html</span>
+        </div>
+        <div class="dropdown-item" onclick="exportHTMLCopy()">
+          <span class="dropdown-item-title">Copy the code</span>
+          <span class="dropdown-item-desc">instant copy</span>
+        </div>
+        <div class="dropdown-footer">Empty app · no data embedded · runs offline</div>
+      </div>
+    </div>
+  </div>
+
+  <div id="errorBanner" class="error-banner hidden"></div>
+
+  <div id="dropZone" class="file-card">
+    <div class="file-card-icon">📥</div>
+    <h2 class="file-card-title">Drop your Jira export here</h2>
+    <p class="file-card-meta">CSV or XLSX · processed locally · never uploaded</p>
+    <button class="btn btn-primary" style="margin-top:14px" onclick="document.getElementById('fileInput').click()">
+      Choose a file
+    </button>
+    <input type="file" id="fileInput" accept=".csv,.xlsx,.xls,text/csv" style="display:none" />
+  </div>
+
+  <div id="dashboard" class="hidden">
+
+    <div class="file-card loaded">
+      <div class="file-card-icon">📄</div>
+      <div class="file-card-info">
+        <div class="file-card-title" id="loadedTitle"></div>
+        <div class="file-card-meta" id="loadedMeta"></div>
+      </div>
+      <span class="file-card-status">Parsed</span>
+    </div>
+
+    <div class="action-bar">
+      <div class="view-toggle">
+        <button class="view-btn active" id="viewGlobal" onclick="setView('global')">Global view</button>
+        <button class="view-btn" id="viewSprint" onclick="setView('sprint')">Sprint view</button>
+      </div>
+      <span id="piSummary" class="pi-summary hidden"></span>
+      <div class="action-bar-spacer"></div>
+      <button class="btn" onclick="exportPPTX()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 20h8M12 18v2M7 9h4M7 12h6M7 15h2"/></svg>
+        Export PPTX
+      </button>
+      <button class="btn" onclick="exportPDF()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6M12 18v-6M9 15l3 3 3-3"/></svg>
+        Export PDF
+      </button>
+    </div>
+
+    <!-- GLOBAL VIEW -->
+    <div id="globalView">
+
+      <div class="card progress-card">
+        <div class="card-header">
+          <div>
+            <h3 class="card-title">Global progress</h3>
+            <p class="card-sub">All tickets · epics excluded</p>
+          </div>
+          <span id="progressTotal" class="card-total"></span>
+        </div>
+        <div class="progress-bar"><div id="progressFill" class="progress-fill" style="width:0%"></div></div>
+        <div class="progress-label">
+          <span id="progressRatio"></span>
+          <span id="progressPct" class="pct">0%</span>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-header">
+            <h3 class="card-title">Tickets by business line</h3>
+            <span id="blTotal" class="card-total"></span>
+          </div>
+          <div id="blBars" class="bars"></div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <h3 class="card-title">Tickets by analyst</h3>
+            <span id="anaTotal" class="card-total"></span>
+          </div>
+          <div id="anaBars" class="bars"></div>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-header">
+            <h3 class="card-title">Tickets by release (FixVersion)</h3>
+            <span id="relTotal" class="card-total"></span>
+          </div>
+          <div id="relBars" class="bars"></div>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:16px">
+          <div class="card">
+            <div class="card-header">
+              <h3 class="card-title">Quick wins</h3>
+            </div>
+            <div id="quickWinValue" class="quickwin-big">0</div>
+            <div class="quickwin-sub">tickets · label = QW</div>
+            <div id="quickWinPct" class="quickwin-pct">0% of total backlog</div>
+          </div>
+          <div class="card">
+            <div class="card-header">
+              <h3 class="card-title">Status breakdown</h3>
+            </div>
+            <div id="statusList" class="status-list"></div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- SPRINT VIEW -->
+    <div id="sprintView" class="hidden">
+      <div class="pi-config">
+        <div class="card-header">
+          <div>
+            <h3 class="card-title">Program Increment</h3>
+            <p class="card-sub">Dates are persisted in localStorage · FixVersion → Sprint mapping is in-memory only</p>
+          </div>
+        </div>
+        <div class="pi-form">
+          <div class="field">
+            <label for="piStart">Start date</label>
+            <input type="date" id="piStart" />
+          </div>
+          <div class="field">
+            <label for="piEnd">End date</label>
+            <input type="date" id="piEnd" />
+          </div>
+          <div class="field">
+            <label>Sprint length</label>
+            <div style="padding:9px 0;font-family:'DM Mono',monospace;font-size:13px;color:var(--muted)">14 days (fixed)</div>
+          </div>
+        </div>
+        <div id="sprintConfig" style="margin-top:16px"></div>
+        <div id="piMappingRow" class="field-row" style="margin-top:14px"></div>
+        <div id="piMapping" class="bars" style="margin-top:8px"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <h3 class="card-title">Sprint timeline</h3>
+            <p class="card-sub">Current sprint is highlighted in blue</p>
+          </div>
+          <span id="sprintCount" class="card-total"></span>
+        </div>
+        <div id="sprintTimeline" class="sprint-timeline"></div>
+      </div>
+
+      <div class="card" style="margin-top:18px">
+        <div class="card-header" style="flex-wrap:wrap;gap:10px">
+          <div>
+            <h3 class="card-title">Epics in this PI</h3>
+            <p class="card-sub">Progress = stories Done / total stories of the epic</p>
+          </div>
+          <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+            <div class="view-toggle" style="padding:2px">
+              <button class="view-btn active" id="epicViewList" onclick="setEpicView('list')" style="padding:5px 12px;font-size:12px">List</button>
+              <button class="view-btn" id="epicViewPlanner" onclick="setEpicView('planner')" style="padding:5px 12px;font-size:12px">Planner</button>
+            </div>
+            <span id="epicCount" class="card-total"></span>
+          </div>
+        </div>
+        <div id="epicList" class="epic-list"></div>
+        <div id="epicPlanner" class="hidden"></div>
+      </div>
+    </div>
+
+    <div class="hint" id="pdfHint">
+      Tip: the PDF export name includes a timestamp (<code>jira_dashboard_YYYY-MM-DD_HHhMM.pdf</code>) — perfect to archive and compare weekly snapshots.
+    </div>
+
+  </div>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<!-- LIBS -->
+<script src="papaparse.min.js"></script>
+<script src="xlsx.min.js"></script>
+<script src="html2pdf.min.js"></script>
+<script src="pptxgen.min.js"></script>
+
+<script>
+/* ═════════════════════════════════════════════════════════
+   Jira Dashboard Builder — Vanilla JS app
+   100% client-side. No data leaves the browser.
+═════════════════════════════════════════════════════════ */
+
+const PI_STORAGE_KEY = 'jiraDashboardPI_v1';
+
+const STATE = {
+  fileName: null,
+  rows: [],          // normalized rows
+  view: 'global',    // 'global' | 'sprint'
+  pi: {
+    start: null,
+    end: null,
+  },
+  sprintMeta: {},    // { 's1': { hasRelease: true, releaseDate: '2025-12-31' } }
+  fxToSprint: {},    // { 'FixVersion' : sprintId }
+  epicView: 'list',  // 'list' | 'planner'
+};
+
+/* ── Column detection — Jira exports vary wildly ── */
+const COL_ALIASES = {
+  key:       ['issue key', 'key', 'issue id'],
+  type:      ['issue type', 'type', 'issuetype'],
+  summary:   ['summary', 'title'],
+  status:    ['status', 'state'],
+  assignee:  ['assignee', 'assigned to', 'owner'],
+  component: ['component', 'component/s', 'components'],
+  labels:    ['labels', 'label'],
+  fixVersion:['fix version', 'fix version/s', 'fixversion', 'fix versions', 'fix-version'],
+  sprint:    ['sprint', 'sprint name'],
+  // Jira CSV exports use "Custom field (Epic Link)" for the parent epic id.
+  // "Parent" / "Parent id" / "Parent key" / "Parent summary" cover other
+  // export shapes (newer Jira renames Epic Link → Parent).
+  epicLink:  ['epic link', 'custom field (epic link)', 'parent id', 'parent key', 'parent', 'epic'],
+  epicName:  ['epic name', 'parent summary'],
+};
+
+// Headers come in with a UTF-8 BOM, trailing semicolons (Jira's
+// trailing `;` on the final column), and arbitrary casing. Normalize
+// once so the alias lookup is straightforward.
+function normalizeHeader(h){
+  return (h || '')
+    .toString()
+    .replace(/^﻿/, '')   // strip BOM
+    .replace(/[;\s]+$/, '')   // trailing semicolons + spaces
+    .replace(/^\s+/, '')      // leading spaces
+    .toLowerCase();
+}
+
+function findColumn(headers, aliases){
+  const lower = headers.map(normalizeHeader);
+  // Try exact match first
+  for (const alias of aliases) {
+    const idx = lower.indexOf(alias);
+    if (idx >= 0) return headers[idx];
+  }
+  // Then "starts with"
+  for (const alias of aliases) {
+    const idx = lower.findIndex(h => h.startsWith(alias));
+    if (idx >= 0) return headers[idx];
+  }
+  // Finally "includes" — catches "custom field (epic link)" etc.
+  for (const alias of aliases) {
+    const idx = lower.findIndex(h => h.includes(alias));
+    if (idx >= 0) return headers[idx];
+  }
+  return null;
+}
+
+function findAllColumns(headers, aliases){
+  // Some Jira exports repeat the same column name (e.g., multiple "Labels" columns).
+  const lower = headers.map(normalizeHeader);
+  const matches = [];
+  headers.forEach((h, i) => {
+    for (const alias of aliases) {
+      if (lower[i] === alias || lower[i].startsWith(alias) || lower[i].includes(alias)) {
+        matches.push(h);
+        break;
+      }
+    }
+  });
+  return matches;
+}
+
+/* ── Normalize a single row from raw parsed data ── */
+function normalizeRow(raw, headers){
+  // Resolve "single value" columns
+  const get = (k) => {
+    const col = findColumn(headers, COL_ALIASES[k]);
+    return col ? (raw[col] || '').toString().trim() : '';
+  };
+  // Resolve "multi value" columns (collect from all matching column headers)
+  const getMulti = (k) => {
+    const cols = findAllColumns(headers, COL_ALIASES[k]);
+    const vals = [];
+    cols.forEach(c => {
+      const v = (raw[c] || '').toString().trim();
+      if (v) vals.push(...v.split(/[,;]\s*/).map(x => x.trim()).filter(Boolean));
+    });
+    return [...new Set(vals)];
+  };
+
+  return {
+    key:        get('key'),
+    type:       get('type') || 'Story',
+    summary:    get('summary'),
+    status:     get('status') || 'Unknown',
+    assignee:   get('assignee') || 'Unassigned',
+    components: getMulti('component'),
+    labels:     getMulti('labels'),
+    fixVersions:getMulti('fixVersion'),
+    sprints:    getMulti('sprint'),
+    epicLink:   get('epicLink'),
+    epicName:   get('epicName'),
+  };
+}
+
+/* ── Status classification ── */
+const DONE_STATUSES   = new Set([
+  'done', 'closed', 'resolved', 'completed', 'shipped', 'released',
+  'won\'t fix', 'wont fix', 'rejected', 'cancelled', 'canceled',
+]);
+const INPROG_STATUSES = new Set([
+  'in progress', 'in-progress', 'in development', 'in dev', 'in review',
+  'review', 'testing', 'qa', 'doing', 'design ongoing', 'check design ongoing',
+  'design ready', 'ready for dev', 'ready for development', 'implementing',
+]);
+// Backlog / Blocked / To Do / Open / New / "" all fall through to "todo"
+
+function isDone(s)   { return DONE_STATUSES.has((s||'').toLowerCase().trim()); }
+function isInProg(s) { return INPROG_STATUSES.has((s||'').toLowerCase().trim()); }
+function isTodo(s)   { return !isDone(s) && !isInProg(s); }
+
+/* ── Business line mapping ── */
+const BL_ORDER = ['AOA', 'PB', 'Compliance AML', 'Compliance MIFID', 'IT', 'OneFlow', 'Client Center', 'Other'];
+
+function businessLine(row){
+  const comps = row.components.map(c => c.toLowerCase());
+  const labels = row.labels.map(l => l.toLowerCase());
+
+  if (comps.includes('aoa')) return 'AOA';
+  if (comps.includes('pb')) return 'PB';
+  if (comps.includes('compliance')) {
+    if (labels.some(l => l.includes('aml'))) return 'Compliance AML';
+    if (labels.some(l => l.includes('mifid'))) return 'Compliance MIFID';
+    return 'Compliance';
+  }
+  if (comps.includes('it')) return 'IT';
+  if (comps.includes('oneflow')) return 'OneFlow';
+  if (comps.some(c => c.includes('client center'))) return 'Client Center';
+  // Everything else (including no component) → Other bucket
+  return 'Other';
+}
+
+/* ── File handling ── */
+const fileInput = document.getElementById('fileInput');
+const dropZone = document.getElementById('dropZone');
+const errorBanner = document.getElementById('errorBanner');
+
+fileInput.addEventListener('change', e => {
+  const f = e.target.files[0];
+  if (f) handleFile(f);
+});
+['dragenter','dragover'].forEach(evt => dropZone.addEventListener(evt, e => {
+  e.preventDefault(); e.stopPropagation();
+  dropZone.classList.add('dragover');
+}));
+['dragleave','drop'].forEach(evt => dropZone.addEventListener(evt, e => {
+  e.preventDefault(); e.stopPropagation();
+  dropZone.classList.remove('dragover');
+}));
+dropZone.addEventListener('drop', e => {
+  const f = e.dataTransfer.files[0];
+  if (f) handleFile(f);
+});
+
+function showError(msg){
+  errorBanner.textContent = msg;
+  errorBanner.classList.remove('hidden');
+}
+function clearError(){
+  errorBanner.classList.add('hidden');
+  errorBanner.textContent = '';
+}
+
+/* Jira CSV quirks we have to neutralise BEFORE Papa Parse sees the text:
+     A) BOM at the top of the file.
+     B) Description fields with embedded newlines, quoted "across lines".
+        RFC 4180 allows this but a single malformed quote anywhere in the
+        file confuses Papa Parse — and Jira does produce malformed quotes
+        (stray semicolons, mismatched `""`). Cheaper to flatten: replace
+        any `\n` or `\r` that sits INSIDE a quoted region with a space.
+     C) Whole-row outer-quote wrap: Jira sometimes emits `"<row>"` where
+        `<row>` itself contains commas and newlines. After (B) the row
+        is on a single line; we then unwrap it cleanly.
+     D) Recovery: if quote-tracking falls out of balance (Jira ships
+        unbalanced quotes occasionally), force a row boundary whenever a
+        line BEGINS with `<KnownType>,<KEY-N>,` regardless of the inQuote
+        state.
+*/
+const _JIRA_TYPES = ['Story', 'Bug', 'Task', 'Epic', 'Spike', 'Sub-task', 'Sub-Task', 'Subtask', 'Improvement', 'New Feature'];
+const _ROW_START_RE = new RegExp('^"?(' + _JIRA_TYPES.join('|') + '),[A-Z][A-Z0-9]*-\\d+,', 'i');
+
+function preprocessJiraCsv(text) {
+  if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
+
+  // Pass 1 — collapse newlines inside quoted regions to a space.
+  // Standard CSV grammar: `"` toggles quote state, `""` inside a quoted
+  // region is an escaped quote and does NOT toggle.
+  let flat = '';
+  let inQuote = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (c === '"') {
+      if (inQuote && text[i + 1] === '"') {       // escaped quote
+        flat += '""';
+        i++;
+      } else {
+        inQuote = !inQuote;
+        flat += '"';
+      }
+      continue;
+    }
+    if (inQuote && (c === '\n' || c === '\r')) {
+      if (c === '\r' && text[i + 1] === '\n') i++;
+      flat += ' ';
+      continue;
+    }
+    flat += c;
+  }
+
+  // Pass 2 — recovery against unbalanced quotes. If a line begins like
+  // a brand new row (KnownType,KEY-N,...), the previous quote state was
+  // wrong. Splice in a newline and reset.
+  const lines = flat.split('\n');
+  if (lines.length === 0) return flat;
+  const out = [lines[0].replace(/[;\r\s]+$/, '')];
+  for (let i = 1; i < lines.length; i++) {
+    // Normalize trailing junk (CR, semicolons, whitespace) BEFORE deciding
+    // whether the line is a new row or a continuation. Jira regularly
+    // appends `;\r` to ALL its rows for reasons known only to its export.
+    const line = lines[i].replace(/[;\r\s]+$/, '');
+    if (_ROW_START_RE.test(line) || _ROW_START_RE.test(line.replace(/^"+/, '"'))) {
+      out.push(line);
+    } else if (out.length) {
+      // Continuation — fold into the previous row with a space.
+      out[out.length - 1] += ' ' + line.replace(/^[;\s]+/, '');
+    }
+  }
+
+  // Pass 3 — unwrap whole-row outer-quote wrap. Now that we've stripped
+  // trailing punctuation, `endsWith('"')` is reliable.
+  for (let i = 1; i < out.length; i++) {
+    const l = out[i];
+    if (l.length >= 4 && l[0] === '"' && l[l.length - 1] === '"'
+        && _JIRA_TYPES.some(t => l.startsWith('"' + t + ','))) {
+      out[i] = l.slice(1, -1).replace(/""/g, '"');
+    }
+  }
+
+  return out.join('\n');
+}
+
+/* Split one cleaned single-line CSV row into fields. Lenient on
+   mismatched / stray quotes — never throws, never spans lines. */
+function _splitCsvLine(line) {
+  const fields = [];
+  let cur = '';
+  let inQuote = false;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (inQuote) {
+      if (c === '"' && line[i + 1] === '"') { cur += '"'; i++; }
+      else if (c === '"') { inQuote = false; }
+      else { cur += c; }
+    } else if (c === '"') {
+      inQuote = true;
+    } else if (c === ',') {
+      fields.push(cur);
+      cur = '';
+    } else {
+      cur += c;
+    }
+  }
+  fields.push(cur);
+  return fields.map(f => f.trim());
+}
+
+/* Realign a row to the expected header count by merging any
+   overflow cells back into the Description column.
+
+   Why: Jira sometimes exports Description fields with literal commas
+   that aren't enclosed in `"..."`. After our tolerant CSV split, such
+   a row has MORE cells than headers, and every trailing column (Fix
+   Version/s, Priority, Sprint) shifts right — so Fix Version ends up
+   holding a fragment of the description.
+
+   Strategy: assume the trailing columns are STABLE (short fixed values)
+   and the overflow happened in the longest free-text column we can
+   identify (Description, then Summary). Re-merge the overflow back
+   into that column. */
+function _alignRowToHeader(cells, fields, descIdx, summIdx) {
+  if (cells.length <= fields.length) {
+    while (cells.length < fields.length) cells.push('');
+    return cells;
+  }
+  const overflow = cells.length - fields.length;
+  const targetIdx = descIdx >= 0 ? descIdx : (summIdx >= 0 ? summIdx : fields.length - 4);
+  if (targetIdx < 0 || targetIdx >= fields.length) return cells.slice(0, fields.length);
+  // Merge cells[targetIdx .. targetIdx + overflow] back into cells[targetIdx].
+  const head = cells.slice(0, targetIdx);
+  const merged = cells.slice(targetIdx, targetIdx + overflow + 1).join(',');
+  const tail = cells.slice(targetIdx + overflow + 1);
+  return [...head, merged, ...tail];
+}
+
+/* Full Jira-CSV → JSON-ish row array using our own splitter (Papa Parse
+   bails on the malformed quotes that Jira ships). Assumes
+   preprocessJiraCsv has already collapsed multi-line cells. */
+function parseJiraCsv(text) {
+  const cleaned = preprocessJiraCsv(text);
+  const lines = cleaned.split('\n').map(l => l.replace(/[\r;]+$/, '').trim()).filter(Boolean);
+  if (lines.length < 2) return { data: [], fields: [] };
+  const rawFields = _splitCsvLine(lines[0]).map(normalizeHeader);
+  // Disambiguate repeated headers (Component/s, Labels) by suffix.
+  const seen = {};
+  const fields = rawFields.map(h => {
+    const n = seen[h] || 0;
+    seen[h] = n + 1;
+    return n === 0 ? h : `${h}__${n}`;
+  });
+  // Locate the column most likely to soak up overflow commas.
+  const descIdx = fields.findIndex(f => f === 'description' || f.startsWith('description'));
+  const summIdx = fields.findIndex(f => f === 'summary' || f.startsWith('summary'));
+  const data = [];
+  for (let i = 1; i < lines.length; i++) {
+    let values = _splitCsvLine(lines[i]);
+    values = _alignRowToHeader(values, fields, descIdx, summIdx);
+    const row = {};
+    fields.forEach((f, j) => { row[f] = values[j] !== undefined ? values[j] : ''; });
+    data.push(row);
+  }
+  return { data, fields };
+}
+
+function handleFile(file){
+  clearError();
+  STATE.fileName = file.name;
+
+  const ext = (file.name.split('.').pop() || '').toLowerCase();
+  if (ext === 'csv') {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const { data, fields } = parseJiraCsv(e.target.result);
+        if (!data || data.length === 0) {
+          showError('CSV file is empty or could not be parsed.');
+          return;
+        }
+        ingestRows(data, fields);
+      } catch (err) {
+        showError('CSV parse error: ' + (err.message || err));
+      }
+    };
+    reader.onerror = () => showError('Unable to read the file.');
+    reader.readAsText(file);
+  } else if (ext === 'xlsx' || ext === 'xls') {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
+        const sheet = wb.Sheets[wb.SheetNames[0]];
+        const data = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+        if (!data || data.length === 0) {
+          showError('XLSX sheet is empty.');
+          return;
+        }
+        const headers = Object.keys(data[0]);
+        ingestRows(data, headers);
+      } catch (err) {
+        showError('XLSX parse error: ' + err.message);
+      }
+    };
+    reader.onerror = () => showError('Unable to read the file.');
+    reader.readAsArrayBuffer(file);
+  } else {
+    showError('Unsupported file type. Use CSV or XLSX.');
+  }
+}
+
+function ingestRows(rawRows, headers){
+  // Validate critical columns
+  const required = ['key', 'status', 'type'];
+  const missing = required.filter(k => !findColumn(headers, COL_ALIASES[k]));
+  if (missing.length > 0) {
+    showError('Missing critical columns in your file: ' + missing.map(m => COL_ALIASES[m][0]).join(', '));
+    return;
+  }
+
+  STATE.rows = rawRows.map(r => normalizeRow(r, headers));
+  document.getElementById('dropZone').classList.add('hidden');
+  document.getElementById('dashboard').classList.remove('hidden');
+  document.getElementById('btnReplace').classList.remove('hidden');
+  document.getElementById('topbarFilename').textContent = STATE.fileName;
+  renderLoadedHeader();
+  loadPIFromStorage();
+  render();
+}
+
+function renderLoadedHeader(){
+  const epicCount = STATE.rows.filter(r => (r.type || '').toLowerCase() === 'epic').length;
+  const fxs = new Set();
+  STATE.rows.forEach(r => r.fixVersions.forEach(v => fxs.add(v)));
+  document.getElementById('loadedTitle').textContent = STATE.fileName;
+  document.getElementById('loadedMeta').textContent =
+    `${STATE.rows.length} tickets · ${epicCount} epics · ${fxs.size} fixversions`;
+}
+
+/* ── View switching ── */
+function setView(v){
+  STATE.view = v;
+  document.getElementById('viewGlobal').classList.toggle('active', v === 'global');
+  document.getElementById('viewSprint').classList.toggle('active', v === 'sprint');
+  document.getElementById('globalView').classList.toggle('hidden', v !== 'global');
+  document.getElementById('sprintView').classList.toggle('hidden', v !== 'sprint');
+  if (v === 'sprint') renderSprintView();
+}
+
+/* ── PI config / persistence ── */
+function loadPIFromStorage(){
+  try {
+    const raw = JSON.parse(localStorage.getItem(PI_STORAGE_KEY) || 'null');
+    if (raw && raw.start && raw.end) {
+      STATE.pi.start = raw.start;
+      STATE.pi.end = raw.end;
+      STATE.sprintMeta = raw.sprintMeta || {};
+    } else {
+      // Default: rolling 3-month PI
+      const now = new Date();
+      const start = new Date(now);
+      start.setMonth(start.getMonth() - 1);
+      const end = new Date(now);
+      end.setMonth(end.getMonth() + 2);
+      STATE.pi.start = isoDate(start);
+      STATE.pi.end = isoDate(end);
+      STATE.sprintMeta = {};
+    }
+  } catch { /* ignore */ }
+  document.getElementById('piStart').value = STATE.pi.start || '';
+  document.getElementById('piEnd').value = STATE.pi.end || '';
+}
+function savePIToStorage(){
+  localStorage.setItem(PI_STORAGE_KEY, JSON.stringify({
+    start: STATE.pi.start,
+    end: STATE.pi.end,
+    sprintMeta: STATE.sprintMeta,
+  }));
+}
+document.getElementById('piStart').addEventListener('change', e => {
+  STATE.pi.start = e.target.value; savePIToStorage(); renderSprintView(); updatePISummary();
+});
+document.getElementById('piEnd').addEventListener('change', e => {
+  STATE.pi.end = e.target.value; savePIToStorage(); renderSprintView(); updatePISummary();
+});
+
+function isoDate(d){ return d.toISOString().slice(0, 10); }
+function parseDate(s){ return s ? new Date(s + 'T00:00:00') : null; }
+function addDays(s, n){ const d = new Date(s + 'T00:00:00'); d.setDate(d.getDate() + n); return d; }
+function daysBetween(a, b){
+  const da = typeof a === 'string' ? new Date(a + 'T00:00:00') : a;
+  const db = typeof b === 'string' ? new Date(b + 'T00:00:00') : b;
+  return Math.round((db - da) / (1000*60*60*24));
+}
+function fmtS(d){
+  const dd = typeof d === 'string' ? new Date(d + 'T00:00:00') : d;
+  return String(dd.getDate()).padStart(2,'0') + '/' + String(dd.getMonth()+1).padStart(2,'0');
+}
+
+/* Ported from sprintplanner.genSprints(): fixed 14d windows, label
+   "Sprint YYYY.Q.N", and per-sprint release toggle persisted in
+   STATE.sprintMeta. */
+function computeSprints(){
+  if (!STATE.pi.start || !STATE.pi.end) return [];
+  const total = daysBetween(STATE.pi.start, STATE.pi.end);
+  if (total < 14) return [];
+  const cnt = Math.floor(total / 14);
+  const startDate = new Date(STATE.pi.start + 'T00:00:00');
+  const yr = startDate.getFullYear();
+  const q = Math.floor(startDate.getMonth() / 3) + 1;
+  const sprints = [];
+  for (let i = 0; i < cnt; i++) {
+    const id = 's' + (i + 1);
+    const sStart = addDays(STATE.pi.start, i * 14);
+    const sEnd = addDays(STATE.pi.start, (i + 1) * 14 - 1);
+    const meta = STATE.sprintMeta[id] || {};
+    sprints.push({
+      id,
+      number: i + 1,
+      label: `Sprint ${yr}.${q}.${i+1}`,
+      start: sStart,
+      end: sEnd,
+      hasRelease: meta.hasRelease === true,
+      releaseDate: meta.releaseDate || '',
+    });
+  }
+  return sprints;
+}
+
+function currentSprintId(sprints){
+  const now = new Date();
+  for (const s of sprints) {
+    if (now >= s.start && now <= s.end) return s.id;
+  }
+  return null;
+}
+
+/* Toggle "this sprint is a release sprint" and edit its release date. */
+function toggleSprintRelease(sprintId){
+  const meta = STATE.sprintMeta[sprintId] || {};
+  if (meta.hasRelease) {
+    delete STATE.sprintMeta[sprintId];
+  } else {
+    const sprints = computeSprints();
+    const s = sprints.find(x => x.id === sprintId);
+    STATE.sprintMeta[sprintId] = { hasRelease: true, releaseDate: s ? isoDate(s.end) : '' };
+  }
+  savePIToStorage();
+  renderSprintView();
+}
+function setSprintReleaseDate(sprintId, isoStr){
+  const meta = STATE.sprintMeta[sprintId] || { hasRelease: true };
+  meta.hasRelease = true;
+  meta.releaseDate = isoStr;
+  STATE.sprintMeta[sprintId] = meta;
+  savePIToStorage();
+  renderSprintView();
+}
+
+/* Ported from sprintplanner.parseFixMonth() — extracts {month, year} from
+   strings like "Monthly Release April 2026" or "April 2026 Release". */
+const MONTHS_FR = ['janvier','fevrier','mars','avril','mai','juin','juillet','aout','septembre','octobre','novembre','decembre'];
+const MONTHS_EN = ['january','february','march','april','may','june','july','august','september','october','november','december'];
+function parseFixMonth(fix){
+  if (!fix) return null;
+  const s = fix.toLowerCase()
+    .normalize('NFD').replace(/[̀-ͯ]/g, ''); // strip accents
+  let month = -1, year = -1;
+  for (let i = 0; i < 12; i++) {
+    if (s.includes(MONTHS_EN[i]) || s.includes(MONTHS_FR[i])) { month = i; break; }
+  }
+  const yr = s.match(/\b(20\d{2})\b/);
+  if (yr) year = parseInt(yr[1], 10);
+  if (month < 0 || year < 0) return null;
+  return { month, year };
+}
+
+function autoAssignFixVersions(){
+  const sprints = computeSprints();
+  const fxs = new Set();
+  STATE.rows.forEach(r => r.fixVersions.forEach(v => fxs.add(v)));
+  let matched = 0;
+  fxs.forEach(fx => {
+    if (STATE.fxToSprint[fx]) return; // respect manual override
+    const m = parseFixMonth(fx);
+    if (!m) return;
+    const target = sprints.find(s => {
+      if (!s.hasRelease || !s.releaseDate) return false;
+      const d = new Date(s.releaseDate + 'T00:00:00');
+      return d.getMonth() === m.month && d.getFullYear() === m.year;
+    });
+    if (target) { STATE.fxToSprint[fx] = target.id; matched++; }
+  });
+  return matched;
+}
+
+function updatePISummary(){
+  const sprints = computeSprints();
+  const pi = STATE.pi;
+  if (!pi.start || !pi.end || sprints.length === 0) {
+    document.getElementById('piSummary').classList.add('hidden');
+    return;
+  }
+  const fmt = (s) => new Date(s).toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' });
+  document.getElementById('piSummary').textContent =
+    `PI: ${fmt(pi.start)} → ${fmt(pi.end)} · ${sprints.length} sprints`;
+  document.getElementById('piSummary').classList.remove('hidden');
+}
+
+/* ── Rendering helpers ── */
+function el(tag, props = {}, children = []){
+  const e = document.createElement(tag);
+  Object.entries(props).forEach(([k, v]) => {
+    if (k === 'class') e.className = v;
+    else if (k === 'text') e.textContent = v;
+    else if (k === 'html') e.innerHTML = v;
+    else if (k.startsWith('on') && typeof v === 'function') e.addEventListener(k.slice(2).toLowerCase(), v);
+    else e.setAttribute(k, v);
+  });
+  (Array.isArray(children) ? children : [children]).forEach(c => {
+    if (c == null) return;
+    e.appendChild(typeof c === 'string' ? document.createTextNode(c) : c);
+  });
+  return e;
+}
+
+function barRow(label, value, max, colorClass, extraClass){
+  const pct = max > 0 ? Math.min(100, (value/max)*100) : 0;
+  return el('div', { class: `bar-row ${colorClass} ${extraClass || ''}` }, [
+    el('div', { class: 'bar-label', text: label, title: label }),
+    el('div', { class: 'bar-value', text: String(value) }),
+    el('div', { class: 'bar-track' }, [
+      el('div', { class: 'bar-fill', style: `width:${pct}%` }),
+    ]),
+  ]);
+}
+
+function aggregate(rows, keyFn){
+  const map = new Map();
+  rows.forEach(r => {
+    const ks = keyFn(r);
+    (Array.isArray(ks) ? ks : [ks]).forEach(k => {
+      map.set(k, (map.get(k) || 0) + 1);
+    });
+  });
+  return [...map.entries()].sort((a, b) => b[1] - a[1]);
+}
+
+/* ── Global view rendering ── */
+function render(){
+  if (STATE.rows.length === 0) return;
+
+  const allRows = STATE.rows;
+  const nonEpic = allRows.filter(r => (r.type || '').toLowerCase() !== 'epic');
+  const epicRows = allRows.filter(r => (r.type || '').toLowerCase() === 'epic');
+
+  // Progress
+  const doneCount = nonEpic.filter(r => isDone(r.status)).length;
+  const total = nonEpic.length;
+  const pct = total > 0 ? Math.round((doneCount/total)*100) : 0;
+  document.getElementById('progressFill').style.width = pct + '%';
+  document.getElementById('progressPct').textContent = pct + '%';
+  document.getElementById('progressRatio').textContent = `${doneCount} / ${total} done`;
+  document.getElementById('progressTotal').textContent = `${total} tickets (epics excluded)`;
+
+  // Business line
+  const blAgg = aggregate(nonEpic, r => businessLine(r));
+  const blMax = blAgg.length > 0 ? blAgg[0][1] : 1;
+  const blColors = { 'AOA':'bar-purple', 'PB':'bar-purple', 'Compliance AML':'bar-green', 'Compliance MIFID':'bar-green', 'Compliance':'bar-green', 'IT':'bar-gray', 'OneFlow':'bar-blue', 'Client Center':'bar-gray', 'Other':'bar-gray' };
+  const blContainer = document.getElementById('blBars');
+  blContainer.innerHTML = '';
+  blAgg.forEach(([k, v]) => blContainer.appendChild(barRow(k, v, blMax, blColors[k] || 'bar-blue')));
+  document.getElementById('blTotal').textContent = `${total} total`;
+
+  // Analyst
+  const anaAgg = aggregate(nonEpic, r => r.assignee);
+  const anaMax = anaAgg.length > 0 ? anaAgg[0][1] : 1;
+  const anaContainer = document.getElementById('anaBars');
+  anaContainer.innerHTML = '';
+  anaAgg.slice(0, 10).forEach(([k, v]) => anaContainer.appendChild(barRow(k, v, anaMax, 'bar-blue')));
+  document.getElementById('anaTotal').textContent = `${anaAgg.length} assignees`;
+
+  // FixVersion
+  const fxAgg = aggregate(nonEpic, r => r.fixVersions.length > 0 ? r.fixVersions : null);
+  const noFx = nonEpic.filter(r => r.fixVersions.length === 0).length;
+  const fxMax = Math.max(...fxAgg.map(x => x[1]), noFx, 1);
+  const fxContainer = document.getElementById('relBars');
+  fxContainer.innerHTML = '';
+  fxAgg.forEach(([k, v]) => fxContainer.appendChild(barRow(k, v, fxMax, 'bar-amber')));
+  if (noFx > 0) {
+    fxContainer.appendChild(el('div', { class: 'warn-divider' }));
+    fxContainer.appendChild(barRow('⚠ No FixVersion', noFx, fxMax, '', 'warn'));
+    fxContainer.appendChild(el('div', { class: 'warn-note', text: 'Tickets not assigned to a release · to triage' }));
+  }
+  document.getElementById('relTotal').textContent = `${fxAgg.length} releases`;
+
+  // Quick wins
+  const qw = nonEpic.filter(r => r.labels.some(l => l.toLowerCase() === 'qw')).length;
+  document.getElementById('quickWinValue').textContent = qw;
+  document.getElementById('quickWinPct').textContent =
+    total > 0 ? `${Math.round((qw/total)*100)}% of total backlog` : '0% of total backlog';
+
+  // Status breakdown
+  const done = nonEpic.filter(r => isDone(r.status)).length;
+  const inProg = nonEpic.filter(r => isInProg(r.status)).length;
+  const todo = nonEpic.filter(r => isTodo(r.status)).length;
+  const statusList = document.getElementById('statusList');
+  statusList.innerHTML = '';
+  [['Done', done], ['In progress', inProg], ['To do', todo]].forEach(([lbl, val]) => {
+    statusList.appendChild(el('div', { class: 'status-row' }, [
+      el('span', { class: 'status-label', text: lbl }),
+      el('span', { class: 'status-count', text: String(val) }),
+    ]));
+  });
+  if (epicRows.length > 0) {
+    statusList.appendChild(el('div', { class: 'status-row muted' }, [
+      el('span', { class: 'status-label', text: 'Epics (excluded)' }),
+      el('span', { class: 'status-count', text: String(epicRows.length) }),
+    ]));
+  }
+
+  updatePISummary();
+}
+
+/* ── Sprint view rendering ── */
+function renderSprintView(){
+  updatePISummary();
+  const sprints = computeSprints();
+
+  // Timeline pills (with release marker)
+  const timeline = document.getElementById('sprintTimeline');
+  timeline.innerHTML = '';
+  const cur = currentSprintId(sprints);
+  document.getElementById('sprintCount').textContent = `${sprints.length} sprints`;
+  sprints.forEach(s => {
+    const cls = 'sprint-pill' + (s.id === cur ? ' current' : '') + (s.hasRelease ? ' release' : '');
+    const pill = el('div', { class: cls, title: `${fmtS(s.start)} → ${fmtS(s.end)}${s.hasRelease ? ' · release ' + (s.releaseDate ? fmtS(s.releaseDate) : '?') : ''}` }, [
+      el('div', { text: 'S' + s.number, style: 'font-weight:600' }),
+      el('div', { style: 'font-size:9px;opacity:.7;margin-top:2px', text: `${fmtS(s.start)}–${fmtS(s.end)}` }),
+      s.hasRelease ? el('div', { style: 'font-size:9px;color:#fbbf24;margin-top:3px;font-weight:600', text: '⬤ REL' }) : null,
+    ]);
+    timeline.appendChild(pill);
+  });
+
+  // Sprint config (release toggle + release date per sprint)
+  const cfg = document.getElementById('sprintConfig');
+  cfg.innerHTML = '';
+  if (sprints.length > 0) {
+    cfg.appendChild(el('div', { class: 'sprint-config-label', text: 'Mark sprints that close a release — auto-assign uses release months to match FixVersions like "Monthly Release April 2026".' }));
+    const table = el('div', { class: 'sprint-config-table' });
+    sprints.forEach(s => {
+      const row = el('div', { class: 'sprint-config-row' + (s.hasRelease ? ' has-release' : '') });
+      row.appendChild(el('div', { class: 'scr-num', text: 'S' + s.number }));
+      row.appendChild(el('div', { class: 'scr-label' }, [
+        el('div', { class: 'scr-title', text: s.label }),
+        el('div', { class: 'scr-dates', text: `${fmtS(s.start)} → ${fmtS(s.end)}` }),
+      ]));
+      const tog = el('button', {
+        class: 'rel-toggle' + (s.hasRelease ? ' active' : ''),
+        onclick: () => toggleSprintRelease(s.id),
+      }, [s.hasRelease ? '✓ Release' : '+ Mark release']);
+      row.appendChild(tog);
+      if (s.hasRelease) {
+        const dateInp = el('input', { type: 'date', value: s.releaseDate || isoDate(s.end), class: 'rel-date' });
+        dateInp.addEventListener('change', e => setSprintReleaseDate(s.id, e.target.value));
+        row.appendChild(dateInp);
+      } else {
+        row.appendChild(el('div', {}));
+      }
+      table.appendChild(row);
+    });
+    cfg.appendChild(table);
+  }
+
+  // FixVersion → Sprint mapping
+  const fxs = new Set();
+  STATE.rows.forEach(r => r.fixVersions.forEach(v => fxs.add(v)));
+  const mappingEl = document.getElementById('piMapping');
+  mappingEl.innerHTML = '';
+  if (sprints.length > 0 && fxs.size > 0) {
+    const header = el('div', { class: 'fx-map-header' }, [
+      el('span', { text: 'FixVersion → Sprint mapping (not persisted, set each session)' }),
+      el('button', { class: 'btn', style: 'padding:5px 10px;font-size:11px', onclick: () => {
+        const n = autoAssignFixVersions();
+        renderSprintView();
+        toast(n > 0 ? `Auto-assigned ${n} FixVersion${n>1?'s':''}` : 'No matches — make sure release dates are set');
+      } }, [
+        el('span', { text: '✨ Auto-assign' }),
+      ]),
+    ]);
+    document.getElementById('piMappingRow').innerHTML = '';
+    document.getElementById('piMappingRow').appendChild(header);
+    [...fxs].sort().forEach(fx => {
+      const row = el('div', { class: 'bar-row', style: 'grid-template-columns:1fr 160px;align-items:center' });
+      row.appendChild(el('div', { class: 'bar-label', text: fx }));
+      const sel = el('select');
+      sel.appendChild(el('option', { value: '', text: '— no sprint —' }));
+      sprints.forEach(s => {
+        const opt = el('option', { value: s.id, text: `S${s.number} · ${s.label}` });
+        if (STATE.fxToSprint[fx] === s.id) opt.selected = true;
+        sel.appendChild(opt);
+      });
+      sel.style.cssText = 'background:var(--bg);border:1px solid var(--border2);border-radius:6px;padding:5px 8px;color:var(--text);font-size:12px;font-family:inherit;outline:none';
+      sel.addEventListener('change', () => {
+        const v = sel.value;
+        if (v) STATE.fxToSprint[fx] = v;
+        else delete STATE.fxToSprint[fx];
+        renderSprintEpics(sprints);
+      });
+      row.appendChild(sel);
+      mappingEl.appendChild(row);
+    });
+  } else {
+    document.getElementById('piMappingRow').textContent = '';
+  }
+
+  renderSprintEpics(sprints);
+}
+
+/* Build a uniform "augmented epic" object from a row + its stories. Used by
+   both the list view and the planner view. */
+function buildEpicViews(sprints){
+  const allRows = STATE.rows;
+  const epics = allRows.filter(r => (r.type || '').toLowerCase() === 'epic');
+  const storiesByEpic = new Map();
+  allRows.filter(r => (r.type || '').toLowerCase() !== 'epic').forEach(s => {
+    const ek = s.epicLink || s.epicName;
+    if (!ek) return;
+    if (!storiesByEpic.has(ek)) storiesByEpic.set(ek, []);
+    storiesByEpic.get(ek).push(s);
+  });
+  const sprintNumberById = new Map(sprints.map(s => [s.id, s.number]));
+  return epics.map((ep, i) => {
+    const stories = storiesByEpic.get(ep.key) || storiesByEpic.get(ep.summary) || [];
+    const total = stories.length;
+    const done = stories.filter(s => isDone(s.status)).length;
+    const inProg = stories.filter(s => isInProg(s.status)).length;
+    const pct = total > 0 ? Math.round((done/total)*100) : 0;
+    let bandClass = 'epic-low';
+    if (pct >= 90) bandClass = 'epic-success';
+    else if (pct >= 50) bandClass = 'epic-info';
+    else if (pct >= 25) bandClass = 'epic-warn';
+    // Derive lifecycle status (planner-style): completed / ongoing / todo
+    let lifeStatus = 'todo';
+    if (total > 0 && done === total) lifeStatus = 'completed';
+    else if (inProg > 0 || done > 0) lifeStatus = 'ongoing';
+    // Sprint IDs from FixVersions
+    const sprintIds = [...new Set(ep.fixVersions.map(fx => STATE.fxToSprint[fx]).filter(Boolean))];
+    const sprintNumbers = sprintIds.map(id => sprintNumberById.get(id)).filter(n => n).sort((a,b) => a-b);
+    return {
+      raw: ep,
+      number: i + 1,
+      key: ep.key,
+      name: ep.summary || ep.key,
+      bl: businessLine(ep),
+      stories,
+      total, done, inProg, pct,
+      bandClass, lifeStatus,
+      sprintIds, sprintNumbers,
+    };
+  });
+}
+
+function renderSprintEpics(sprints){
+  const epicData = buildEpicViews(sprints);
+  document.getElementById('epicCount').textContent = `${epicData.length} epics`;
+
+  // Reflect the active toggle button state
+  document.getElementById('epicViewList').classList.toggle('active', STATE.epicView === 'list');
+  document.getElementById('epicViewPlanner').classList.toggle('active', STATE.epicView === 'planner');
+  document.getElementById('epicList').classList.toggle('hidden', STATE.epicView !== 'list');
+  document.getElementById('epicPlanner').classList.toggle('hidden', STATE.epicView !== 'planner');
+
+  // ── List view ──
+  const list = document.getElementById('epicList');
+  list.innerHTML = '';
+  if (epicData.length === 0) {
+    list.appendChild(el('div', { class: 'status-row muted' }, [
+      el('span', { class: 'status-label', text: 'No epics found in this export.' }),
+      el('span', { class: 'status-count', text: '0' }),
+    ]));
+  } else {
+    epicData.forEach(ep => {
+      const epicSprintsStr = ep.sprintNumbers.length ? ep.sprintNumbers.map(n => 'S'+n).join(', ') : '—';
+      const meta = el('div', { class: 'epic-meta' }, [
+        el('span', { text: 'Sprint(s): ' + epicSprintsStr }),
+        el('span', { text: 'BL: ' + ep.bl }),
+        el('span', { text: `${ep.total} stories` }),
+      ]);
+      const row = el('div', { class: `epic-row ${ep.bandClass}` }, [
+        el('div', {}, [
+          el('div', { class: 'epic-name', text: ep.name }),
+          meta,
+        ]),
+        el('div', { class: 'epic-progress-wrap' }, [
+          el('div', { class: 'epic-progress-bar' }, [
+            el('div', { class: 'epic-progress-fill', style: `width:${ep.pct}%` }),
+          ]),
+          el('div', { class: 'epic-progress-pct', text: ep.pct + '%' }),
+        ]),
+      ]);
+      list.appendChild(row);
+    });
+  }
+
+  // ── Planner view (columns per sprint) ──
+  renderPlannerView(sprints, epicData);
+}
+
+function renderPlannerView(sprints, epicData){
+  const plan = document.getElementById('epicPlanner');
+  plan.innerHTML = '';
+  if (sprints.length === 0) {
+    plan.appendChild(el('div', { class: 'status-row muted' }, [
+      el('span', { class: 'status-label', text: 'Define your PI dates above to build the planner view.' }),
+    ]));
+    return;
+  }
+  const cur = currentSprintId(sprints);
+  // Build a bucket for each sprint + an "unassigned" bucket
+  const buckets = {};
+  sprints.forEach(s => buckets[s.id] = []);
+  buckets['unassigned'] = [];
+  epicData.forEach(ep => {
+    if (ep.sprintIds.length === 0) {
+      buckets['unassigned'].push({ ep, full: true });
+    } else {
+      ep.sprintIds.forEach(sid => {
+        if (buckets[sid]) buckets[sid].push({ ep, full: ep.sprintIds.length === 1 });
+      });
+    }
+  });
+
+  const grid = el('div', { class: 'plan-grid' });
+  sprints.forEach(s => {
+    const col = el('div', { class: 'plan-col' + (s.id === cur ? ' current' : '') });
+    const head = el('div', { class: 'plan-sprint-head' + (s.hasRelease ? ' has-release' : '') });
+    head.appendChild(el('div', { class: 'psh-num', text: 'S' + s.number }));
+    head.appendChild(el('div', { class: 'psh-dates', text: `${fmtS(s.start)} → ${fmtS(s.end)}` }));
+    if (s.hasRelease) head.appendChild(el('div', { class: 'psh-rel', text: 'Release · ' + (s.releaseDate ? fmtS(s.releaseDate) : '?') }));
+    col.appendChild(head);
+    buckets[s.id].forEach(item => col.appendChild(plannerCard(item.ep)));
+    grid.appendChild(col);
+  });
+  plan.appendChild(grid);
+
+  // Unassigned epics shown at the bottom
+  if (buckets['unassigned'].length > 0) {
+    plan.appendChild(el('div', { class: 'plan-unassigned-label', text: 'Epics not yet assigned to a sprint' }));
+    const wrap = el('div', { class: 'plan-unassigned' });
+    buckets['unassigned'].forEach(item => wrap.appendChild(plannerCard(item.ep)));
+    plan.appendChild(wrap);
+  }
+}
+
+function plannerCard(ep){
+  const card = el('div', { class: `plan-card pc-${ep.lifeStatus}`, title: `${ep.name}\n${ep.total} stories · ${ep.pct}%` });
+  card.appendChild(el('div', { class: 'pc-pri', text: String(ep.number) }));
+  card.appendChild(el('div', { class: 'pc-title', text: ep.name.length > 40 ? ep.name.slice(0, 38) + '…' : ep.name }));
+  card.appendChild(el('span', { class: 'pc-key', text: ep.key || ep.bl }));
+  card.appendChild(el('div', { class: 'pc-progress' }, [
+    el('div', { class: 'pc-progress-bar' }, [
+      el('div', { class: 'pc-progress-fill', style: `width:${ep.pct}%` }),
+    ]),
+    el('div', { class: 'pc-progress-pct', text: ep.pct + '%' }),
+  ]));
+  return card;
+}
+
+function setEpicView(v){
+  STATE.epicView = v;
+  renderSprintView();
+}
+
+/* ── Dropdown ── */
+function toggleDropdown(id, e){
+  e && e.stopPropagation();
+  document.querySelectorAll('.dropdown.open').forEach(d => {
+    if (d.id !== id) d.classList.remove('open');
+  });
+  document.getElementById(id).classList.toggle('open');
+}
+document.addEventListener('click', e => {
+  if (!e.target.closest('.dropdown')) {
+    document.querySelectorAll('.dropdown.open').forEach(d => d.classList.remove('open'));
+  }
+});
+
+/* ── PPTX export — same slides as sprintplanner.html ── */
+function exportPPTX(){
+  if (typeof PptxGenJS === 'undefined') {
+    toast('PPTX library not loaded — check your network.', 'err');
+    return;
+  }
+  const sprints = computeSprints();
+  const epics = buildEpicViews(sprints);
+  if (epics.length === 0) { toast('No epics to export', 'err'); return; }
+
+  toast('Generating PPTX…');
+  try {
+    const pres = new PptxGenJS();
+    pres.layout = 'LAYOUT_WIDE'; // 13.333 x 7.5"
+    pres.author = 'LazyPO';
+    pres.title = 'Jira Dashboard';
+
+    const NAVY = '123269', WHITE = 'FFFFFF', GOLD = 'FFC000', GREEN = '70AD47', RED = 'FF0000', LIGHT = 'F2F2F2';
+    const statusColors = {
+      todo:      { bg: WHITE, text: NAVY  },
+      ongoing:   { bg: GOLD,  text: NAVY  },
+      completed: { bg: GREEN, text: WHITE },
+    };
+
+    /* Feature slides — 6 epics per slide, table layout */
+    const PER = 6;
+    for (let p = 0; p < Math.ceil(epics.length / PER); p++) {
+      const sl = pres.addSlide();
+      sl.addText('Features', { x: 0.5, y: 0.3, w: 12, h: 0.5, fontSize: 24, bold: true, color: NAVY, fontFace: 'Arial' });
+      const chunk = epics.slice(p * PER, (p + 1) * PER);
+      const head = [
+        { text: '#',             options: { bold: true, color: WHITE, fill: NAVY, align: 'center', valign: 'middle', fontFace: 'Arial' } },
+        { text: 'EPIC NAME',     options: { bold: true, color: WHITE, fill: NAVY, align: 'left',   valign: 'middle', fontFace: 'Arial' } },
+        { text: 'KEY',           options: { bold: true, color: WHITE, fill: NAVY, align: 'left',   valign: 'middle', fontFace: 'Arial' } },
+        { text: 'BUSINESS LINE', options: { bold: true, color: WHITE, fill: NAVY, align: 'left',   valign: 'middle', fontFace: 'Arial' } },
+        { text: 'STORIES',       options: { bold: true, color: WHITE, fill: NAVY, align: 'center', valign: 'middle', fontFace: 'Arial' } },
+        { text: 'PROGRESS',      options: { bold: true, color: WHITE, fill: NAVY, align: 'center', valign: 'middle', fontFace: 'Arial' } },
+      ];
+      const rows = [head];
+      chunk.forEach((ep, i) => {
+        const fill = i % 2 === 0 ? WHITE : LIGHT;
+        rows.push([
+          { text: String(ep.number),    options: { fill, align: 'center', valign: 'middle', fontFace: 'Arial' } },
+          { text: ep.name,              options: { fill, align: 'left',   valign: 'middle', fontFace: 'Arial' } },
+          { text: ep.key || '',         options: { fill, align: 'left',   valign: 'middle', fontFace: 'Arial', italic: true } },
+          { text: ep.bl,                options: { fill, align: 'left',   valign: 'middle', fontFace: 'Arial' } },
+          { text: `${ep.done}/${ep.total}`, options: { fill, align: 'center', valign: 'middle', fontFace: 'Arial' } },
+          { text: ep.pct + '%',         options: { fill, align: 'center', valign: 'middle', fontFace: 'Arial', bold: true,
+                                                    color: ep.lifeStatus === 'completed' ? GREEN : (ep.lifeStatus === 'ongoing' ? 'B45309' : '64748B') } },
+        ]);
+      });
+      sl.addTable(rows, {
+        x: 0.5, y: 1.0, w: 12.3, h: 5.5,
+        colW: [0.5, 4.5, 1.5, 2.4, 1.3, 2.1],
+        rowH: 0.55,
+        border: { type: 'solid', pt: 0.5, color: 'E2E8F0' },
+        fontSize: 10,
+      });
+      sl.addText(`Page ${p+1} / ${Math.ceil(epics.length/PER)}`, { x: 11.5, y: 7.0, w: 1.5, h: 0.3, fontSize: 9, color: '94A3B8', align: 'right', fontFace: 'Arial' });
+    }
+
+    /* Roadmap slide — sprint columns + epic cards */
+    if (sprints.length > 0) {
+      const sl = pres.addSlide();
+      sl.addText('Roadmap', { x: 0.5, y: 0.3, w: 12, h: 0.5, fontSize: 24, bold: true, color: NAVY, fontFace: 'Arial' });
+
+      const marginX = 0.5, marginY = 1.0;
+      const totalW = 12.3;
+      const headerH = 0.6;
+      const colW = totalW / sprints.length;
+      // Sprint headers
+      sprints.forEach((s, i) => {
+        const x = marginX + i * colW;
+        sl.addShape(pres.shapes.RECTANGLE, { x, y: marginY, w: colW - 0.05, h: headerH, fill: { color: s.hasRelease ? GOLD : NAVY }, line: { color: s.hasRelease ? GOLD : NAVY, width: 0 } });
+        sl.addText(`S${s.number}`, { x, y: marginY + 0.04, w: colW - 0.05, h: 0.3, fontSize: 13, bold: true, color: s.hasRelease ? NAVY : WHITE, align: 'center', fontFace: 'Arial' });
+        sl.addText(`${fmtS(s.start)} – ${fmtS(s.end)}`, { x, y: marginY + 0.32, w: colW - 0.05, h: 0.25, fontSize: 9, color: s.hasRelease ? NAVY : 'CBD5E1', align: 'center', fontFace: 'Arial' });
+        if (s.hasRelease) {
+          sl.addShape(pres.shapes.RECTANGLE, { x: x + colW - 0.85, y: marginY - 0.18, w: 0.8, h: 0.22, fill: { color: RED }, line: { color: RED, width: 0 } });
+          sl.addText('RELEASE', { x: x + colW - 0.85, y: marginY - 0.18, w: 0.8, h: 0.22, fontSize: 8, bold: true, color: WHITE, align: 'center', valign: 'middle', fontFace: 'Arial' });
+        }
+      });
+
+      // Epic cards within their sprint column
+      const cardY0 = marginY + headerH + 0.25;
+      const cardH = 0.65;
+      const cardGap = 0.12;
+      // Buckets indexed by sprint id
+      const buckets = {};
+      sprints.forEach(s => buckets[s.id] = []);
+      epics.forEach(ep => { ep.sprintIds.forEach(sid => { if (buckets[sid]) buckets[sid].push(ep); }); });
+
+      sprints.forEach((s, i) => {
+        const x = marginX + i * colW + 0.05;
+        const w = colW - 0.15;
+        buckets[s.id].slice(0, 8).forEach((ep, j) => {
+          const y = cardY0 + j * (cardH + cardGap);
+          const sc = statusColors[ep.lifeStatus] || statusColors.todo;
+          sl.addShape(pres.shapes.RECTANGLE, { x, y, w, h: cardH, fill: { color: sc.bg }, line: { color: 'CBD5E1', width: 0.5 } });
+          // Number circle (top-left)
+          sl.addShape(pres.shapes.OVAL, { x: x - 0.12, y: y - 0.12, w: 0.28, h: 0.28, fill: { color: WHITE }, line: { color: NAVY, width: 1 } });
+          sl.addText(String(ep.number), { x: x - 0.12, y: y - 0.12, w: 0.28, h: 0.28, fontSize: 9, bold: true, color: NAVY, align: 'center', valign: 'middle', fontFace: 'Arial' });
+          // Title
+          const title = ep.name.length > 35 ? ep.name.slice(0, 33) + '…' : ep.name;
+          sl.addText(title, { x: x + 0.18, y: y + 0.03, w: w - 0.2, h: 0.3, fontSize: 9, bold: true, color: sc.text, align: 'left', valign: 'top', fontFace: 'Arial' });
+          // Key + pct (bottom)
+          sl.addText(`${ep.key || ep.bl}  ·  ${ep.pct}%`, { x: x + 0.18, y: y + cardH - 0.28, w: w - 0.2, h: 0.22, fontSize: 7.5, italic: true, color: sc.text, align: 'left', valign: 'bottom', fontFace: 'Arial' });
+        });
+      });
+
+      // Legend bottom-right
+      const legY = 6.85;
+      let legX = 8.5;
+      [
+        { lbl: 'To do',     bg: WHITE,  text: NAVY },
+        { lbl: 'Ongoing',   bg: GOLD,   text: NAVY },
+        { lbl: 'Completed', bg: GREEN,  text: WHITE },
+      ].forEach(item => {
+        sl.addShape(pres.shapes.RECTANGLE, { x: legX, y: legY, w: 0.18, h: 0.18, fill: { color: item.bg }, line: { color: '94A3B8', width: 0.5 } });
+        sl.addText(item.lbl, { x: legX + 0.2, y: legY - 0.02, w: 1.3, h: 0.22, fontSize: 9, color: '475569', fontFace: 'Arial' });
+        legX += 1.5;
+      });
+    }
+
+    const now = new Date();
+    const pad = n => String(n).padStart(2, '0');
+    const ts = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}_${pad(now.getHours())}h${pad(now.getMinutes())}`;
+    pres.writeFile({ fileName: `jira_dashboard_${ts}.pptx` })
+      .then(() => toast('PPTX exported', 'ok'))
+      .catch(e => { console.warn('PPTX error', e); toast('PPTX export failed', 'err'); });
+  } catch (e) {
+    console.warn('PPTX exception', e);
+    toast('PPTX export failed: ' + (e.message || e), 'err');
+  }
+}
+
+/* ── PDF export ── */
+function exportPDF(){
+  if (typeof html2pdf === 'undefined') {
+    toast('PDF library not loaded — check your network.', 'err');
+    return;
+  }
+  const root = document.getElementById('dashboard');
+  const now = new Date();
+  const pad = n => String(n).padStart(2, '0');
+  const ts = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}_${pad(now.getHours())}h${pad(now.getMinutes())}`;
+  const filename = `jira_dashboard_${ts}.pdf`;
+  toast('Generating PDF…');
+  html2pdf().set({
+    margin: 10,
+    filename,
+    html2canvas: { scale: 2, useCORS: true, backgroundColor: '#0c0c0c' },
+    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+    pagebreak: { mode: ['css', 'legacy'] },
+  }).from(root).save().then(() => toast('PDF exported', 'ok'))
+    .catch(e => { console.warn('PDF export error', e); toast('PDF export failed', 'err'); });
+}
+
+/* ── HTML export ── */
+function exportHTMLDownload(){
+  const html = buildExportHTML();
+  const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'jira_dashboard.html';
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 200);
+  document.getElementById('exportHtmlDropdown').classList.remove('open');
+  toast('HTML file downloaded', 'ok');
+}
+function exportHTMLCopy(){
+  const html = buildExportHTML();
+  navigator.clipboard.writeText(html).then(() => {
+    document.getElementById('exportHtmlDropdown').classList.remove('open');
+    toast('✓ HTML code copied', 'ok');
+  }).catch(() => toast('Copy failed', 'err'));
+}
+
+function buildExportHTML(){
+  // Snapshot the page WITHOUT current Jira data — purely the empty app
+  // ready to receive a CSV/XLSX. The exported file must be openable by
+  // double-click from the filesystem (file://), with NO LazyPO/sidebar/
+  // auth/supabase dependencies, NO action buttons that don't apply
+  // standalone, and a clean topbar.
+  const doc = document.documentElement.cloneNode(true);
+
+  // 1. Strip all script dependencies on the LazyPO host environment.
+  //    auth.js / auth-gate.js / popup.js / sidebar.js / focusfm.js /
+  //    supabase-js / demo.js — none of these make sense offline.
+  doc.querySelectorAll(
+    'script[src*="auth"], script[src*="popup"], script[src*="sidebar"],' +
+    ' script[src*="focusfm"], script[src*="supabase"], script[src*="demo"]'
+  ).forEach(s => s.remove());
+  // Marker built at RUNTIME so the search string is never written
+  // contiguously in this function's source — otherwise the main inline
+  // script (which contains this very function definition) would match
+  // its own marker and self-strip, leaving the export with no JS at all.
+  const _gateMarker = 'LazyAuth.' + 'requireModule(';
+  doc.querySelectorAll('script').forEach(s => {
+    if (s.textContent && s.textContent.includes(_gateMarker)) s.remove();
+  });
+
+  // 2. Strip every sidebar element (sb-burger, sb-overlay, sb-nav,
+  //    sb-item, sb-icon, sb-label, sb-shell, sb-rail, sb-panel,
+  //    sb-backdrop, …). sidebar.js injects these at runtime; the live
+  //    DOM still has them when we clone.
+  doc.querySelectorAll('[class^="sb-"], [class*=" sb-"]').forEach(el => el.remove());
+
+  // 3. Strip the floating demo FAB if it's been injected.
+  doc.querySelectorAll('#_lazypo_demo_fab').forEach(el => el.remove());
+
+  // 4. Reset dashboard markup to its initial empty state.
+  const dash = doc.querySelector('#dashboard');
+  if (dash) dash.classList.add('hidden');
+  const drop = doc.querySelector('#dropZone');
+  if (drop) drop.classList.remove('hidden');
+  const tb = doc.querySelector('#topbarFilename');
+  if (tb) tb.textContent = '';
+
+  // 5. Strip the "Back to Jira" link (no hub to return to standalone)
+  //    and downgrade the logo anchor into a plain div so it doesn't try
+  //    to navigate anywhere.
+  doc.querySelectorAll('a.back-link').forEach(a => a.remove());
+  doc.querySelectorAll('a.logo-wrap').forEach(a => {
+    // doc here is documentElement (HTMLElement), not Document — use the
+    // live document.createElement for the replacement node.
+    const replacement = document.createElement('div');
+    replacement.className = a.className;
+    replacement.innerHTML = a.innerHTML;
+    replacement.style.cssText = (a.style.cssText || '') + ';cursor:default;text-decoration:none;color:inherit;';
+    a.parentNode.replaceChild(replacement, a);
+  });
+
+  // 6. Strip every action-bar export trigger that depends on the live
+  //    host page (Export HTML dropdown, Export PDF, Export PPTX, sync
+  //    status pill, status pill, PDF tip).
+  doc.querySelectorAll('#exportHtmlDropdown').forEach(el => el.remove());
+  doc.querySelectorAll('[onclick*="exportPDF"], [onclick*="exportPPTX"], [onclick*="exportHTML"]').forEach(el => el.remove());
+  doc.querySelectorAll('#syncStatus, #status, #pdfHint').forEach(el => el.remove());
+  // #btnReplace is referenced by the inline script (ingestRows) — we
+  // can't delete it without breaking the file pipeline. Hide it with
+  // inline CSS instead so the JS reference still resolves.
+  const replaceBtn = doc.querySelector('#btnReplace');
+  if (replaceBtn) replaceBtn.style.setProperty('display', 'none', 'important');
+
+  // 7. Inject a small "standalone" badge in the topbar so the user
+  //    knows this is the offline copy.
+  const topbar = doc.querySelector('.topbar');
+  if (topbar) {
+    const status = doc.querySelector('.topbar-status');
+    if (status) status.textContent = 'Standalone · offline mode';
+  }
+
+  return '<!DOCTYPE html>\n' + doc.outerHTML;
+}
+
+/* ── Toast ── */
+function toast(msg, kind){
+  const t = document.getElementById('toast');
+  t.className = 'toast' + (kind ? ' ' + kind : '');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+/* ── Demo mode (admin-only, gated by demo.js) ── */
+window.loadDemoData = function () {
+  // Deterministic-ish dataset matching the mockup totals
+  // (~184 tickets, 12 epics, 8 fixversions, 7 assignees)
+  const BL = [
+    { bl: 'AOA',              count: 48, component: 'AOA',              labels: [] },
+    { bl: 'PB',               count: 38, component: 'PB',               labels: [] },
+    { bl: 'Compliance AML',   count: 26, component: 'Compliance',       labels: ['AML'] },
+    { bl: 'Compliance MIFID', count: 20, component: 'Compliance',       labels: ['MIFID'] },
+    { bl: 'IT',               count: 22, component: 'IT',               labels: [] },
+    { bl: 'OneFlow',          count: 14, component: 'oneflow',          labels: [] },
+    { bl: 'Client Center',    count: 14, component: 'Client Center',    labels: [] },
+    { bl: 'Other',            count:  8, component: 'Risk Management',  labels: [] },
+  ];
+  const ASSIGNEES = [
+    ['M. Dupont', 38], ['L. Martin', 32], ['S. Goffin', 29],
+    ['P. Lambert', 24], ['A. Renard', 22], ['C. Vidal', 21], ['K. Owens', 18],
+  ];
+  const FX = [
+    ['Monthly Release October 2025',  34],
+    ['Monthly Release November 2025', 28],
+    ['Monthly Release December 2025', 31],
+    ['Monthly Release January 2026',  26],
+  ];
+  const EPICS = [
+    ['Login Initiative', 'AOA'], ['Onboarding Revamp', 'AOA'], ['KYC Refresh', 'Compliance AML'],
+    ['MIFID Reporting', 'Compliance MIFID'], ['PB Migration', 'PB'], ['Client Portal v2', 'Client Center'],
+    ['Infra Hardening', 'IT'], ['Search Overhaul', 'AOA'], ['Anti-Fraud', 'Compliance AML'],
+    ['OneFlow Automation', 'OneFlow'], ['Risk Dashboard', 'Other'], ['Mobile App', 'PB'],
+  ];
+  const QW_COUNT = 17;
+  const TOTAL_NON_EPIC = BL.reduce((s, b) => s + b.count, 0); // 184
+  // Status mix: 119 Done, 31 In progress, 22 To do (per mockup; total 172 + 12 epics)
+  // We have 184 non-epics in BL; rebalance to keep close to mockup ratios.
+  const targetDone = 119, targetInProg = 31; // rest = 'To Do' = TOTAL_NON_EPIC - 119 - 31 = 34
+  const statusPool = [
+    ...Array(targetDone).fill('Done'),
+    ...Array(targetInProg).fill('In Progress'),
+    ...Array(TOTAL_NON_EPIC - targetDone - targetInProg).fill('To Do'),
+  ];
+  // Assignee pool (multi-pick weighted by count, padded to TOTAL_NON_EPIC)
+  const assigneePool = [];
+  ASSIGNEES.forEach(([name, n]) => { for (let i = 0; i < n; i++) assigneePool.push(name); });
+  while (assigneePool.length < TOTAL_NON_EPIC) assigneePool.push('Unassigned');
+  // FX pool: 34+28+31+26 = 119 covered, 23 orphans (mockup), 42 others — distribute remaining
+  const fxPool = [];
+  FX.forEach(([fx, n]) => { for (let i = 0; i < n; i++) fxPool.push(fx); });
+  const noFxCount = 23;
+  for (let i = 0; i < noFxCount; i++) fxPool.push(''); // empty FX
+  let fxFillIdx = 0;
+  while (fxPool.length < TOTAL_NON_EPIC) { fxPool.push(FX[fxFillIdx % FX.length][0]); fxFillIdx++; }
+  // Shuffle so distribution looks natural
+  function shuffle(arr){ for (let i = arr.length - 1; i > 0; i--) { const j = Math.floor(Math.random()*(i+1)); [arr[i], arr[j]] = [arr[j], arr[i]]; } return arr; }
+  shuffle(statusPool); shuffle(assigneePool); shuffle(fxPool);
+
+  const rows = [];
+  let counter = 1;
+  // Generate non-epic tickets, distributed across business lines
+  let idx = 0;
+  BL.forEach(bucket => {
+    for (let i = 0; i < bucket.count; i++) {
+      const labels = bucket.labels.slice();
+      if (rows.filter(r => r.labels.includes('QW')).length < QW_COUNT && Math.random() < 0.12) labels.push('QW');
+      rows.push({
+        key: `DPNXT-${1000 + counter++}`,
+        type: 'Story',
+        summary: `${bucket.bl} story #${i+1}`,
+        status: statusPool[idx],
+        assignee: assigneePool[idx],
+        components: [bucket.component],
+        labels,
+        fixVersions: fxPool[idx] ? [fxPool[idx]] : [],
+        sprints: [],
+        epicLink: '',
+        epicName: '',
+      });
+      idx++;
+    }
+  });
+  // Ensure we hit exactly QW_COUNT
+  let currentQW = rows.filter(r => r.labels.includes('QW')).length;
+  for (const r of rows) {
+    if (currentQW >= QW_COUNT) break;
+    if (!r.labels.includes('QW')) { r.labels.push('QW'); currentQW++; }
+  }
+
+  // Attach stories to epics roughly proportionally
+  const epicKeys = [];
+  EPICS.forEach(([name, bl], i) => {
+    const ek = `DPNXT-${900 + i}`;
+    epicKeys.push(ek);
+    const bucket = BL.find(b => b.bl === bl) || BL[0];
+    rows.push({
+      key: ek,
+      type: 'Epic',
+      summary: name,
+      status: i < 4 ? 'Done' : (i < 8 ? 'In Progress' : 'To Do'),
+      assignee: ASSIGNEES[i % ASSIGNEES.length][0],
+      components: [bucket.component],
+      labels: bucket.labels.slice(),
+      fixVersions: [FX[i % FX.length][0]],
+      sprints: [],
+      epicLink: '',
+      epicName: '',
+    });
+  });
+  // Round-robin epic link on a portion of stories
+  rows.filter(r => r.type === 'Story').forEach((r, i) => {
+    if (i % 2 === 0) r.epicLink = epicKeys[i % epicKeys.length];
+  });
+
+  STATE.fileName = 'demo_jira_q4_2025.csv';
+  STATE.rows = rows;
+  document.getElementById('dropZone').classList.add('hidden');
+  document.getElementById('dashboard').classList.remove('hidden');
+  document.getElementById('btnReplace').classList.remove('hidden');
+  document.getElementById('topbarFilename').textContent = STATE.fileName + ' · DEMO';
+  renderLoadedHeader();
+  loadPIFromStorage();
+  render();
+};
+
+</script>
+
+<script src="popup.js"></script>
+<script src="sidebar.js"></script>
+<script src="supabase.min.js"></script>
+<script src="auth.js"></script>
+<script>document.addEventListener("DOMContentLoaded", function(){ LazyAuth.requireModule('jira'); });</script>
+<script src="demo.js"></script>
+<script src="focusfm.js"></script>
+</body>
+</html>

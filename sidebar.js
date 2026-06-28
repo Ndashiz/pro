@@ -39,8 +39,8 @@
       id: 'jira',
       icon: '🎫',
       label: 'Jira',
-      url: 'jirarepo.html',
-      desc: 'Create and manage your Jira queries without leaving your workflow.'
+      url: 'jira.html',
+      desc: 'Query Saver, Dashboard and File Cleaner for your Jira workflow.'
     },
     {
       id: 'livenote',
@@ -55,6 +55,13 @@
       label: 'Minute Hub',
       url: null,
       desc: 'Centralise all your meeting notes in one click.'
+    },
+    {
+      id: 'gifrepo',
+      icon: '🎞️',
+      label: 'GIF Repo',
+      url: 'gif_repo.html',
+      desc: 'Paste, label and copy your GIFs — sorted by usage.'
     },
     {
       id: 'quiz',
@@ -73,11 +80,20 @@
     },
     { divider: true },
     {
-      id: 'account',
-      icon: '👤',
-      label: 'My Account',
-      url: 'account.html',
-      desc: 'Manage your profile, avatar and password.'
+      id: 'feedback',
+      icon: '💡',
+      label: 'Feedback',
+      url: 'feedback.html',
+      desc: 'Suggest improvements, vote on ideas, follow what\'s coming next.'
+    },
+    { divider: true },
+    {
+      id: 'admin',
+      icon: '🛡️',
+      label: 'Admin',
+      url: 'admin.html',
+      adminOnly: true,
+      desc: 'Notifications, demandes d\'accès et gestion des utilisateurs.'
     },
     {
       id: 'docs',
@@ -89,6 +105,9 @@
       desc: 'Architecture technique, schémas ER et flux système — admins uniquement.'
     }
   ];
+
+  /* IDs des items qui sont des modules gateables (allowed_modules)         */
+  const GATED_MODULES = new Set(['scope','sprint','jira','livenote','minutehub','focusfm']);
 
   /* ═══════════════════════════════════════════════════
      ACTIVE PAGE DETECTION
@@ -335,15 +354,108 @@
     .sb-admin-only.sb-admin-visible .sb-item-link { color: #6b6b4a; }
     .sb-admin-only.sb-admin-visible:hover .sb-item-link { color: #fef3c7; }
     .sb-admin-only.sb-admin-visible:hover .sb-icon { background: rgba(251,191,36,.18); }
+
+    /* ── Locked module items (no access) ── */
+    .sb-item.sb-locked .sb-icon { opacity: 0.45; }
+    .sb-item.sb-locked .sb-item-link { color: #444; }
+    /* Pending requests : slightly less dimmed than locked, yellow icon */
+    .sb-item.sb-pending .sb-icon { opacity: 0.65; }
+    .sb-item.sb-pending .sb-item-link { color: #6a6a4a; }
+    /* Lock span is rendered for every gated module but hidden until the
+       sb-locked OR sb-pending class is applied. */
+    .sb-item .sb-lock { display: none; }
+    .sb-item.sb-locked .sb-lock,
+    .sb-item.sb-pending .sb-lock {
+      display: block;
+      position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
+      font-size: 11px; opacity: 0;
+      transition: opacity 0.18s ease;
+    }
+    .sb:hover .sb-item.sb-locked .sb-lock { opacity: 0.7; }
+    .sb:hover .sb-item.sb-pending .sb-lock { opacity: 0.95; }
+    .sb-item.sb-pending .sb-lock { color: #fbbf24; }
+
+    /* ── Account avatar slot (swaps emoji for photo when available) ── */
+    .sb-icon-avatar { position: relative; overflow: hidden; }
+    .sb-icon-avatar .sb-avatar-img {
+      position: absolute; inset: 0;
+      width: 100%; height: 100%; object-fit: cover;
+      border-radius: inherit;
+      display: none;
+    }
+    .sb-icon-avatar.has-photo .sb-avatar-img { display: block; }
+    .sb-icon-avatar.has-photo .sb-icon-fallback { display: none; }
+    .sb-icon-avatar.has-photo { background: transparent; }
+    .sb-item:hover .sb-icon-avatar.has-photo,
+    .sb-item.active .sb-icon-avatar.has-photo { background: transparent; }
+
+    /* ── Admin notif badge ── */
+    .sb-item .sb-notif-badge {
+      position: absolute; top: 4px; left: 28px;
+      min-width: 16px; height: 16px; padding: 0 5px;
+      border-radius: 8px; background: #ef4444; color: #fff;
+      font-size: 10px; font-weight: 700; line-height: 16px;
+      text-align: center; box-shadow: 0 0 0 2px #111111;
+      display: none;
+    }
+    .sb-item .sb-notif-badge.show { display: inline-block; }
   `;
   document.head.appendChild(styleEl);
 
-  /* Show admin-only items once auth.js resolves the profile */
+  /* Swap the "My Account" sidebar icon for the user's avatar photo.
+     Only flip to has-photo once the image loads — otherwise a broken URL
+     would leave a blank square instead of the 👤 fallback. */
+  function _applyAccountAvatar(avatarUrl) {
+    const slot = document.querySelector('[data-sb-id="account"] .sb-icon-avatar');
+    if (!slot) return;
+    const img = slot.querySelector('.sb-avatar-img');
+    if (!img) return;
+    if (!avatarUrl) {
+      slot.classList.remove('has-photo');
+      img.removeAttribute('src');
+      return;
+    }
+    img.onload  = () => slot.classList.add('has-photo');
+    img.onerror = () => { slot.classList.remove('has-photo'); img.removeAttribute('src'); };
+    img.src = avatarUrl;
+  }
+
+  /* Show admin-only items + handle module locks once profile resolves */
   document.addEventListener('lazypo:profile', function (e) {
-    if (!e.detail?.isAdmin) return;
-    document.querySelectorAll('.sb-admin-only').forEach(el => {
-      el.classList.add('sb-admin-visible');
+    const detail = e.detail || {};
+    if (detail.isAdmin) {
+      document.querySelectorAll('.sb-admin-only').forEach(el => {
+        el.classList.add('sb-admin-visible');
+      });
+    }
+    _applyAccountAvatar(detail.avatar);
+    const allowed = new Set(detail.allowedModules || ['quiz']);
+    const pending = new Set(detail.pendingModules || []);
+    document.querySelectorAll('[data-sb-id]').forEach(el => {
+      const id = el.getAttribute('data-sb-id');
+      if (!GATED_MODULES.has(id)) return;
+      const hasAccess = detail.isAdmin || allowed.has(id);
+      const isPending = !hasAccess && pending.has(id);
+      el.classList.toggle('sb-locked',  !hasAccess && !isPending);
+      el.classList.toggle('sb-pending', isPending);
+      const icon = el.querySelector('.sb-lock');
+      if (icon) icon.textContent = isPending ? '⏳' : '🔒';
     });
+  });
+
+  /* Admin notification count → red badge on Admin item */
+  document.addEventListener('lazypo:admin-notifs', function (e) {
+    const unread = e.detail?.unread || 0;
+    const adminItem = document.querySelector('[data-sb-id="admin"]');
+    if (!adminItem) return;
+    let badge = adminItem.querySelector('.sb-notif-badge');
+    if (!badge) {
+      badge = document.createElement('span');
+      badge.className = 'sb-notif-badge';
+      adminItem.querySelector('.sb-item-link')?.appendChild(badge);
+    }
+    badge.textContent = unread > 99 ? '99+' : String(unread);
+    badge.classList.toggle('show', unread > 0);
   });
 
   /* ═══════════════════════════════════════════════════
@@ -360,12 +472,23 @@
     const clickAttr   = !item.url
       ? `onclick="${item.onClick || `window.showUnavailablePopup && window.showUnavailablePopup('${item.label}')`}"`
       : '';
+    const lockSpan    = GATED_MODULES.has(item.id) ? '<span class="sb-lock">🔒</span>' : '';
+
+    // The account icon is a special slot: when the user has an avatar URL
+    // (broadcast via lazypo:profile), we swap the emoji for the photo.
+    const iconHtml = item.id === 'account'
+      ? `<div class="sb-icon sb-icon-avatar">
+           <img class="sb-avatar-img" alt="">
+           <span class="sb-icon-fallback">${item.icon}</span>
+         </div>`
+      : `<div class="sb-icon">${item.icon}</div>`;
 
     return `
       <div class="sb-item${active}${adminClass}" data-sb-id="${item.id}">
         <${tag} class="sb-item-link" ${hrefAttr} ${targetAttr} ${clickAttr}>
-          <div class="sb-icon">${item.icon}</div>
+          ${iconHtml}
           <span class="sb-label">${item.label}</span>
+          ${lockSpan}
         </${tag}>
         <div class="sb-desc">${item.desc}</div>
       </div>`;
@@ -400,6 +523,16 @@
   ═══════════════════════════════════════════════════ */
   document.body.insertAdjacentHTML('afterbegin', html);
 
+  /* Lazy-load the global feedback submission modal so the
+     "New request" sidebar entry works from any page. */
+  if (!document.querySelector('script[data-lazy-feedback]') && !window.LazyFeedback) {
+    const fbScript = document.createElement('script');
+    fbScript.src = 'feedback_modal.js';
+    fbScript.dataset.lazyFeedback = '1';
+    fbScript.async = false;
+    document.head.appendChild(fbScript);
+  }
+
   /* ═══════════════════════════════════════════════════
      MOBILE LOGIC
   ═══════════════════════════════════════════════════ */
@@ -422,7 +555,7 @@
   // Scripts that must NOT be re-executed on navigation (already live in memory)
   const SPA_SKIP = [
     'sidebar.js','auth.js','focusfm.js','session.js',
-    'countdown.js','popup.js','demo.js','apis.js',
+    'countdown.js','popup.js','demo.js','apis.js','feedback_modal.js',
     'supabase-js','three.r134','vanta.net',
   ];
 
@@ -439,6 +572,55 @@
       const a = item.querySelector('a[href]');
       item.classList.toggle('active', !!a && a.getAttribute('href') === curr);
     });
+  }
+
+  /**
+   * Wraps an inline script's body in an IIFE so its top-level `let` /
+   * `const` / `class` declarations stay local. This prevents
+   * "Can't create duplicate variable" SyntaxError when SPA-navigating
+   * back to a page (or to a page that shares variable names with the
+   * one we came from). Top-level `function` and `var` declarations are
+   * re-exposed on `window` afterwards so existing inline `onclick=`
+   * handlers keep working.
+   *
+   * The wrapper also monkey-patches `document.addEventListener` for the
+   * duration of the script so that any `DOMContentLoaded` (or `load`)
+   * listener registered by the page fires *immediately* — the real
+   * event has already been dispatched once at the original page load
+   * and won't fire again on SPA navigation, which would leave page-
+   * level state (e.g. `currentSession`) un-initialised.
+   */
+  function _wrapInlineForSpa(code) {
+    if (!code || !code.trim()) return code;
+    const fnMatches  = [...code.matchAll(/^[ \t]*(?:async[ \t]+)?function[ \t]+(\w+)/gm)];
+    const varMatches = [...code.matchAll(/^[ \t]*var[ \t]+(\w+)/gm)];
+    const names = [...new Set([...fnMatches, ...varMatches].map(m => m[1]))];
+    const exposeCode = names.length
+      ? '\n' + names.map(n => `try{window.${n}=${n};}catch(_){}`).join('\n')
+      : '';
+    return `(function(){
+  var _origAddDoc = document.addEventListener;
+  var _origAddWin = window.addEventListener;
+  function _patchedAdd(target, orig) {
+    return function(ev, cb, opts) {
+      if ((ev === 'DOMContentLoaded' || ev === 'load') && typeof cb === 'function') {
+        try { Promise.resolve().then(function(){ cb(new Event(ev)); }); }
+        catch(e) { console.error('[spa-init]', e); }
+        return;
+      }
+      return orig.call(target, ev, cb, opts);
+    };
+  }
+  document.addEventListener = _patchedAdd(document, _origAddDoc);
+  window.addEventListener   = _patchedAdd(window, _origAddWin);
+  try {
+${code}
+${exposeCode}
+  } finally {
+    document.addEventListener = _origAddDoc;
+    window.addEventListener   = _origAddWin;
+  }
+}).call(window);`;
   }
 
   async function _spaNavigate(url) {
@@ -465,6 +647,20 @@
         document.head.appendChild(cl);
       });
 
+      // Snapshot script srcs ALREADY LOADED in the live document BEFORE we
+      // swap the body. Scripts injected via innerHTML don't execute (browser
+      // security feature), but they DO appear in DOM queries — so without
+      // this snapshot the dup-check below would falsely match scripts we
+      // just pasted into the body and skip re-injecting them. That's how a
+      // navigation from a page without VANTA to a page using VANTA ended
+      // up running the inline `VANTA.NET(...)` call before three.js +
+      // vanta.min.js had been actually loaded.
+      const loadedSrcs = new Set(
+        Array.from(document.querySelectorAll('script[src]'))
+          .map(s => s.src)
+          .filter(Boolean)
+      );
+
       // Replace body content
       document.body.innerHTML = doc.body.innerHTML;
 
@@ -476,8 +672,11 @@
       doc.body.querySelectorAll('script').forEach(s => {
         if (s.src) {
           if (SPA_SKIP.some(m => s.src.includes(m))) return;
-          if (document.querySelector(`script[src="${s.src}"]`)) return;
-          tasks.push({ type: 'ext', src: s.src });
+          // Resolve relative srcs against the page URL so the snapshot
+          // (which holds absolute hrefs) compares correctly.
+          const abs = new URL(s.getAttribute('src'), url).href;
+          if (loadedSrcs.has(abs)) return;
+          tasks.push({ type: 'ext', src: abs });
         } else if (s.textContent.trim()) {
           tasks.push({ type: 'inline', code: s.textContent });
         }
@@ -489,7 +688,7 @@
           if (t.type === 'ext') {
             el.src = t.src; el.onload = res; el.onerror = res;
           } else {
-            el.textContent = t.code;
+            el.textContent = _wrapInlineForSpa(t.code);
           }
           document.body.appendChild(el);
           if (t.type === 'inline') res();
@@ -500,6 +699,23 @@
       window.scrollTo(0, 0);
       _updateActiveItem(url);
       closeSidebar();
+
+      // Re-broadcast cached auth events so page-level listeners (e.g.
+      // countdown.js, sidebar lock state, etc.) re-trigger their data
+      // loads. These events normally fire only once at initial page
+      // load and would otherwise be missed entirely on SPA navigation.
+      try {
+        if (window.LazyAuth?.__profile) {
+          document.dispatchEvent(new CustomEvent('lazypo:profile', {
+            detail: window.LazyAuth.__profile
+          }));
+        }
+        if (window.LazyAuth?.__adminUnread != null) {
+          document.dispatchEvent(new CustomEvent('lazypo:admin-notifs', {
+            detail: { unread: window.LazyAuth.__adminUnread }
+          }));
+        }
+      } catch (e) { console.error('[spa-rebroadcast]', e); }
 
     } catch (_) {
       // Fallback: restore elements + hard navigate

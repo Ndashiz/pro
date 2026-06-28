@@ -8,15 +8,16 @@
   if (p !== l) window.location.replace(l + window.location.search);
 </script>
 <meta charset="UTF-8">
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LiveNote — LazyPO</title>
-<link href="https://fonts.googleapis.com/css2?family=Permanent+Marker&family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="fonts.css">
 <!-- CodeMirror (HTML syntax highlighting) -->
-<link  href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/xml/xml.min.js"></script>
+<link  href="codemirror.min.css" rel="stylesheet">
+<script src="codemirror.min.js"></script>
+<script src="codemirror-xml.min.js"></script>
 <!-- Supabase -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase.min.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -556,6 +557,55 @@ let cursorBcTimer     = null; // throttle cursor broadcast
 const FILE_BUCKET = 'livenote-temp';
 const FILE_TTL_MS = 30000;
 
+/* ── Anonymisation des fichiers partagés ──
+   Les fichiers uploadés via LiveNote sont renommés avec un faux nom
+   de pizzeria bruxelloise (mix de noms réels + plausibles). Le but est
+   double : (1) camoufler le contenu sensible (un curieux voit "Menu"),
+   (2) anonymiser jusque dans Supabase Storage (le path stocké contient
+   aussi le faux nom — aucune trace du nom original nulle part). */
+const BRUSSELS_PIZZERIAS = [
+  'Da Mimmo', 'Mamma Roma', 'Pizzeria Otto', 'Il Pizzaiolo du Sablon',
+  'Bella Vita', 'Casa Mia', 'Trattoria San Marco', 'Pizza Vesuvio',
+  'Da Vinci Ixelles', 'La Bottega del Pizzaiolo', 'Pizzeria Roma',
+  'Il Forno di Châtelain', 'Pizza Mamma Mia', 'Trattoria Sicilia',
+  'La Capricciosa', 'Pizza Da Luigi', 'Capri Bleu', 'Il Vesuvio',
+  'Pizzeria Sorrento', 'La Margherita Bleue', 'Pizza Bella Saint-Gilles',
+  'Da Gennaro', 'Le Petit Italien', 'Pizzeria Otto Schaerbeek',
+  'La Voglia Matta', 'Pizzeria Tre Fratelli', 'La Pinsa', 'Bottega Italiana',
+  'Pizza Cara Mia', 'Il Brigante', 'Pizzeria La Famiglia', 'Mamma Lina',
+  'Pizza Da Carlo', 'La Notte Stellata', 'Pizzeria Da Salvatore',
+  'Trattoria del Porto', 'Pizza Toscana', 'Il Pirata Saint-Boniface',
+  'Pizza Genova', 'Da Tonino', 'Pizzeria del Vico', 'La Pasta e La Pizza',
+  'Pizza Caprese', 'Il Re del Pomodoro', 'Pizzeria Etna', 'Bella Napoli',
+  'Pizza Aragosta', 'Il Vagabondo', 'Pizzeria Quattro Stagioni', 'Da Beppe',
+  'La Bella Italia', 'Pizza Funghi Etterbeek', 'Pizzeria del Centro',
+  'Trattoria Bambino', 'Pizza al Taglio', 'Il Cuoco', 'Pizzeria Don Camillo',
+  'Mamma Pina', 'Pizza Margherita d\'Or', 'Da Gigi', 'Pizzeria L\'Angelo',
+  'Pizza Carbone Anderlecht', 'Il Sole d\'Italia', 'La Verace',
+  'Pizzeria Stella', 'Da Pippo', 'Pizza Diavola', 'Trattoria Romana',
+  'Pizzeria Brûle', 'La Pizza du Roi', 'Pizza Quattro Formaggi',
+  'Il Pizzaiolo di Forest', 'Pizzeria Capri', 'Da Vito',
+  'Pizza Tradizionale', 'Il Capo', 'Pizzeria L\'Italiana',
+  'La Pizza des Marolles', 'Pizza Calzone Uccle', 'Trattoria Antica',
+  'Pizzeria Buongiorno', 'Da Franco', 'Pizza Reine Jette', 'Il Vesuviano',
+  'Pizzeria Solo Pizza', 'La Tana Watermael', 'Pizza Romana',
+  'Il Pomodoro', 'Pizzeria Vecchia Milano', 'Da Sasà', 'Pizza Italian',
+  'Trattoria Mamma', 'Pizzeria Pavia', 'Pizza Aperitivo Boitsfort',
+  'Il Ragno Schaerbeek', 'Pizzeria Bambino', 'Pizza del Mare',
+  'La Cucina di Mamma', 'Pizzeria Capricciosa', 'Da Carmine',
+  'Pizzeria Racines', 'Pizza Cipriani'
+];
+
+function pickAnonymizedName(originalName) {
+  // Garde l'extension d'origine (sinon le fichier est inutilisable côté receveur)
+  const dotIdx = originalName.lastIndexOf('.');
+  const ext = (dotIdx > 0 && dotIdx < originalName.length - 1)
+    ? originalName.slice(dotIdx + 1).toLowerCase().replace(/[^a-z0-9]/g, '')
+    : 'bin';
+  const pizzeria = BRUSSELS_PIZZERIAS[Math.floor(Math.random() * BRUSSELS_PIZZERIAS.length)];
+  return `Menu - ${pizzeria}.${ext}`;
+}
+
 /* ── Helpers ── */
 function toast(msg, ms = 2500) {
   const el = document.getElementById('toast');
@@ -980,12 +1030,17 @@ function showFileCard(info, canRemove = false) {
       <span class="fc-ico">${fileIcon(info.type)}</span>
       <span class="fc-name" title="${esc(info.name)}">${esc(info.name)}</span>
       <span class="fc-size">${fmtSize(info.size)}</span>
+      <button class="btn-fc-remove" type="button" title="Supprimer maintenant" aria-label="Supprimer">✕</button>
     </div>
     <div class="fc-bar"><div class="fc-fill" style="width:100%"></div></div>
     <div class="fc-bot">
       <span class="fc-t">⏳ <span class="fc-cd">${Math.ceil(rem/1000)}s</span></span>
       <a class="btn-dl" href="${esc(info.url)}" target="_blank" download="${esc(info.name)}">⬇ Télécharger</a>
     </div>`;
+  // Wire up the manual close/delete button
+  card.querySelector('.btn-fc-remove').addEventListener('click', () => {
+    removeFile(info.path); // supprime du bucket + DB + UI + broadcast aux peers
+  });
   panel.prepend(card);
   // Animate bar
   const fill = card.querySelector('.fc-fill');
@@ -1084,14 +1139,17 @@ function disableDropZone() {
 
 async function uploadTempFile(file) {
   if (file.size > 50 * 1024 * 1024) { toast('Fichier trop lourd — max 50 MB'); return; }
-  toast(`Upload de ${file.name}…`);
-  const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+  // Génère un faux nom pizzeria — utilisé partout (path Supabase, nom affiché,
+  // attribut download). Aucune trace du nom original côté serveur ni UI.
+  const anonName = pickAnonymizedName(file.name);
+  const safeName = anonName.replace(/[^a-zA-Z0-9._-]/g, '_');
+  toast(`Upload de ${anonName}…`);
   const path = `${docShortId}/${Date.now()}-${safeName}`;
   const { error } = await sb.storage.from(FILE_BUCKET).upload(path, file, { upsert: true });
   if (error) { toast('Upload échoué : ' + error.message); return; }
   const { data: { publicUrl } } = sb.storage.from(FILE_BUCKET).getPublicUrl(path);
   const expiresAt = Date.now() + FILE_TTL_MS;
-  const info = { name: file.name, size: file.size, type: file.type, url: publicUrl, path, expiresAt };
+  const info = { name: anonName, size: file.size, type: file.type, url: publicUrl, path, expiresAt };
   // Persist to DB so late joiners see the file + countdown
   const { data: doc } = await sb.from('livenote_docs').select('shared_files').eq('short_id', docShortId).single();
   const existing = Array.isArray(doc?.shared_files) ? doc.shared_files : [];
@@ -1099,7 +1157,7 @@ async function uploadTempFile(file) {
   // Show locally + broadcast to connected peers
   showFileCard(info, false);
   channel?.send({ type: 'broadcast', event: 'file-share', payload: { uid: myUserId, ...info } });
-  toast(`${file.name} partagé — 30s pour télécharger`);
+  toast(`${anonName} partagé — ${Math.round(FILE_TTL_MS/1000)}s pour télécharger`);
 }
 
 async function removeFile(path) {
@@ -1142,7 +1200,7 @@ function setupDropZone() {
 ═══════════════════════════════════════════════ */
 document.addEventListener('DOMContentLoaded', async () => {
 
-  const session = await LazyAuth.requireAuthOrPopup();
+  const session = await LazyAuth.requireModule('livenote');
   if (!session) return;
   const user = session.user;
   const profile = await LazyAuth.getProfile(user.id);

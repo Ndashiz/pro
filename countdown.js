@@ -2,9 +2,8 @@
  * countdown.js — Composant Progress Bars / Countdown LazyPO
  *
  * Priorité de chargement :
- *  1. Supabase profiles.countdowns (si authentifié)
- *  2. projet.json  (fallback statique)
- *  3. FALLBACK_PROJECTS (données en dur)
+ *  1. FALLBACK_PROJECTS (rendu immédiat, données en dur)
+ *  2. Supabase profiles.countdowns (remplace dès que l'auth est prête)
  *
  * Migration Supabase (une fois) :
  *  ALTER TABLE public.profiles
@@ -103,11 +102,8 @@
      INIT
   ═══════════════════════════════════════════════════ */
 
-  // 1. Afficher le fallback immédiatement
-  fetch('projet.json')
-    .then(function(r) { if (!r.ok) throw new Error(); return r.json(); })
-    .then(function(data) { renderCountdown(data); })
-    .catch(function() { renderCountdown(FALLBACK_PROJECTS); });
+  // 1. Afficher le fallback hard-coded immédiatement (no network call)
+  renderCountdown(FALLBACK_PROJECTS);
 
   // 2. Remplacer par les données Supabase dès que l'auth est prête
   document.addEventListener('lazypo:profile', function() {

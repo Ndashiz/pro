@@ -2,16 +2,18 @@
 <html lang="en">
 <head>
 <script>if(location.protocol==="http:"&&location.hostname!=="localhost"&&location.hostname!=="127.0.0.1")location.replace("https:"+location.href.slice(5));</script>
+<script src="auth-gate.js"></script>
 <meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests">
 <script>
   const p = window.location.pathname, l = p.toLowerCase();
   if (p !== l) window.location.replace(l);
 </script>
 <meta charset="UTF-8">
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LiveNote — LazyPO</title>
-<link href="https://fonts.googleapis.com/css2?family=Permanent+Marker&family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="stylesheet" href="fonts.css">
+<script src="supabase.min.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -332,7 +334,7 @@ function joinDoc() {
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
-  const session = await LazyAuth.requireAuthOrPopup();
+  const session = await LazyAuth.requireModule('livenote');
   if (!session) return;
   await loadDocs(session.user.id);
   document.getElementById('btnNew').addEventListener('click', () => createDoc(session.user.id));

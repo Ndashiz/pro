@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<script>if(location.protocol==="http:"&&location.hostname!=="localhost"&&location.hostname!=="127.0.0.1")location.replace("https:"+location.href.slice(5));</script>
+<script src="auth-gate.js"></script>
+<meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests">
+<script>
+  const path = window.location.pathname;
+  const lower = path.toLowerCase();
+  if (path !== lower) window.location.replace(lower);
+</script>
+<meta charset="UTF-8">
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LazyPO — Admin</title>
+<link rel="stylesheet" href="fonts.css">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:       #0c0c0c;
+  --surface:  #161616;
+  --surface2: #1c1c1c;
+  --border:   #222222;
+  --border2:  #2a2a2a;
+  --accent:   #3b82f6;
+  --accent2:  #60a5fa;
+  --glow:     rgba(59,130,246,0.15);
+  --text:     #f0f0f0;
+  --muted:    #6b6b6b;
+  --danger:   #ef4444;
+  --success:  #22c55e;
+  --warning:  #f59e0b;
+  --r:        10px;
+}
+
+html, body { height: 100%; }
+body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); }
+
+.main { height: 100vh; overflow-y: auto; overflow-x: hidden; }
+.page-header {
+  padding: 40px 48px 24px;
+  display: flex; align-items: flex-end; justify-content: space-between;
+  border-bottom: 1px solid var(--border); margin-bottom: 32px;
+}
+.page-title {
+  font-family: 'DM Mono', monospace;
+  font-size: 11px; font-weight: 500; letter-spacing: 0.12em;
+  text-transform: uppercase; color: var(--muted); margin-bottom: 6px;
+}
+.page-heading { font-size: 24px; font-weight: 700; color: var(--text); }
+.page-body { padding: 0 48px 64px; max-width: 980px; }
+
+/* ── tabs ── */
+.tabs {
+  display: flex; gap: 4px; margin-bottom: 24px;
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 12px; padding: 4px;
+}
+.tab {
+  flex: 1; padding: 10px 14px; background: transparent; border: none;
+  font: 500 13px 'DM Sans', sans-serif; color: var(--muted);
+  border-radius: 8px; cursor: pointer; position: relative;
+  transition: background 0.15s, color 0.15s;
+}
+.tab:hover { color: var(--text); }
+.tab.active { background: var(--surface); color: var(--text); box-shadow: 0 1px 3px rgba(0,0,0,0.4); }
+.tab .tab-count {
+  display: inline-block; min-width: 18px; padding: 0 6px;
+  margin-left: 6px; height: 18px; line-height: 18px;
+  background: rgba(239,68,68,0.18); color: #fca5a5;
+  border-radius: 9px; font-size: 10px; font-weight: 700;
+}
+.tab.active .tab-count { background: rgba(59,130,246,0.18); color: var(--accent2); }
+
+.section {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 14px; padding: 24px 28px; margin-bottom: 20px;
+}
+.section h3 {
+  font-size: 14px; font-weight: 600; color: var(--text);
+  margin-bottom: 18px; padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.section h3 .h3-action {
+  font-size: 12px; font-weight: 500; color: var(--muted);
+  background: none; border: none; cursor: pointer;
+}
+.section h3 .h3-action:hover { color: var(--text); }
+
+.empty { padding: 28px; text-align: center; color: var(--muted); font-size: 13px; }
+
+/* ── notification rows ── */
+.notif-list, .req-list, .user-list {
+  display: flex; flex-direction: column; gap: 10px;
+}
+.notif {
+  display: flex; gap: 12px; align-items: flex-start;
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 10px; padding: 12px 14px;
+  transition: border-color 0.15s;
+}
+.notif.unread { border-color: rgba(59,130,246,0.3); }
+.notif-icon {
+  width: 32px; height: 32px; border-radius: 8px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(59,130,246,0.12); font-size: 16px;
+}
+.notif-icon.signup         { background: rgba(34,197,94,0.12); }
+.notif-icon.access_request { background: rgba(245,158,11,0.12); }
+.notif-body { flex: 1; min-width: 0; }
+.notif-title { font-size: 13px; font-weight: 600; color: var(--text); }
+.notif-text  { font-size: 12px; color: var(--muted); margin-top: 2px; word-break: break-word; }
+.notif-date  { font-size: 11px; color: #444; margin-top: 4px; font-family: 'DM Mono', monospace; }
+.notif-actions { flex-shrink: 0; display: flex; gap: 6px; align-items: center; }
+.btn-mark {
+  background: none; border: 1px solid var(--border2); color: var(--muted);
+  padding: 5px 10px; border-radius: 7px; font-size: 11px; cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+.btn-mark:hover { color: var(--text); border-color: #555; }
+
+/* ── access request rows ── */
+.req {
+  display: grid; grid-template-columns: 1fr auto;
+  gap: 14px; align-items: center;
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 10px; padding: 14px 16px;
+}
+.req-info { min-width: 0; }
+.req-row1 { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.req-email { font-size: 13px; font-weight: 600; color: var(--text); }
+.req-module-pill {
+  font-size: 11px; font-weight: 700; letter-spacing: 0.04em;
+  padding: 3px 10px; border-radius: 100px; text-transform: uppercase;
+  background: rgba(245,158,11,0.14); color: #fcd34d;
+  border: 1px solid rgba(251,191,36,0.25);
+}
+.req-message {
+  font-size: 12px; color: var(--muted); margin-top: 6px;
+  font-style: italic; word-break: break-word;
+}
+.req-date { font-size: 11px; color: #444; margin-top: 4px; font-family: 'DM Mono', monospace; }
+.req-actions { display: flex; gap: 8px; flex-shrink: 0; }
+.btn-approve {
+  background: var(--success); color: #052e16; border: none;
+  padding: 8px 14px; border-radius: 8px;
+  font: 600 12px 'DM Sans', sans-serif; cursor: pointer;
+  transition: background 0.15s;
+}
+.btn-approve:hover { background: #16a34a; color: #fff; }
+.btn-reject {
+  background: transparent; color: var(--danger);
+  border: 1px solid rgba(239,68,68,0.3);
+  padding: 8px 14px; border-radius: 8px;
+  font: 600 12px 'DM Sans', sans-serif; cursor: pointer;
+  transition: background 0.15s;
+}
+.btn-reject:hover { background: rgba(239,68,68,0.12); }
+
+/* ── users management ── */
+.user-row {
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 10px; padding: 14px 16px;
+}
+.user-row-top {
+  display: flex; align-items: center; gap: 12px; margin-bottom: 12px;
+}
+.user-avatar {
+  width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0;
+  background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px; font-weight: 700; color: #fff;
+  overflow: hidden; position: relative;
+}
+.user-avatar img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.user-meta { flex: 1; min-width: 0; }
+.user-name { font-size: 14px; font-weight: 600; color: var(--text); }
+.user-email { font-size: 12px; color: var(--muted); }
+.user-modules {
+  display: flex; flex-wrap: wrap; gap: 8px;
+}
+.mod-toggle {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 11px; border-radius: 100px;
+  background: var(--surface); border: 1px solid var(--border2);
+  font-size: 12px; font-weight: 500; color: var(--muted);
+  cursor: pointer; transition: all 0.15s; user-select: none;
+}
+.mod-toggle.active {
+  background: rgba(59,130,246,0.15); color: var(--accent2);
+  border-color: rgba(96,165,250,0.4);
+}
+.mod-toggle.locked-q { opacity: 0.6; cursor: not-allowed; }
+.mod-toggle:not(.active):hover { color: var(--text); border-color: #555; }
+.mod-toggle .check { font-size: 10px; }
+.user-admin-row { display: flex; align-items: center; gap: 8px; margin-top: 12px; }
+.user-admin-row label { font-size: 12px; color: var(--muted); cursor: pointer; }
+.user-admin-row input { accent-color: var(--accent); }
+
+/* ── search ── */
+.search {
+  width: 100%; padding: 10px 14px; margin-bottom: 14px;
+  background: var(--surface2); border: 1px solid var(--border2);
+  border-radius: var(--r); color: var(--text); font: 500 13px 'DM Sans', sans-serif;
+  outline: none; transition: border-color 0.15s, box-shadow 0.15s;
+}
+.search:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--glow); }
+
+/* ── toast ── */
+.toast {
+  position: fixed; bottom: 24px; right: 24px; z-index: 9999;
+  padding: 12px 18px; border-radius: 10px;
+  font-size: 13px; font-weight: 600;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+  animation: __toastIn 0.25s cubic-bezier(0.34,1.56,0.64,1);
+}
+.toast.success { background: var(--success); color: #052e16; }
+.toast.error   { background: var(--danger); color: #fff; }
+@keyframes __toastIn { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
+
+@media (max-width: 768px) {
+  .main { height: auto; min-height: 100vh; }
+  .page-header { padding: 72px 24px 20px; }
+  .page-body { padding: 0 24px 48px; }
+  .req { grid-template-columns: 1fr; }
+  .req-actions { justify-content: flex-end; }
+}
+</style>
+</head>
+<body>
+
+<main class="main">
+  <div class="page-header">
+    <div>
+      <div class="page-title">Admin</div>
+      <div class="page-heading">Console d'administration</div>
+    </div>
+  </div>
+
+  <div class="page-body">
+    <div class="tabs">
+      <button class="tab active" data-tab="notifs">Notifications <span class="tab-count" id="cntNotifs">0</span></button>
+      <button class="tab"        data-tab="reqs">Demandes d'accès <span class="tab-count" id="cntReqs">0</span></button>
+      <button class="tab"        data-tab="users">Utilisateurs</button>
+    </div>
+
+    <!-- ─ Notifications ─ -->
+    <section class="section" id="tab-notifs">
+      <h3>
+        Notifications récentes
+        <button class="h3-action" id="btnMarkAll">Tout marquer comme lu</button>
+      </h3>
+      <div class="notif-list" id="notifList"></div>
+    </section>
+
+    <!-- ─ Access requests ─ -->
+    <section class="section" id="tab-reqs" style="display:none">
+      <h3>Demandes d'accès en attente</h3>
+      <div class="req-list" id="reqList"></div>
+    </section>
+
+    <!-- ─ Users ─ -->
+    <section class="section" id="tab-users" style="display:none">
+      <h3>Utilisateurs</h3>
+      <input type="text" class="search" id="userSearch" placeholder="Rechercher par email ou pseudo…">
+      <div class="user-list" id="userList"></div>
+    </section>
+  </div>
+</main>
+
+<!-- Supabase + shared modules -->
+<script src="supabase.min.js"></script>
+<script src="sidebar.js"></script>
+<script src="auth.js"></script>
+<script>
+/* ─────────────────────────────────────────────────────────
+   Admin console — nécessite is_admin = true
+───────────────────────────────────────────────────────── */
+const ALL_MODULES = ['quiz','scope','sprint','jira','livenote','minutehub','focusfm'];
+const MODULE_LABELS = {
+  quiz: 'Quiz', scope: 'Scope', sprint: 'Sprint', jira: 'Jira',
+  livenote: 'LiveNote', minutehub: 'Minute Hub', focusfm: 'Focus FM',
+};
+
+let me = null;
+let cache = { notifs: [], requests: [], users: [] };
+
+document.addEventListener('DOMContentLoaded', init);
+
+async function init() {
+  const session = await LazyAuth.requireAuth();
+  if (!session) return;
+
+  // Vérifie que l'utilisateur est admin avant de charger quoi que ce soit
+  let profile = null;
+  try { profile = await LazyAuth.getProfile(session.user.id); } catch(_){}
+  if (!profile?.is_admin && !session.__dev) {
+    document.querySelector('.page-body').innerHTML = `
+      <div class="section" style="text-align:center;padding:48px 24px;">
+        <div style="font-size:32px;margin-bottom:14px;">🔒</div>
+        <div style="font-size:16px;font-weight:600;margin-bottom:8px;">Accès refusé</div>
+        <div style="color:var(--muted);font-size:13px;">Cette page est réservée aux administrateurs.</div>
+      </div>`;
+    return;
+  }
+
+  me = session.user;
+  setupTabs();
+  await Promise.all([loadNotifs(), loadRequests(), loadUsers()]);
+
+  document.getElementById('btnMarkAll').addEventListener('click', markAllRead);
+  document.getElementById('userSearch').addEventListener('input', renderUsers);
+}
+
+function setupTabs() {
+  document.querySelectorAll('.tab').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const tab = btn.dataset.tab;
+      document.querySelectorAll('.tab').forEach(b => b.classList.toggle('active', b === btn));
+      ['notifs','reqs','users'].forEach(t => {
+        document.getElementById('tab-' + t).style.display = (t === tab) ? '' : 'none';
+      });
+    });
+  });
+}
+
+/* ─── Notifications ─── */
+async function loadNotifs() {
+  const { data, error } = await window.sb
+    .from('admin_notifications')
+    .select('*')
+    .order('created_at', { ascending: false })
+    .limit(50);
+  if (error) { console.error(error); return; }
+  cache.notifs = data || [];
+  renderNotifs();
+}
+
+function renderNotifs() {
+  const list = document.getElementById('notifList');
+  const unread = cache.notifs.filter(n => !n.is_read).length;
+  document.getElementById('cntNotifs').textContent = unread;
+  if (!cache.notifs.length) { list.innerHTML = '<div class="empty">Aucune notification.</div>'; return; }
+  list.innerHTML = cache.notifs.map(n => `
+    <div class="notif ${n.is_read ? '' : 'unread'}" data-id="${n.id}">
+      <div class="notif-icon ${esc(n.type)}">${iconFor(n.type)}</div>
+      <div class="notif-body">
+        <div class="notif-title">${esc(n.title)}</div>
+        <div class="notif-text">${esc(n.body || '')}</div>
+        <div class="notif-date">${fmtDate(n.created_at)}</div>
+      </div>
+      <div class="notif-actions">
+        ${n.is_read ? '' : `<button class="btn-mark" onclick="markRead('${n.id}')">Marquer lu</button>`}
+      </div>
+    </div>
+  `).join('');
+}
+
+function iconFor(type) {
+  if (type === 'signup') return '👤';
+  if (type === 'access_request') return '🔑';
+  return '🔔';
+}
+
+async function markRead(id) {
+  await window.sb.from('admin_notifications').update({ is_read: true }).eq('id', id);
+  const n = cache.notifs.find(x => x.id === id); if (n) n.is_read = true;
+  renderNotifs();
+}
+
+async function markAllRead() {
+  const ids = cache.notifs.filter(n => !n.is_read).map(n => n.id);
+  if (!ids.length) return;
+  await window.sb.from('admin_notifications').update({ is_read: true }).in('id', ids);
+  cache.notifs.forEach(n => n.is_read = true);
+  renderNotifs();
+}
+
+/* ─── Access requests ─── */
+async function loadRequests() {
+  const { data, error } = await window.sb
+    .from('module_access_requests')
+    .select('*')
+    .eq('status', 'pending')
+    .order('created_at', { ascending: true });
+  if (error) { console.error(error); return; }
+  cache.requests = data || [];
+
+  // Hydrate emails
+  const ids = [...new Set(cache.requests.map(r => r.user_id))];
+  if (ids.length) {
+    const { data: profs } = await window.sb
+      .from('profiles').select('id, username').in('id', ids);
+    const map = Object.fromEntries((profs || []).map(p => [p.id, p]));
+    cache.requests.forEach(r => { r._profile = map[r.user_id] || {}; });
+  }
+  renderRequests();
+}
+
+function renderRequests() {
+  const list = document.getElementById('reqList');
+  document.getElementById('cntReqs').textContent = cache.requests.length;
+  if (!cache.requests.length) { list.innerHTML = '<div class="empty">Aucune demande en attente.</div>'; return; }
+  list.innerHTML = cache.requests.map(r => `
+    <div class="req" data-id="${r.id}">
+      <div class="req-info">
+        <div class="req-row1">
+          <span class="req-email">${esc(r._profile?.username || 'Utilisateur')}</span>
+          <span class="req-module-pill">${esc(MODULE_LABELS[r.module_id] || r.module_id)}</span>
+        </div>
+        ${r.message ? `<div class="req-message">« ${esc(r.message)} »</div>` : ''}
+        <div class="req-date">${fmtDate(r.created_at)}</div>
+      </div>
+      <div class="req-actions">
+        <button class="btn-approve" onclick="approveRequest('${r.id}')">✓ Approuver</button>
+        <button class="btn-reject"  onclick="rejectRequest('${r.id}')">Refuser</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+async function approveRequest(id) {
+  const { error } = await window.sb.rpc('approve_access_request', { req_id: id });
+  if (error) return toast(error.message, 'error');
+  toast('Accès accordé.');
+  cache.requests = cache.requests.filter(r => r.id !== id);
+  renderRequests();
+  await loadUsers(); // reflect new allowed_modules
+}
+
+async function rejectRequest(id) {
+  const { error } = await window.sb.rpc('reject_access_request', { req_id: id });
+  if (error) return toast(error.message, 'error');
+  toast('Demande refusée.');
+  cache.requests = cache.requests.filter(r => r.id !== id);
+  renderRequests();
+}
+
+/* ─── Users ─── */
+async function loadUsers() {
+  const { data, error } = await window.sb
+    .from('profiles')
+    .select('id, username, avatar_url, is_admin, is_approved, allowed_modules, created_at')
+    .order('created_at', { ascending: false });
+  if (error) { console.error(error); return; }
+  cache.users = data || [];
+  renderUsers();
+}
+
+function renderUsers() {
+  const q = (document.getElementById('userSearch')?.value || '').toLowerCase().trim();
+  const list = document.getElementById('userList');
+  const filtered = !q ? cache.users : cache.users.filter(u =>
+    (u.username || '').toLowerCase().includes(q)
+  );
+  if (!filtered.length) { list.innerHTML = '<div class="empty">Aucun utilisateur.</div>'; return; }
+  list.innerHTML = filtered.map(u => {
+    const modules = new Set(u.allowed_modules || []);
+    const initial = (u.username || '?')[0].toUpperCase();
+    const pending = u.is_approved === false;
+    return `
+      <div class="user-row" data-id="${u.id}" style="${pending ? 'border-color:rgba(245,158,11,.4);' : ''}">
+        <div class="user-row-top">
+          <div class="user-avatar">
+            ${u.avatar_url ? `<img src="${esc(u.avatar_url)}" onerror="this.remove()">` : ''}
+            ${esc(initial)}
+          </div>
+          <div class="user-meta">
+            <div class="user-name">
+              ${esc(u.username || '—')}
+              ${u.is_admin ? '<span style="color:#c084fc;font-size:11px;margin-left:6px;">ADMIN</span>' : ''}
+              ${pending ? '<span style="color:#fbbf24;font-size:11px;margin-left:6px;">⏳ EN ATTENTE</span>' : ''}
+            </div>
+            <div class="user-email">${esc(u.id)}</div>
+          </div>
+          ${pending
+            ? `<button class="btn-approve" style="margin-left:auto" onclick="approveUser('${u.id}')">✓ Approuver</button>`
+            : ''}
+        </div>
+        <div class="user-modules">
+          ${ALL_MODULES.map(m => `
+            <span class="mod-toggle ${modules.has(m) ? 'active' : ''}"
+                  onclick="toggleModule('${u.id}','${m}')">
+              ${modules.has(m) ? '<span class="check">✓</span>' : ''}
+              ${esc(MODULE_LABELS[m])}
+            </span>
+          `).join('')}
+        </div>
+        <div class="user-admin-row">
+          <input type="checkbox" id="adm_${u.id}" ${u.is_admin ? 'checked' : ''}
+                 onchange="toggleAdmin('${u.id}', this.checked)">
+          <label for="adm_${u.id}">Administrateur</label>
+          <span style="margin-left:18px;">
+            <input type="checkbox" id="apv_${u.id}" ${u.is_approved !== false ? 'checked' : ''}
+                   onchange="toggleApproved('${u.id}', this.checked)">
+            <label for="apv_${u.id}">Approuvé (peut se connecter)</label>
+          </span>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+async function toggleModule(userId, moduleId) {
+  const u = cache.users.find(x => x.id === userId);
+  if (!u) return;
+  const current = new Set(u.allowed_modules || []);
+  if (current.has(moduleId)) current.delete(moduleId);
+  else current.add(moduleId);
+  const next = Array.from(current);
+  const { error } = await window.sb.from('profiles')
+    .update({ allowed_modules: next }).eq('id', userId);
+  if (error) return toast(error.message, 'error');
+  u.allowed_modules = next;
+  renderUsers();
+}
+
+async function toggleAdmin(userId, isAdmin) {
+  const { error } = await window.sb.from('profiles')
+    .update({ is_admin: isAdmin }).eq('id', userId);
+  if (error) { toast(error.message, 'error'); renderUsers(); return; }
+  const u = cache.users.find(x => x.id === userId);
+  if (u) u.is_admin = isAdmin;
+  toast(isAdmin ? 'Promu administrateur.' : 'Rôle admin retiré.');
+}
+
+async function toggleApproved(userId, approved) {
+  const { error } = await window.sb.from('profiles')
+    .update({ is_approved: approved }).eq('id', userId);
+  if (error) { toast(error.message, 'error'); renderUsers(); return; }
+  const u = cache.users.find(x => x.id === userId);
+  if (u) u.is_approved = approved;
+  renderUsers();
+  toast(approved ? 'Compte approuvé — l\'utilisateur peut se connecter.' : 'Compte désapprouvé.');
+}
+
+/* Convenience : approve via the dedicated button */
+async function approveUser(userId) {
+  return toggleApproved(userId, true);
+}
+
+/* ─── Helpers ─── */
+function fmtDate(iso) {
+  const d = new Date(iso);
+  return d.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' })
+       + ' · ' + d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+}
+function esc(s) { return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function toast(msg, kind='success') {
+  const el = document.createElement('div');
+  el.className = 'toast ' + kind;
+  el.textContent = msg;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 2400);
+}
+
+/* expose for inline handlers */
+window.markRead       = markRead;
+window.approveRequest = approveRequest;
+window.rejectRequest  = rejectRequest;
+window.toggleModule   = toggleModule;
+window.toggleAdmin    = toggleAdmin;
+window.toggleApproved = toggleApproved;
+window.approveUser    = approveUser;
+</script>
+</body>
+</html>

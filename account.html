@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
 <script>if(location.protocol==="http:"&&location.hostname!=="localhost"&&location.hostname!=="127.0.0.1")location.replace("https:"+location.href.slice(5));</script>
+<script src="auth-gate.js"></script>
 <meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests">
 <script>
   const path = window.location.pathname;
@@ -9,9 +10,10 @@
   if (path !== lower) window.location.replace(lower);
 </script>
 <meta charset="UTF-8">
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LazyPO — My Account</title>
-<link href="https://fonts.googleapis.com/css2?family=Permanent+Marker&family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="fonts.css">
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -260,7 +262,7 @@ body {
             <input type="file" id="avatarInput" accept="image/*">
             <div>Drop image here or <strong>browse</strong></div>
           </div>
-          <div class="avatar-hint">JPG, PNG or GIF · Max 2 MB</div>
+          <div class="avatar-hint">JPG, PNG or GIF · Max 2 MB · <strong>auto-saved on drop</strong></div>
           <div class="inline-msg" id="avatarMsg"></div>
         </div>
       </div>
@@ -273,7 +275,8 @@ body {
         <div class="field-row">
           <div class="field">
             <label for="inputUsername">Username</label>
-            <input id="inputUsername" type="text" placeholder="Your username">
+            <input id="inputUsername" type="text" placeholder="Your pseudo (3–20 chars)" minlength="3" maxlength="20">
+            <div id="usernameHint" style="display:none;font-size:12px;color:#fbbf24;margin-top:4px;line-height:1.4;"></div>
           </div>
           <div class="field">
             <label for="inputEmail">Email</label>
@@ -289,7 +292,7 @@ body {
       </div>
       <div class="inline-msg" id="profileMsg"></div>
       <div class="btn-row">
-        <button class="btn-save" id="btnSaveProfile" onclick="saveProfile()">Save changes</button>
+        <button class="btn-save" id="btnSaveProfile" onclick="saveProfile()">💾 Save profile</button>
       </div>
     </div>
 
@@ -384,7 +387,7 @@ body {
 </main>
 
 <!-- Supabase + shared modules -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase.min.js"></script>
 <script src="sidebar.js"></script>
 <script src="auth.js"></script>
 <script>
@@ -412,23 +415,49 @@ function renderProfile() {
   const user    = currentSession.user;
   const profile = currentProfile;
 
-  const username = profile?.username || user.email?.split('@')[0] || '';
+  const rawUsername = profile?.username || '';
+  const usernameLooksLikeEmail = /@/.test(rawUsername);
+  const usernameDisplay = rawUsername || user.email?.split('@')[0] || '';
   const avatar   = profile?.avatar_url || null;
   const isAdmin  = profile?.is_admin || false;
-  const initial  = (username || user.email || 'U')[0].toUpperCase();
+  const initial  = (usernameDisplay || user.email || 'U')[0].toUpperCase();
 
-  // Username field
-  document.getElementById('inputUsername').value = username;
+  // Username field — keep the current value but flag it visually if it
+  // looks like an email (legacy data) so the user knows to replace it
+  const usernameInput = document.getElementById('inputUsername');
+  usernameInput.value = rawUsername;
+  usernameInput.placeholder = 'Your pseudo (3–20 chars)';
 
-  // Avatar
+  // Show an inline hint below the field if the current pseudo is an email
+  const hintEl = document.getElementById('usernameHint');
+  if (hintEl) {
+    if (usernameLooksLikeEmail) {
+      hintEl.textContent = '⚠️ Your current pseudo is an email — click the field above to choose a real one.';
+      hintEl.style.display = 'block';
+    } else {
+      hintEl.style.display = 'none';
+    }
+  }
+
+  // Avatar — clear any previous image first, then render the current one.
+  // If the URL exists in the profile but the image fails to load, that's a
+  // bucket-policy bug we want to surface visibly (not just console).
   const preview = document.getElementById('avatarPreview');
   document.getElementById('avatarInitial').textContent = initial;
+  preview.querySelectorAll('img').forEach(i => i.remove());
   if (avatar) {
     const img = new Image();
-    img.src = avatar;
-    img.onload = () => { preview.querySelector('img')?.remove(); preview.appendChild(img); };
-    img.onerror = () => {};
     img.style.cssText = 'width:100%;height:100%;object-fit:cover;position:absolute;inset:0;';
+    // Cache-bust so a previously-broken URL gets a fresh fetch
+    img.src = avatar + (avatar.includes('?') ? '&' : '?') + 'v=' + Date.now();
+    img.onload  = () => preview.appendChild(img);
+    img.onerror = () => {
+      console.warn('[avatar] failed to load', avatar);
+      showMsg('avatarMsg',
+        '⚠️ La photo enregistrée ne charge pas (' + avatar + '). ' +
+        'Le bucket "avatars" doit être Public + la policy avatars_public_read doit exister dans Supabase.',
+        'error');
+    };
   }
 
   // Role badge
@@ -461,18 +490,77 @@ dropArea.addEventListener('drop',      (e) => {
   else showMsg('avatarMsg', 'Please drop an image file.', 'error');
 });
 
-function previewAvatar(file) {
-  if (file.size > 2 * 1024 * 1024) { showMsg('avatarMsg', 'File is too large (max 2 MB).', 'error'); return; }
+/**
+ * Avatar pipeline (auto-save) :
+ *  1. Local preview (FileReader) so the user gets instant feedback
+ *  2. Upload to Supabase Storage via LazyAuth.uploadAvatar (which itself
+ *     verifies bucket reachability + public access)
+ *  3. Persist URL on profiles.avatar_url
+ *  4. Re-fetch profile to verify the URL actually stuck (catches silent
+ *     RLS failures)
+ *  5. Re-render the local preview from the SAVED URL (not the data URL)
+ *     so any post-refresh issue surfaces immediately, while the user
+ *     is still on the page and can act on the error.
+ *  6. Refresh the sidebar widget.
+ */
+async function previewAvatar(file) {
+  if (!file) return;
+  if (!file.type?.startsWith('image/')) {
+    showMsg('avatarMsg', 'Format non supporté. Choisis une image (JPG, PNG, GIF, WEBP).', 'error');
+    return;
+  }
+  if (file.size > 2 * 1024 * 1024) {
+    showMsg('avatarMsg', 'File is too large (max 2 MB).', 'error');
+    return;
+  }
   pendingAvatarFile = file;
-  const reader = new FileReader();
-  reader.onload = (e) => {
-    const preview = document.getElementById('avatarPreview');
-    let img = preview.querySelector('img');
-    if (!img) { img = document.createElement('img'); img.style.cssText = 'width:100%;height:100%;object-fit:cover;position:absolute;inset:0;'; preview.appendChild(img); }
-    img.src = e.target.result;
-    showMsg('avatarMsg', 'Preview ready — save profile to upload.', 'success');
-  };
-  reader.readAsDataURL(file);
+
+  // 1. Local preview
+  const preview = document.getElementById('avatarPreview');
+  const localUrl = URL.createObjectURL(file);
+  preview.querySelectorAll('img').forEach(i => i.remove());
+  const previewImg = document.createElement('img');
+  previewImg.style.cssText = 'width:100%;height:100%;object-fit:cover;position:absolute;inset:0;';
+  previewImg.src = localUrl;
+  preview.appendChild(previewImg);
+
+  showMsg('avatarMsg', '<span class="spin"></span>Uploading…', 'success');
+  try {
+    // 2. Upload (uploadAvatar throws explicit errors for bucket misconfig)
+    const url = await LazyAuth.uploadAvatar(currentSession.user.id, file);
+    console.log('[avatar] uploaded to', url);
+
+    // 3. Persist on profile
+    const { error } = await LazyAuth.saveProfile(currentSession.user.id, { avatar_url: url });
+    if (error) throw error;
+
+    // 4. Verify the save persisted
+    const verify = await LazyAuth.getProfile(currentSession.user.id);
+    if (!verify || verify.avatar_url !== url) {
+      throw new Error(
+        "La photo a été uploadée mais n'a pas été sauvegardée dans le profil. " +
+        "Vérifie les policies RLS sur la table profiles (own_profile)."
+      );
+    }
+    currentProfile = verify;
+    pendingAvatarFile = null;
+
+    // 5. Re-render from the saved URL — confirms the public URL works end-to-end.
+    //    Replace the local-blob preview with the actual saved image.
+    URL.revokeObjectURL(localUrl);
+    renderProfile();
+
+    showMsg('avatarMsg', '✅ Photo enregistrée — visible partout.', 'success');
+
+    // 6. Sidebar refresh
+    if (typeof LazyAuth.refreshNavUser === 'function') {
+      LazyAuth.refreshNavUser();
+    }
+  } catch (err) {
+    console.error('[avatar upload]', err);
+    URL.revokeObjectURL(localUrl);
+    showMsg('avatarMsg', err.message || 'Upload échoué. Vérifie que le bucket "avatars" existe et est public.', 'error');
+  }
 }
 
 /* ── Save profile ── */
@@ -480,6 +568,9 @@ async function saveProfile() {
   const btn      = document.getElementById('btnSaveProfile');
   const username = document.getElementById('inputUsername').value.trim();
   if (!username) { showMsg('profileMsg', 'Username cannot be empty.', 'error'); return; }
+  if (username.length < 3 || username.length > 20) {
+    showMsg('profileMsg', 'Username must be 3–20 characters.', 'error'); return;
+  }
 
   btn.disabled = true;
   btn.innerHTML = '<span class="spin"></span>Saving…';
@@ -498,14 +589,26 @@ async function saveProfile() {
     const { error } = await LazyAuth.saveProfile(currentSession.user.id, { username, avatar_url: avatarUrl });
     if (error) throw error;
 
-    currentProfile = { ...currentProfile, username, avatar_url: avatarUrl };
+    // Verify save actually persisted (catches silent RLS issues)
+    const verify = await LazyAuth.getProfile(currentSession.user.id);
+    if (!verify || verify.username !== username) {
+      throw new Error("La sauvegarde n'a pas été persistée — vérifie les permissions RLS de la table profiles.");
+    }
+
+    currentProfile = verify;
     renderProfile();
-    showMsg('profileMsg', 'Profile saved!', 'success');
+    showMsg('profileMsg', '✅ Profile saved!', 'success');
+
+    // Refresh sidebar so the new pseudo appears immediately
+    if (typeof LazyAuth.refreshNavUser === 'function') {
+      LazyAuth.refreshNavUser();
+    }
   } catch (err) {
+    console.error('[saveProfile]', err);
     showMsg('profileMsg', err.message || 'Could not save profile.', 'error');
   } finally {
     btn.disabled = false;
-    btn.innerHTML = 'Save changes';
+    btn.innerHTML = '💾 Save profile';
   }
 }
 
@@ -542,6 +645,9 @@ async function signOut() {
   const btn = document.getElementById('btnSignOut');
   btn.disabled = true;
   btn.textContent = 'Signing out…';
+  // Clear the Worker-gate cookie BEFORE Supabase signOut so even if the
+  // navigation races, the next request is rejected by the Worker.
+  if (window.LazyAuth && window.LazyAuth.clearSessionCookie) window.LazyAuth.clearSessionCookie();
   await window.sb.auth.signOut();
   window.location.href = 'login.html';
 }

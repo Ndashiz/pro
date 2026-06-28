@@ -1,0 +1,129 @@
+<!--
+  ═══════════════════════════════════════════════════════════════════
+  LazyPO — Email template "Confirm signup"
+
+  HOW TO USE:
+    Supabase Dashboard → Authentication → Email Templates → Confirm signup
+    → Field "Message body" → paste EVERYTHING BELOW THIS COMMENT
+       (i.e. starting at the <link rel="preconnect"... line).
+       Do NOT paste this comment block.
+
+  Supabase variables used:
+    {{ .ConfirmationURL }}   → confirmation link (respects emailRedirectTo)
+    {{ .Email }}             → recipient email (used in footer)
+
+  Supabase expects a BODY FRAGMENT, not a full HTML document
+  (no <!DOCTYPE>, no <html>, no <head>, no <body>).
+  ═══════════════════════════════════════════════════════════════════
+-->
+<link rel="stylesheet" href="fonts.css">
+
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#0c0c0c;padding:40px 16px;font-family:'DM Sans','Helvetica Neue',Helvetica,Arial,sans-serif;">
+  <tr>
+    <td align="center">
+
+      <!-- ─── Hidden preheader ─── -->
+      <div style="display:none;font-size:1px;color:#0c0c0c;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;mso-hide:all;">
+        Welcome to LazyPO — confirm your email to activate your account.
+      </div>
+
+      <!-- ─── Card ─── -->
+      <table role="presentation" width="480" cellpadding="0" cellspacing="0" border="0"
+             style="max-width:480px;background:#161616;border:1px solid #222222;border-radius:18px;overflow:hidden;">
+
+        <!-- Top accent stripe -->
+        <tr>
+          <td height="3" style="height:3px;background:#3b82f6;background:linear-gradient(90deg,#3b82f6 0%,#60a5fa 50%,#8b5cf6 100%);font-size:0;line-height:0;">&nbsp;</td>
+        </tr>
+
+        <!-- Logo -->
+        <tr>
+          <td align="center" style="padding:40px 40px 8px;">
+            <div style="font-family:'Permanent Marker','Brush Script MT',cursive;font-size:36px;color:#60a5fa;letter-spacing:1px;line-height:1;">
+              <span style="color:#60a5fa;">&#10022;</span>
+              <span style="color:#ffffff;margin-left:8px;">LazyPO</span>
+            </div>
+            <div style="margin-top:8px;font-size:11px;color:#6b6b6b;letter-spacing:0.12em;text-transform:uppercase;font-family:'DM Sans','Helvetica Neue',Helvetica,Arial,sans-serif;">
+              Do less, Deliver More
+            </div>
+          </td>
+        </tr>
+
+        <!-- Heading -->
+        <tr>
+          <td align="center" style="padding:28px 40px 12px;">
+            <div style="font-family:'DM Mono','Courier New',monospace;font-size:11px;font-weight:500;letter-spacing:0.12em;text-transform:uppercase;color:#6b6b6b;margin-bottom:8px;">
+              Email confirmation
+            </div>
+            <h1 style="margin:0;font-family:'DM Sans','Helvetica Neue',Helvetica,Arial,sans-serif;font-size:22px;font-weight:700;color:#f0f0f0;line-height:1.3;">
+              Welcome &#128075;<br>Confirm your signup.
+            </h1>
+          </td>
+        </tr>
+
+        <!-- Body -->
+        <tr>
+          <td style="padding:18px 40px 28px;">
+            <p style="margin:0;font-family:'DM Sans','Helvetica Neue',Helvetica,Arial,sans-serif;font-size:14px;line-height:1.65;color:#a0a0a0;text-align:center;">
+              Glad to have you on LazyPO. One more click and your account is live &mdash; you'll get access to the <strong style="color:#f0f0f0;">Knowledge Quiz</strong> by default, and you can request access to the other modules from the admin.
+            </p>
+          </td>
+        </tr>
+
+        <!-- CTA button -->
+        <tr>
+          <td align="center" style="padding:0 40px 32px;">
+            <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+              <tr>
+                <td align="center" bgcolor="#3b82f6" style="border-radius:10px;background:#3b82f6;">
+                  <a href="{{ .ConfirmationURL }}"
+                     style="display:inline-block;padding:14px 36px;font-family:'DM Sans','Helvetica Neue',Helvetica,Arial,sans-serif;font-size:15px;font-weight:600;color:#ffffff;text-decoration:none;border-radius:10px;">
+                    Confirm my email &rarr;
+                  </a>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+
+        <!-- Fallback link -->
+        <tr>
+          <td style="padding:0 40px 32px;">
+            <div style="border-top:1px solid #222222;padding-top:20px;">
+              <p style="margin:0 0 8px;font-family:'DM Sans','Helvetica Neue',Helvetica,Arial,sans-serif;font-size:11px;color:#6b6b6b;letter-spacing:0.04em;text-transform:uppercase;text-align:center;">
+                Button not working?
+              </p>
+              <p style="margin:0;font-family:'DM Mono','Courier New',monospace;font-size:12px;line-height:1.5;color:#777777;text-align:center;word-break:break-all;">
+                <a href="{{ .ConfirmationURL }}" style="color:#60a5fa;text-decoration:none;">{{ .ConfirmationURL }}</a>
+              </p>
+            </div>
+          </td>
+        </tr>
+
+        <!-- Footer note -->
+        <tr>
+          <td style="padding:0 40px 36px;">
+            <p style="margin:0;font-family:'DM Sans','Helvetica Neue',Helvetica,Arial,sans-serif;font-size:11px;line-height:1.6;color:#555555;text-align:center;">
+              You received this email because a signup was requested for <span style="color:#777777;">{{ .Email }}</span>.<br>
+              If it wasn't you, just ignore this message &mdash; no account will be activated.
+            </p>
+          </td>
+        </tr>
+
+      </table>
+      <!-- /Card -->
+
+      <!-- Footer outside card -->
+      <table role="presentation" width="480" cellpadding="0" cellspacing="0" border="0" style="max-width:480px;margin-top:20px;">
+        <tr>
+          <td align="center" style="padding:20px 16px 0;">
+            <p style="margin:0;font-family:'DM Sans','Helvetica Neue',Helvetica,Arial,sans-serif;font-size:11px;color:#444444;">
+              LazyPO &middot; <a href="https://ndashiz.be/pro/" style="color:#555555;text-decoration:none;">ndashiz.be/pro</a>
+            </p>
+          </td>
+        </tr>
+      </table>
+
+    </td>
+  </tr>
+</table>

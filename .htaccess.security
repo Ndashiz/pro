@@ -1,0 +1,71 @@
+# ════════════════════════════════════════════════════════════════════
+# LazyPO — Security headers snippet pour Apache (.htaccess)
+# ────────────────────────────────────────────────────────────────────
+# CE FICHIER N'EST PAS DÉPLOYÉ AUTOMATIQUEMENT — c'est un snippet à
+# COPIER-COLLER dans le .htaccess actuel sur ton hébergement OVH.
+#
+# Procédure :
+#   1. Connecte-toi en FTP sur OVH (FileZilla, etc.)
+#   2. Va dans le dossier qui contient déjà ton .htaccess
+#      (probablement www/lazypo/ ou la racine du site)
+#   3. Télécharge le .htaccess existant en local
+#   4. Ouvre-le et COLLE le contenu ci-dessous TOUT EN HAUT
+#      (avant les règles existantes)
+#   5. Sauvegarde et upload de retour sur OVH
+#   6. Teste : ouvre https://ndashiz.be/lazypo/ → tout doit fonctionner
+#   7. Audit : https://securityheaders.com/?q=ndashiz.be
+#      → tu devrais passer de F/D à A ou A+
+#
+# Si quelque chose casse, la CSP est probablement en cause — supprime
+# juste le bloc Content-Security-Policy et garde les autres headers,
+# puis ouvre la console browser pour voir les violations à corriger.
+# ════════════════════════════════════════════════════════════════════
+
+# ── 1. Forcer HTTPS au niveau serveur (redirect AVANT envoi du HTML) ──
+RewriteEngine On
+RewriteCond %{HTTPS} off
+RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [R=301,L]
+
+# ── 2. Headers de sécurité ──
+<IfModule mod_headers.c>
+
+  # HSTS : force HTTPS pour 1 an. Le browser refuse toute requête HTTP
+  # vers ndashiz.be pendant la durée du max-age, même sur la 1re visite
+  # après expiration du cache. Bloque les attaques sslstrip / MITM.
+  Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains"
+
+  # Empêche d'embarquer le site dans une <iframe> (clickjacking)
+  Header always set X-Frame-Options "SAMEORIGIN"
+
+  # Empêche le browser de "deviner" un type MIME différent de celui annoncé
+  Header always set X-Content-Type-Options "nosniff"
+
+  # Limite l'envoi du Referer aux domaines tiers
+  Header always set Referrer-Policy "strict-origin-when-cross-origin"
+
+  # Désactive les API browser non utilisées par LazyPO
+  Header always set Permissions-Policy "camera=(), microphone=(), geolocation=(), interest-cohort=()"
+
+  # CSP — restreint d'où peuvent venir scripts/styles/images/connexions.
+  # Cible: bloquer tout script injecté qui voudrait exfiltrer des données
+  # vers un domaine tiers, ou faire fetch d'un endpoint malveillant.
+  #
+  # Note: 'unsafe-inline' est gardé pour script-src et style-src parce
+  # que de nombreuses pages LazyPO ont des <script> et <style> inline.
+  # Pour upgrade plus tard : passer aux nonces ou externaliser l'inline.
+  Header always set Content-Security-Policy "\
+default-src 'self'; \
+script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://cdn.sheetjs.com https://sdk.scdn.co; \
+style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; \
+font-src 'self' data: https://fonts.gstatic.com; \
+img-src 'self' data: blob: https:; \
+media-src 'self' blob: https:; \
+connect-src 'self' https://hrvxhnmtvzvrsmmmmtsv.supabase.co wss://hrvxhnmtvzvrsmmmmtsv.supabase.co https://api.spotify.com https://accounts.spotify.com https://i.pravatar.cc; \
+frame-src 'self' https://sdk.scdn.co; \
+worker-src 'self' blob:; \
+frame-ancestors 'self'; \
+base-uri 'self'; \
+form-action 'self'; \
+object-src 'none'"
+
+</IfModule>
