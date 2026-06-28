@@ -155,6 +155,125 @@ body {
 }
 
 /* ════════════════════════════════
+   WIDGET SYSTEM
+════════════════════════════════ */
+.overview-header {
+  display: flex; align-items: center; justify-content: space-between;
+  width: 100%; margin-bottom: 36px; gap: 16px; flex-wrap: wrap;
+}
+.overview-header .section-label { margin-bottom: 0; }
+.widget-toggles { display: flex; gap: 8px; }
+.widget-toggle {
+  background: var(--surface2); border: 1px solid var(--border2);
+  color: var(--muted); border-radius: 8px; padding: 6px 14px;
+  font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase;
+  cursor: pointer; font-family: 'DM Mono', monospace; transition: all .15s;
+}
+.widget-toggle.active {
+  background: rgba(59,130,246,.1); border-color: rgba(96,165,250,.3); color: var(--accent2);
+}
+.widget-area { width: 100%; }
+.widget-area.hidden { display: none; }
+#widget-deadline:not(.hidden) + #widget-todo:not(.hidden) {
+  margin-top: 36px; padding-top: 32px; border-top: 1px solid var(--border);
+}
+
+/* ── Todo widget ──────────────────────── */
+.todo-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+.todo-title {
+  font-family: 'DM Mono', monospace; font-size: 11px; font-weight: 500;
+  letter-spacing: .12em; text-transform: uppercase; color: var(--muted);
+}
+.todo-add-btn {
+  background: rgba(59,130,246,.1); border: 1px solid rgba(96,165,250,.25);
+  color: var(--accent2); border-radius: 8px; padding: 6px 14px;
+  font-size: 12px; font-weight: 600; cursor: pointer; font-family: inherit;
+  transition: background .15s;
+}
+.todo-add-btn:hover { background: rgba(59,130,246,.2); }
+
+.todo-add-form {
+  display: none; gap: 8px; align-items: center; flex-wrap: wrap;
+  margin-bottom: 14px; padding: 12px; background: var(--surface2);
+  border: 1px solid var(--border2); border-radius: 10px;
+}
+.todo-add-form.open { display: flex; }
+.todo-input {
+  background: var(--surface); border: 1px solid var(--border);
+  color: var(--text); border-radius: 8px; padding: 8px 12px;
+  font-size: 13px; font-family: inherit; outline: none; transition: border-color .15s;
+}
+.todo-input:focus { border-color: var(--accent2); }
+.todo-input.ti-name { flex: 1; min-width: 160px; }
+.todo-input.ti-date { width: 150px; color-scheme: dark; }
+.todo-confirm { background: var(--accent); border: none; color: #fff; border-radius: 8px; padding: 8px 14px; font-size: 12px; font-weight: 700; cursor: pointer; font-family: inherit; }
+.todo-confirm:hover { background: #2563eb; }
+.todo-cancel-btn { background: transparent; border: 1px solid var(--border2); color: var(--muted); border-radius: 8px; padding: 8px 12px; font-size: 12px; cursor: pointer; font-family: inherit; }
+
+/* Task row */
+.todo-task {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 10px; margin-bottom: 8px; padding: 12px 14px;
+  transition: border-color .15s, opacity .2s;
+}
+.todo-task.drag-over { border-color: var(--accent2); }
+.todo-task.dragging  { opacity: .35; }
+.todo-task.t-done    { opacity: .55; }
+.task-row { display: flex; align-items: center; gap: 10px; }
+.task-drag {
+  color: var(--muted); cursor: grab; font-size: 14px; opacity: 0;
+  transition: opacity .15s; flex-shrink: 0; line-height: 1;
+}
+.todo-task:hover .task-drag { opacity: 1; }
+.task-drag:active { cursor: grabbing; }
+.task-check {
+  width: 16px; height: 16px; border-radius: 4px;
+  border: 1.5px solid var(--border2); background: transparent;
+  cursor: pointer; appearance: none; -webkit-appearance: none;
+  flex-shrink: 0; position: relative; transition: background .15s, border-color .15s;
+}
+.task-check:checked { background: #10b981; border-color: #10b981; }
+.task-check:checked::after {
+  content: '✓'; position: absolute; inset: 0; display: flex;
+  align-items: center; justify-content: center; color: #fff; font-size: 10px;
+}
+.task-text { flex: 1; font-size: 13px; color: var(--text); cursor: pointer; }
+.todo-task.t-done .task-text { text-decoration: line-through; color: var(--muted); }
+.task-date-lbl { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--muted); white-space: nowrap; }
+.task-edit-btn, .task-del-btn {
+  background: transparent; border: none; cursor: pointer; padding: 2px 5px;
+  font-size: 13px; opacity: 0; transition: opacity .15s, color .15s; line-height: 1; flex-shrink: 0;
+}
+.todo-task:hover .task-edit-btn,
+.todo-task:hover .task-del-btn { opacity: 1; }
+.task-edit-btn { color: var(--muted); }
+.task-edit-btn:hover { color: var(--accent2); }
+.task-del-btn  { color: var(--muted); }
+.task-del-btn:hover  { color: #ef4444; }
+
+/* Time bar */
+.task-bar { margin-top: 8px; padding-left: 26px; }
+.task-bar-track { height: 3px; border-radius: 99px; background: var(--border); overflow: hidden; margin-bottom: 4px; }
+.task-bar-fill  { height: 100%; border-radius: 99px; transition: width .5s ease; }
+.task-bar-fill.c-green { background: #10b981; }
+.task-bar-fill.c-amber { background: #f59e0b; }
+.task-bar-fill.c-red   { background: #ef4444; }
+.task-bar-lbl { font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: .04em; }
+.task-bar-lbl.c-green { color: #10b981; }
+.task-bar-lbl.c-amber { color: #f59e0b; }
+.task-bar-lbl.c-red   { color: #ef4444; }
+
+/* Edit form (inline below row) */
+.task-edit-form {
+  display: none; gap: 8px; align-items: center; flex-wrap: wrap;
+  margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border);
+}
+.task-edit-form.open { display: flex; }
+
+.todo-empty { text-align: center; padding: 28px; font-size: 13px; color: var(--muted); display: none; }
+.todo-empty.show { display: block; }
+
+/* ════════════════════════════════
    2. HERO TEXT — centré
 ════════════════════════════════ */
 .content {
@@ -378,8 +497,36 @@ body {
 
   <!-- ══ 2. PROJECT PREVIEW (below hero) ══ -->
   <section class="project-preview">
-    <div class="section-label">Project preview</div>
-    <div class="countdown-grid" id="countdownGrid"></div>
+    <div class="overview-header">
+      <div class="section-label">Project preview</div>
+      <div class="widget-toggles">
+        <button class="widget-toggle active" id="toggle-deadline" aria-pressed="true">📅 Deadline</button>
+        <button class="widget-toggle active" id="toggle-todo"     aria-pressed="true">✅ To-do</button>
+      </div>
+    </div>
+
+    <!-- Widget: Deadline -->
+    <div class="widget-area" id="widget-deadline">
+      <div class="countdown-grid" id="countdownGrid"></div>
+    </div>
+
+    <!-- Widget: To-do -->
+    <div class="widget-area" id="widget-todo">
+      <div class="todo-header">
+        <span class="todo-title">Tasks</span>
+        <button class="todo-add-btn" id="todoAddBtn">+ Add task</button>
+      </div>
+
+      <form class="todo-add-form" id="todoAddForm" onsubmit="return false">
+        <input class="todo-input ti-name" id="todoNewName" type="text" placeholder="Task name…" autocomplete="off" required>
+        <input class="todo-input ti-date" id="todoNewDate" type="date">
+        <button class="todo-confirm" id="todoAddConfirm">Add</button>
+        <button class="todo-cancel-btn" id="todoAddCancel" type="button">Cancel</button>
+      </form>
+
+      <div id="todoList"></div>
+      <div class="todo-empty" id="todoEmpty">No tasks yet — add one above.</div>
+    </div>
   </section>
 
   <!-- ══ 3. TOOLS ══ -->
@@ -472,6 +619,240 @@ body {
 <script src="focusfm.js"></script>
 <script src="three.min.js"></script>
 <script src="vanta.net.min.js"></script>
+<script>
+/* ═══════════════════════════════════════════════════
+   OVERVIEW WIDGET MANAGER
+═══════════════════════════════════════════════════ */
+(function () {
+  var TABLE = 'profiles';
+  var currentUser = null;
+  var widgets = { deadline: true, todo: true };
+  var tasks = [];
+  var dragSrcId = null;
+  var editingId = null;
+
+  /* ── helpers ────────────────────────────── */
+  function uid() { return Math.random().toString(36).slice(2) + Date.now().toString(36); }
+
+  function daysUntil(dateStr) {
+    if (!dateStr) return null;
+    var now = new Date(); now.setHours(0,0,0,0);
+    return Math.ceil((new Date(dateStr + 'T00:00:00') - now) / 86400000);
+  }
+
+  function urgencyClass(d) {
+    if (d === null) return null;
+    return d <= 0 ? 'c-red' : d <= 7 ? 'c-amber' : 'c-green';
+  }
+
+  function urgencyLabel(d) {
+    if (d === null) return '';
+    if (d < 0) return Math.abs(d) + 'd overdue';
+    if (d === 0) return 'Due today';
+    return d + 'd left';
+  }
+
+  function barWidth(d) {
+    if (d === null) return 0;
+    if (d <= 0) return 100;
+    return Math.max(4, Math.min(100, Math.round(100 - (d / 30) * 100)));
+  }
+
+  function fmtDate(s) {
+    if (!s) return '';
+    var d = new Date(s + 'T00:00:00');
+    var mo = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    return mo[d.getMonth()] + ' ' + String(d.getDate()).padStart(2,'0');
+  }
+
+  /* ── persist ────────────────────────────── */
+  async function persist() {
+    if (!currentUser || !window.sb) return;
+    await window.sb.from(TABLE).update({
+      overview_widgets: widgets,
+      todo_tasks: tasks
+    }).eq('id', currentUser.id);
+  }
+
+  /* ── widget toggle ──────────────────────── */
+  function applyWidgetState() {
+    ['deadline', 'todo'].forEach(function (k) {
+      var el = document.getElementById('widget-' + k);
+      var btn = document.getElementById('toggle-' + k);
+      if (!el || !btn) return;
+      if (widgets[k]) {
+        el.classList.remove('hidden');
+        btn.classList.add('active');
+        btn.setAttribute('aria-pressed', 'true');
+      } else {
+        el.classList.add('hidden');
+        btn.classList.remove('active');
+        btn.setAttribute('aria-pressed', 'false');
+      }
+    });
+  }
+
+  ['deadline', 'todo'].forEach(function (k) {
+    var btn = document.getElementById('toggle-' + k);
+    if (!btn) return;
+    btn.addEventListener('click', function () {
+      widgets[k] = !widgets[k];
+      applyWidgetState();
+      persist();
+    });
+  });
+
+  /* ── task render ────────────────────────── */
+  function renderTasks() {
+    var list = document.getElementById('todoList');
+    var empty = document.getElementById('todoEmpty');
+    if (!list) return;
+    if (!tasks.length) { list.innerHTML = ''; if (empty) empty.classList.add('show'); return; }
+    if (empty) empty.classList.remove('show');
+
+    list.innerHTML = tasks.map(function (t) {
+      var d = daysUntil(t.deadline);
+      var uc = urgencyClass(d);
+      var hasBar = d !== null;
+      return [
+        '<div class="todo-task' + (t.done ? ' t-done' : '') + '" draggable="true" data-id="' + t.id + '">',
+        '  <div class="task-row">',
+        '    <span class="task-drag" title="Drag to reorder">⠿</span>',
+        '    <input type="checkbox" class="task-check"' + (t.done ? ' checked' : '') + ' data-id="' + t.id + '">',
+        '    <span class="task-text">' + t.name.replace(/</g,'&lt;') + '</span>',
+        t.deadline ? '<span class="task-date-lbl">' + fmtDate(t.deadline) + '</span>' : '',
+        '    <button class="task-edit-btn" data-id="' + t.id + '" title="Edit">✏️</button>',
+        '    <button class="task-del-btn"  data-id="' + t.id + '" title="Delete">🗑</button>',
+        '  </div>',
+        hasBar ? [
+          '  <div class="task-bar">',
+          '    <div class="task-bar-track"><div class="task-bar-fill ' + uc + '" style="width:' + barWidth(d) + '%"></div></div>',
+          '    <span class="task-bar-lbl ' + uc + '">' + urgencyLabel(d) + '</span>',
+          '  </div>'
+        ].join('\n') : '',
+        '  <div class="task-edit-form' + (editingId === t.id ? ' open' : '') + '" data-id="' + t.id + '">',
+        '    <input class="todo-input ti-name" type="text" value="' + t.name.replace(/"/g,'&quot;') + '" data-field="name">',
+        '    <input class="todo-input ti-date" type="date" value="' + (t.deadline || '') + '" data-field="deadline">',
+        '    <button class="todo-confirm" data-action="save-edit" data-id="' + t.id + '">Save</button>',
+        '    <button class="todo-cancel-btn" data-action="cancel-edit">Cancel</button>',
+        '  </div>',
+        '</div>'
+      ].join('\n');
+    }).join('');
+
+    /* bind events */
+    list.querySelectorAll('.task-check').forEach(function (cb) {
+      cb.addEventListener('change', function () {
+        var id = this.dataset.id;
+        tasks = tasks.map(function (t) { return t.id === id ? Object.assign({}, t, {done: cb.checked}) : t; });
+        renderTasks(); persist();
+      });
+    });
+
+    list.querySelectorAll('.task-del-btn').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var id = this.dataset.id;
+        tasks = tasks.filter(function (t) { return t.id !== id; });
+        if (editingId === id) editingId = null;
+        renderTasks(); persist();
+      });
+    });
+
+    list.querySelectorAll('.task-edit-btn').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var id = this.dataset.id;
+        editingId = editingId === id ? null : id;
+        renderTasks();
+      });
+    });
+
+    list.querySelectorAll('[data-action="save-edit"]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var id = this.dataset.id;
+        var form = btn.closest('.task-edit-form');
+        var newName = form.querySelector('[data-field="name"]').value.trim();
+        var newDate = form.querySelector('[data-field="deadline"]').value;
+        if (!newName) return;
+        tasks = tasks.map(function (t) {
+          return t.id === id ? Object.assign({}, t, {name: newName, deadline: newDate || null}) : t;
+        });
+        editingId = null; renderTasks(); persist();
+      });
+    });
+
+    list.querySelectorAll('[data-action="cancel-edit"]').forEach(function (btn) {
+      btn.addEventListener('click', function () { editingId = null; renderTasks(); });
+    });
+
+    /* drag-and-drop */
+    list.querySelectorAll('.todo-task').forEach(function (row) {
+      row.addEventListener('dragstart', function (e) {
+        dragSrcId = row.dataset.id;
+        row.classList.add('dragging');
+        e.dataTransfer.effectAllowed = 'move';
+      });
+      row.addEventListener('dragend', function () { row.classList.remove('dragging'); });
+      row.addEventListener('dragover', function (e) { e.preventDefault(); row.classList.add('drag-over'); });
+      row.addEventListener('dragleave', function () { row.classList.remove('drag-over'); });
+      row.addEventListener('drop', function (e) {
+        e.preventDefault(); row.classList.remove('drag-over');
+        if (!dragSrcId || dragSrcId === row.dataset.id) return;
+        var srcIdx  = tasks.findIndex(function (t) { return t.id === dragSrcId; });
+        var destIdx = tasks.findIndex(function (t) { return t.id === row.dataset.id; });
+        var moved = tasks.splice(srcIdx, 1)[0];
+        tasks.splice(destIdx, 0, moved);
+        dragSrcId = null; renderTasks(); persist();
+      });
+    });
+  }
+
+  /* ── add form ───────────────────────────── */
+  var addBtn    = document.getElementById('todoAddBtn');
+  var addForm   = document.getElementById('todoAddForm');
+  var addCancel = document.getElementById('todoAddCancel');
+  var addConfirm= document.getElementById('todoAddConfirm');
+
+  if (addBtn) addBtn.addEventListener('click', function () { addForm.classList.add('open'); document.getElementById('todoNewName').focus(); });
+  if (addCancel) addCancel.addEventListener('click', function () { addForm.classList.remove('open'); });
+  if (addConfirm) addConfirm.addEventListener('click', function () {
+    var name = document.getElementById('todoNewName').value.trim();
+    if (!name) return;
+    var date = document.getElementById('todoNewDate').value || null;
+    tasks.push({ id: uid(), name: name, deadline: date, done: false });
+    document.getElementById('todoNewName').value = '';
+    document.getElementById('todoNewDate').value = '';
+    addForm.classList.remove('open');
+    renderTasks(); persist();
+  });
+
+  /* ── load from Supabase ─────────────────── */
+  async function loadFromSupabase(user) {
+    currentUser = user;
+    if (!window.sb || !user) return;
+    try {
+      var r = await window.sb.from(TABLE).select('overview_widgets,todo_tasks').eq('id', user.id).single();
+      if (r.data) {
+        if (r.data.overview_widgets) widgets = r.data.overview_widgets;
+        if (Array.isArray(r.data.todo_tasks)) tasks = r.data.todo_tasks;
+      }
+    } catch(e) {}
+    applyWidgetState();
+    renderTasks();
+  }
+
+  /* ── init ───────────────────────────────── */
+  applyWidgetState();
+  renderTasks();
+
+  document.addEventListener('lazypo:profile', function () {
+    if (currentUser || !window.sb) return;
+    window.sb.auth.getUser().then(function (r) {
+      if (r.data && r.data.user) loadFromSupabase(r.data.user);
+    });
+  });
+})();
+</script>
+
 <script>
 VANTA.NET({
   el: '.main-bg',

@@ -413,14 +413,157 @@
   ::-webkit-scrollbar-track { background: var(--surface); }
   ::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
   ::-webkit-scrollbar-thumb:hover { background: #444; }
+
+  /* ─── Mobile hamburger + backdrop (hidden on desktop) ─── */
+  .menu-toggle {
+    position: fixed;
+    top: 16px;
+    left: 16px;
+    width: 44px; height: 44px;
+    display: none;
+    align-items: center; justify-content: center;
+    background: var(--surface);
+    border: 1px solid var(--border2);
+    border-radius: 10px;
+    color: var(--text);
+    cursor: pointer;
+    z-index: 200;
+    box-shadow: 0 4px 12px rgba(0,0,0,.4);
+    transition: background .15s;
+  }
+  .menu-toggle:hover { background: var(--surface2); }
+  .menu-toggle svg { width: 22px; height: 22px; stroke: currentColor; stroke-width: 2; fill: none; }
+  .menu-toggle .icon-close { display: none; }
+  body.nav-open .menu-toggle .icon-open  { display: none; }
+  body.nav-open .menu-toggle .icon-close { display: block; }
+
+  .toc-backdrop {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,.6);
+    backdrop-filter: blur(2px);
+    z-index: 90;
+    opacity: 0;
+    transition: opacity .2s;
+  }
+  body.nav-open .toc-backdrop { opacity: 1; }
+
+  /* ─── Tablet (≤ 1100px) — réduit le padding ─── */
+  @media (max-width: 1100px) {
+    .main { padding: 56px 48px 100px; }
+    .hero h1 { font-size: 42px; }
+  }
+
+  /* ─── Mobile (≤ 900px) — TOC en drawer ─── */
+  @media (max-width: 900px) {
+    body { display: block; }
+
+    .menu-toggle { display: inline-flex; }
+
+    .toc {
+      transform: translateX(-100%);
+      transition: transform .25s ease-out;
+      width: 280px;
+      box-shadow: 4px 0 24px rgba(0,0,0,.5);
+    }
+    body.nav-open .toc { transform: translateX(0); }
+    body.nav-open .toc-backdrop { display: block; }
+
+    .main {
+      margin-left: 0;
+      padding: 80px 24px 80px;
+      max-width: 100%;
+    }
+
+    .hero { margin-bottom: 56px; }
+    .hero-eyebrow { font-size: 11px; letter-spacing: 1.5px; }
+    .hero h1 { font-size: 34px; letter-spacing: -1px; }
+    .hero-desc { font-size: 15px; }
+    .hero-meta {
+      flex-wrap: wrap;
+      gap: 20px 24px;
+      margin-top: 24px;
+      padding-top: 24px;
+    }
+    .hero-meta-item { flex: 1 1 calc(50% - 12px); min-width: 120px; }
+    .hero-meta-item .value { font-size: 14px; }
+
+    .section { margin-bottom: 56px; }
+    .section h2 { font-size: 22px; }
+    .section h3 { font-size: 15px; margin: 22px 0 10px; }
+    .section p { font-size: 14.5px; line-height: 1.65; }
+
+    .section-header { gap: 12px; margin-bottom: 24px; }
+    .section-num { width: 28px; height: 28px; font-size: 12px; }
+
+    .card-grid { grid-template-columns: 1fr; gap: 12px; }
+    .card { padding: 18px; }
+    .card-sm { padding: 14px 16px; }
+
+    .stack-chips { gap: 6px; }
+    .chip { padding: 5px 11px; font-size: 12px; }
+
+    .diagram-wrap { padding: 20px 14px; margin: 16px -4px 24px; border-radius: 10px; }
+    .diagram-caption { font-size: 11px; }
+
+    /* Tables scrollables horizontalement sur mobile */
+    .data-table,
+    .section table {
+      display: block;
+      overflow-x: auto;
+      white-space: nowrap;
+      -webkit-overflow-scrolling: touch;
+    }
+    .data-table thead, .data-table tbody, .data-table tr {
+      display: table;
+      width: max-content;
+      min-width: 100%;
+    }
+    .data-table td, .data-table th { white-space: normal; }
+    .data-table th, .data-table td { padding: 9px 12px; font-size: 13px; }
+
+    pre { padding: 14px 16px; border-radius: 8px; margin: 14px -4px; }
+    pre code { font-size: 12px; }
+
+    hr.sep { margin: 36px 0; }
+
+    .info-box, .warn-box { padding: 13px 15px; font-size: 13px; }
+  }
+
+  /* ─── Small mobile (≤ 480px) — encore plus serré ─── */
+  @media (max-width: 480px) {
+    .main { padding: 76px 16px 64px; }
+    .hero h1 { font-size: 28px; }
+    .hero-desc { font-size: 14px; }
+    .hero-meta-item { flex: 1 1 100%; }
+    .section h2 { font-size: 20px; }
+    .menu-toggle { width: 40px; height: 40px; top: 12px; left: 12px; }
+    .diagram-wrap { padding: 16px 10px; }
+  }
+
+  /* ─── Reduced motion ─── */
+  @media (prefers-reduced-motion: reduce) {
+    .toc, .toc-backdrop, .menu-toggle { transition: none; }
+    html { scroll-behavior: auto; }
+  }
 </style>
 </head>
 <body>
 
 <!-- ══════════════════════════════════════════
+     MOBILE HAMBURGER TOGGLE + BACKDROP
+══════════════════════════════════════════ -->
+<button class="menu-toggle" id="menuToggle" aria-label="Ouvrir le menu" aria-expanded="false" aria-controls="tocNav">
+  <svg class="icon-open"  viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16" stroke-linecap="round"/></svg>
+  <svg class="icon-close" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" stroke-linecap="round"/></svg>
+</button>
+<div class="toc-backdrop" id="tocBackdrop" aria-hidden="true"></div>
+
+<!-- ══════════════════════════════════════════
      SIDEBAR / TABLE OF CONTENTS
 ══════════════════════════════════════════ -->
-<nav class="toc">
+<nav class="toc" id="tocNav">
   <div class="toc-logo">
     <div class="logo-mark">Lazy<span>PO</span></div>
     <div class="doc-label">Documentation Technique</div>
@@ -467,7 +610,7 @@
 
   <!-- ─── HERO ─── -->
   <div class="hero" id="top">
-    <div class="hero-eyebrow">v2.1 · Mai 2026 · Server-side auth gate</div>
+    <div class="hero-eyebrow">v2.2 · Juin 2026 · /pro migration + assets self-hosted</div>
     <h1>Architecture<br>Technique <span>LazyPO</span></h1>
     <p class="hero-desc">Documentation complète de l'architecture applicative — base de données, flux de communication, modules partagés, et intégrations externes.</p>
     <div class="hero-meta">
@@ -485,7 +628,11 @@
       </div>
       <div class="hero-meta-item">
         <div class="label">Déploiement</div>
-        <div class="value">Apache · ndashiz.be</div>
+        <div class="value">GitHub Pages + Cloudflare Worker</div>
+      </div>
+      <div class="hero-meta-item">
+        <div class="label">URL</div>
+        <div class="value">ndashiz.be/pro/</div>
       </div>
     </div>
   </div>
@@ -512,7 +659,7 @@ graph TB
         FM["focusfm.js\nSpotify Player"]
         DEMO["demo.js\nDonnées fictives"]
 
-        subgraph PAGES["Pages / Outils"]
+        subgraph PAGES["Pages / Outils (/pro/*)"]
             P1["🏠 index.html"]
             P2["✉️ lazypo_generator.html"]
             P3["📋 sprintplanner.html"]
@@ -523,20 +670,35 @@ graph TB
         end
     end
 
+    subgraph EDGE["☁️ Cloudflare Edge"]
+        direction TB
+        CFW["Worker auth-gate\nndashiz.be/pro/*\nverify JWT ES256"]
+        CFDNS["DNS proxy + HSTS\n+ Bot Fight Mode"]
+    end
+
+    subgraph ORIGIN["📦 GitHub Pages (origine statique)"]
+        GHP["Ndashiz/lazypo · main\nauto-deploy on push"]
+    end
+
     subgraph BACKEND["☁️  Supabase (Backend as a Service)"]
         direction LR
         SBAUTH["Auth\n(PKCE/email)"]
-        SBDB["PostgreSQL\n5 tables"]
+        SBDB["PostgreSQL\n10 tables"]
         SBREALTIME["Realtime\n(WebSocket)"]
         SBSTORAGE["Storage\n(avatars, livenote-temp)"]
     end
 
     subgraph EXTERNAL["🌐  Services Externes"]
         SPOTIFY["Spotify API\nWeb Playback SDK"]
-        GFONTS["Google Fonts\nDM Sans / DM Mono"]
-        CDN["CDN (jsDelivr)\nXLSX · PptxGenJS · CodeMirror"]
     end
 
+    subgraph SELF["📁 Assets self-hosted (juin 2026)"]
+        FONTS["fonts/ DM Sans / DM Mono\n(plus de Google Fonts CDN)"]
+        LIBS["supabase.min.js · xlsx · pptxgen\ncodemirror · mermaid · three/vanta"]
+    end
+
+    CLIENT -->|"GET /pro/*"| EDGE
+    EDGE --> ORIGIN
     SB -->|"swap HTML\n+ re-run scripts"| PAGES
     AUTH --> SBAUTH
     SESS --> SBDB
@@ -544,8 +706,7 @@ graph TB
     P5 --> SBREALTIME
     P6 --> SBDB
     P7 --> SBSTORAGE
-    CLIENT --> GFONTS
-    CLIENT --> CDN
+    CLIENT --> SELF
       </div>
       <div class="diagram-caption">Fig. 1 — Vue d'ensemble de l'architecture LazyPO</div>
     </div>
@@ -572,7 +733,8 @@ graph TB
       <div class="chip"><div class="dot" style="background:#a78bfa"></div>PptxGenJS</div>
       <div class="chip"><div class="dot" style="background:#f472b6"></div>CodeMirror</div>
       <div class="chip"><div class="dot" style="background:#60a5fa"></div>Three.js + Vanta.NET</div>
-      <div class="chip"><div class="dot" style="background:#666"></div>Apache (.htaccess)</div>
+      <div class="chip"><div class="dot" style="background:#f38020"></div>Cloudflare Worker (auth gate)</div>
+      <div class="chip"><div class="dot" style="background:#9ca3af"></div>GitHub Pages (origine statique)</div>
     </div>
 
     <table class="data-table">
@@ -600,7 +762,7 @@ graph TB
         <tr>
           <td>Database</td>
           <td>PostgreSQL via Supabase</td>
-          <td>5 tables, RLS par utilisateur</td>
+          <td>10 tables, RLS par utilisateur</td>
           <td><span class="badge badge-green">Production</span></td>
         </tr>
         <tr>
@@ -622,9 +784,21 @@ graph TB
           <td><span class="badge badge-amber">Premium requis</span></td>
         </tr>
         <tr>
-          <td>Serveur</td>
-          <td>Apache 2 (.htaccess)</td>
-          <td>HTTPS redirect, URL lowercase, CSP headers</td>
+          <td>Origine</td>
+          <td>GitHub Pages</td>
+          <td>Hosting statique du repo <code>Ndashiz/lazypo</code> (auto-deploy sur push <code>main</code>)</td>
+          <td><span class="badge badge-green">Production</span></td>
+        </tr>
+        <tr>
+          <td>Edge / Gate</td>
+          <td>Cloudflare Worker</td>
+          <td>Auth gate serveur sur <code>ndashiz.be/pro/*</code>, cache verdict 60s</td>
+          <td><span class="badge badge-green">Production</span></td>
+        </tr>
+        <tr>
+          <td>DNS / CDN</td>
+          <td>Cloudflare (free plan)</td>
+          <td>Proxy DNS, HSTS, Bot Fight Mode, Full strict SSL, cache ~10 min</td>
           <td><span class="badge badge-green">Production</span></td>
         </tr>
       </tbody>
@@ -1102,7 +1276,7 @@ flowchart TD
 
     <p>LazyPO est hébergé sur <strong>GitHub Pages</strong> (statique, pas de serveur applicatif). Avant Mai 2026, l'authentification était <em>100% côté client</em> — le HTML protégé était téléchargeable par n'importe qui via <code>curl</code>, le contrôle d'accès reposait uniquement sur du JavaScript qui s'exécutait après livraison.</p>
 
-    <p>Depuis <a href="https://github.com/Ndashiz/lazypo/pull/112" target="_blank">PR #112</a>, un <strong>Cloudflare Worker</strong> intercepte chaque requête à <code>ndashiz.be/lazypo/*</code> et valide un cookie de session <em>avant</em> que le HTML soit livré. Le contenu protégé n'est jamais servi à un visiteur non authentifié.</p>
+    <p>Depuis <a href="https://github.com/Ndashiz/lazypo/pull/112" target="_blank">PR #112</a>, un <strong>Cloudflare Worker</strong> intercepte chaque requête à <code>ndashiz.be/pro/*</code> et valide un cookie de session <em>avant</em> que le HTML soit livré. Le contenu protégé n'est jamais servi à un visiteur non authentifié.</p>
 
     <h3>Vue d'ensemble — defense in depth</h3>
 
@@ -1143,7 +1317,7 @@ flowchart TB
         A2[RLS Supabase sur la DB]:::client
     end
 
-    Attacker[🎭 Visiteur non authentifié]:::threat -->|GET /lazypo/jira_dashboard.html| L1
+    Attacker[🎭 Visiteur non authentifié]:::threat -->|GET /pro/jira_dashboard.html| L1
     L1 -.->|invalide → 302 login| Block[🚫 HTML JAMAIS servi]:::threat
     L1 -->|valide| L4
     L2 -->|alimente cookie| L1
@@ -1204,8 +1378,8 @@ sequenceDiagram
     participant DB as Supabase (RLS)
 
     Note over Attacker,GH: AVANT — pas de gate côté serveur
-    Attacker->>Browser: curl ndashiz.be/lazypo/jira_dashboard.html
-    Browser->>GH: GET /lazypo/jira_dashboard.html
+    Attacker->>Browser: curl ndashiz.be/pro/jira_dashboard.html
+    Browser->>GH: GET /pro/jira_dashboard.html
     GH-->>Browser: 200 + HTML COMPLET (sans auth check)
     Note right of Browser: Contenu protégé déjà téléchargé.<br>auth-gate.js / requireModule()<br>n'arrivent qu'APRÈS, et ne sont<br>que du JS bypassable.
     Browser-->>Attacker: ✅ HTML lisible (DevTools, curl, view-source)
@@ -1227,7 +1401,7 @@ sequenceDiagram
     <ul style="padding-left:24px; margin-bottom:18px;">
       <li><strong>Supabase Auth</strong> avec email/password — émet des JWT signés en <strong>ES256</strong> (asymmetric, JWKS public).</li>
       <li><strong>Approbation manuelle</strong> via <code>profiles.is_approved</code> — un user signupé n'a pas accès tant qu'un admin n'a pas approuvé.</li>
-      <li><strong>Cookie <code>lazypo_jwt</code></strong> miroir du <code>access_token</code>, Path=/lazypo, SameSite=Lax, Secure (https uniquement). Lu par le Worker pour gater le HTML.</li>
+      <li><strong>Cookie <code>lazypo_jwt</code></strong> miroir du <code>access_token</code>, Path=/pro, SameSite=Lax, Secure (https uniquement). Lu par le Worker pour gater le HTML.</li>
     </ul>
 
     <h3>Cycle de vie du cookie de session</h3>
@@ -1236,7 +1410,7 @@ sequenceDiagram
       <div class="mermaid">
 stateDiagram-v2
     [*] --> NoCookie
-    NoCookie --> Login: Visite /lazypo/* sans cookie
+    NoCookie --> Login: Visite /pro/* sans cookie
     Login --> Login: signInWithPassword
     Login --> CookieSet: Succès (Supabase session)
     CookieSet --> CookieSet: TOKEN_REFRESHED auto (~hourly)
@@ -1274,13 +1448,13 @@ sequenceDiagram
     participant Supa as Supabase Auth
     participant DB as PostgreSQL
 
-    User->>CF: GET /lazypo/jira_dashboard.html
+    User->>CF: GET /pro/jira_dashboard.html
     CF->>CF: Pas de cookie lazypo_jwt
-    CF-->>User: 302 → /lazypo/login.html?return_to=...
+    CF-->>User: 302 → /pro/login.html?next=...
 
-    User->>CF: GET /lazypo/login.html
+    User->>CF: GET /pro/login.html
     Note right of CF: Page publique, pass-through
-    CF->>GH: GET /lazypo/login.html
+    CF->>GH: GET /pro/login.html
     GH-->>CF: 200 HTML
     CF-->>User: 200 HTML login
 
@@ -1293,9 +1467,9 @@ sequenceDiagram
     Note right of User: login.html appelle<br>_setLazypoCookie(session)<br>AVANT le redirect
     User->>User: document.cookie = lazypo_jwt=...
 
-    User->>CF: GET /lazypo/jira_dashboard.html (avec cookie)
+    User->>CF: GET /pro/jira_dashboard.html (avec cookie)
     CF->>CF: Lit cookie, vérifie ES256 vs JWKS
-    CF->>GH: GET /lazypo/jira_dashboard.html (forward)
+    CF->>GH: GET /pro/jira_dashboard.html (forward)
     GH-->>CF: 200 HTML
     CF-->>User: 200 HTML ✅
       </div>
@@ -1308,7 +1482,7 @@ sequenceDiagram
 
     <ul style="padding-left:24px; margin-bottom:14px;">
       <li>Si <strong>not approved</strong> → <code>signOut</code> immédiat + message "Pending approval"</li>
-      <li>Si <strong>approved</strong> → cookie posé, redirect vers <code>return_to</code> ou <code>index.html</code></li>
+      <li>Si <strong>approved</strong> → cookie posé, redirect vers <code>next</code> (param renommé depuis <code>return_to</code> en juin 2026 pour passer sous le radar des heuristiques anti-phishing) ou <code>index.html</code></li>
     </ul>
 
     <h3>Gestion de l'avatar</h3>
@@ -1325,7 +1499,7 @@ sequenceDiagram
       <h2>Cloudflare Worker — gate serveur</h2>
     </div>
 
-    <p>Le Worker (<a href="https://github.com/Ndashiz/lazypo/blob/main/worker/src/worker.js" target="_blank"><code>worker/src/worker.js</code></a>) est déployé sur la route <code>ndashiz.be/lazypo/*</code>. Pour chaque requête, il décide en quelques ms si la requête passe au cache Cloudflare/origine ou si elle est rejetée vers <code>login.html</code>.</p>
+    <p>Le Worker (<a href="https://github.com/Ndashiz/lazypo/blob/main/worker/src/worker.js" target="_blank"><code>worker/src/worker.js</code></a>) est déployé sur la route <code>ndashiz.be/pro/*</code>. Pour chaque requête, il décide en quelques ms si la requête passe au cache Cloudflare/origine ou si elle est rejetée vers <code>login.html</code>.</p>
 
     <h3>Logique de décision</h3>
 
@@ -1337,10 +1511,10 @@ flowchart TD
     classDef step fill:#1a1a1a,stroke:#374151,color:#e8e8e8
     classDef decision fill:#1e3a5f,stroke:#3b82f6,color:#e8e8e8
 
-    A[Requête sur ndashiz.be/lazypo/*]:::step --> B{Path public ?<br>login.html, favicon,<br>.js, .css, .svg, etc.}:::decision
+    A[Requête sur ndashiz.be/pro/*]:::step --> B{Path public ?<br>login.html, favicon,<br>.js, .css, .svg, etc.}:::decision
     B -- Oui --> PASS1[fetch origine GitHub Pages]:::ok
     B -- Non --> C{Cookie lazypo_jwt<br>présent ?}:::decision
-    C -- Non --> R1[302 → login.html<br>?return_to=...]:::bad
+    C -- Non --> R1[302 → login.html<br>?next=...]:::bad
     C -- Oui --> D{JWT bien formé ?<br>3 parts, alg=ES256,<br>kid présent}:::decision
     D -- Non --> R2[302 → login.html]:::bad
     D -- Oui --> E{exp futur ?<br>sub présent ?}:::decision
@@ -1895,12 +2069,16 @@ graph TB
     end
 
     subgraph SUPABASE["☁️ Supabase"]
-        subgraph PG["PostgreSQL"]
+        subgraph PG["PostgreSQL (10 tables)"]
             T1["profiles"]
             T2["user_sessions"]
             T3["vocabulary"]
             T4["quiz_progress"]
             T5["livenote_docs"]
+            T6["quiz_sessions"]
+            T7["quiz_session_comments"]
+            T8["quiz_session_reactions"]
+            T9["vocab_shares"]
         end
         subgraph STORE["Storage Buckets"]
             B1["avatars/\n(public read)"]
@@ -1966,28 +2144,34 @@ graph TB
           <td><span class="badge badge-amber">PKCE</span></td>
         </tr>
         <tr>
-          <td>Google Fonts</td>
-          <td><code>fonts.googleapis.com</code></td>
-          <td>DM Sans, DM Mono</td>
-          <td><span class="badge badge-muted">Public</span></td>
+          <td>Cloudflare Edge</td>
+          <td><code>ndashiz.be</code> (proxy + Worker)</td>
+          <td>Auth gate sur <code>/pro/*</code>, DNS, HSTS, Bot Fight Mode, cache ~10 min</td>
+          <td><span class="badge badge-green">Free tier</span></td>
         </tr>
         <tr>
-          <td>jsDelivr CDN</td>
-          <td><code>cdn.jsdelivr.net</code></td>
-          <td>Mermaid, PptxGenJS, CodeMirror</td>
-          <td><span class="badge badge-muted">Public</span></td>
+          <td>GitHub Pages</td>
+          <td><code>ndashiz.github.io/lazypo</code></td>
+          <td>Origine statique derrière Cloudflare</td>
+          <td><span class="badge badge-green">Free tier</span></td>
         </tr>
         <tr>
-          <td>Cloudflare CDN</td>
-          <td><code>cdnjs.cloudflare.com</code></td>
-          <td>XLSX.js</td>
-          <td><span class="badge badge-muted">Public</span></td>
+          <td>Fonts (DM Sans, DM Mono)</td>
+          <td><code>/pro/fonts/</code></td>
+          <td>Self-hosted depuis juin 2026 (suppression dépendance Google Fonts CDN)</td>
+          <td><span class="badge badge-purple">Self-hosted</span></td>
         </tr>
         <tr>
-          <td>Three.js / Vanta</td>
-          <td><code>cdn.jsdelivr.net/npm/vanta</code></td>
-          <td>Fond animé page d'accueil</td>
-          <td><span class="badge badge-muted">Public</span></td>
+          <td>Librairies front-end</td>
+          <td><code>supabase.min.js</code> · <code>xlsx.min.js</code> · <code>pptxgen.min.js</code> · <code>codemirror.min.js</code> · <code>html2pdf.min.js</code> · <code>three.min.js</code> · <code>vanta.net.min.js</code> · <code>papaparse.min.js</code></td>
+          <td>Self-hosted depuis juin 2026 (PR <a href="https://github.com/Ndashiz/lazypo/commit/c823105" target="_blank">c823105</a> + <a href="https://github.com/Ndashiz/lazypo/commit/1294cbc" target="_blank">1294cbc</a>) — supprime dépendance jsDelivr/cdnjs/Cloudflare CDN, élimine risque supply-chain CDN tiers</td>
+          <td><span class="badge badge-purple">Self-hosted</span></td>
+        </tr>
+        <tr>
+          <td>Mermaid (docs uniquement)</td>
+          <td><code>cdn.jsdelivr.net/npm/mermaid@10</code></td>
+          <td>Diagrammes de cette page de documentation</td>
+          <td><span class="badge badge-amber">CDN (doc only)</span></td>
         </tr>
       </tbody>
     </table>
@@ -2017,6 +2201,7 @@ graph TB
         <tr><td>fm_pkce_verifier</td><td>focusfm.js</td><td>string</td><td>PKCE code_verifier (OAuth flow)</td></tr>
         <tr><td>fm_pkce_state</td><td>focusfm.js</td><td>string</td><td>State CSRF protection (OAuth flow)</td></tr>
         <tr><td>fm_return_url</td><td>focusfm.js</td><td>string (URL)</td><td>URL de retour post-OAuth</td></tr>
+        <tr><td>lazypo:lastActivity</td><td>session.js</td><td>number (ms)</td><td>Timestamp de la dernière activité utilisateur. Persisté pour survivre aux <code>visibilitychange</code> (onglet en arrière-plan ≠ reset du timer d'inactivité). Effacé au signOut.</td></tr>
         <tr><td>jiraQueries</td><td>jirarepo.html</td><td>JSON array</td><td>Requêtes JQL sauvegardées</td></tr>
       </tbody>
     </table>
@@ -2039,10 +2224,44 @@ graph TB
 
     <p>Changements significatifs des dernières releases — pour le détail complet voir <code>git log</code> ou les PR mergées sur <code>main</code>.</p>
 
+    <h3>Juin 2026 · <code>1294cbc</code> + <code>c823105</code> — 🛡️ Self-host de tous les assets CDN</h3>
+    <ul style="padding-left: 24px; margin-bottom: 18px;">
+      <li><strong>Suppression jsDelivr / cdnjs / Cloudflare CDN</strong> : <code>supabase.min.js</code>, <code>xlsx</code>, <code>pptxgen</code>, <code>codemirror</code>, <code>html2pdf</code>, <code>three</code>, <code>vanta.net</code>, <code>papaparse</code> sont désormais dans le repo et servis depuis <code>/pro/*.js</code>.</li>
+      <li><strong>Suppression Google Fonts CDN</strong> : DM Sans + DM Mono téléchargés dans <code>/pro/fonts/</code>, déclarés via <code>fonts.css</code> avec <code>font-display: swap</code>.</li>
+      <li><strong>Pourquoi</strong> : élimine le risque supply-chain CDN tiers (compromission d'un CDN = injection de JS sur LazyPO) et améliore les perfs (toutes les ressources passent par le cache Cloudflare en front de GitHub Pages).</li>
+      <li><strong>Reste sur CDN</strong> : Mermaid (uniquement sur cette page de doc, pas sur l'app), Spotify SDK (forcément externe).</li>
+    </ul>
+
+    <h3>Juin 2026 · <code>2bb317b</code> — 🪤 Rename <code>return_to</code> → <code>next</code></h3>
+    <ul style="padding-left: 24px; margin-bottom: 18px;">
+      <li>Le paramètre de redirection post-login s'appelle désormais <code>next</code> (au lieu de <code>return_to</code>) — moins susceptible d'être flaggé par les heuristiques anti-phishing de Chrome/Edge/Outlook.</li>
+      <li>Mis à jour dans <code>worker/src/worker.js</code>, <code>auth-gate.js</code>, <code>auth.js</code>, <code>login.html</code>.</li>
+    </ul>
+
+    <h3>Juin 2026 · <code>ec20e1a</code> — 🚚 Migration <code>/lazypo</code> → <code>/pro</code></h3>
+    <ul style="padding-left: 24px; margin-bottom: 18px;">
+      <li>Tous les paths URL hardcodés <code>/lazypo/...</code> migrent vers <code>/pro/...</code> : route du Worker, <code>Path</code> du cookie <code>lazypo_jwt</code>, redirect URI Spotify, liens du footer, callbacks.</li>
+      <li>Le repo GitHub reste nommé <code>Ndashiz/lazypo</code> — c'est l'URL publique qui change pour une route plus courte/lisible.</li>
+      <li>Fichiers touchés : <code>auth.js</code>, <code>email_confirm.html</code>, <code>focusfm.js</code>, <code>login.html</code>, <code>spotify-callback.html</code>, <code>sprintplanner.html</code>, <code>worker/src/worker.js</code>, <code>worker/wrangler.toml</code>.</li>
+    </ul>
+
+    <h3>Juin 2026 · <code>df18000</code> — 🧹 Multi · xp-breakdown panel</h3>
+    <ul style="padding-left: 24px; margin-bottom: 18px;">
+      <li>Le panneau de décomposition XP est désormais inséré juste après la <code>.lb-card</code> ; le multi-sous-classement a été supprimé (UI plus claire).</li>
+    </ul>
+
+    <h3>Mai-juin 2026 · PR #113 → #122 — 🛠️ Polish Jira Dashboard / SoW</h3>
+    <ul style="padding-left: 24px; margin-bottom: 18px;">
+      <li><strong>SPA</strong> (#114) : <code>sidebar.js</code> ré-exécutait les scripts inline mais skippait les <code>&lt;script src=&gt;</code> externes injectés par la nouvelle page → fix.</li>
+      <li><strong>countdown.js</strong> (#115) : suppression du <code>fetch('projet.json')</code> dead-code qui crachait un 404 dans la console.</li>
+      <li><strong>SoW Generator</strong> (#116 → #118) : fix demo preview (<code>&lt;/script&gt;</code> littéral cassait le parser), addresses email defaults migrent vers <code>goffin.simon@gmail.com</code>, nouveau bouton « Export HTML » (Télécharger / Copier).</li>
+      <li><strong>Jira Dashboard</strong> (#119 → #122) : parser CSV réel (5 → 117 lignes sur un fichier de 116 tickets), release section reflète vraiment Fix Version/s, export standalone vraiment standalone-usable (pas de self-strip de son propre script).</li>
+    </ul>
+
     <h3>Mai 2026 · PR #112 — 🔒 Server-side auth gate (Cloudflare Worker)</h3>
     <ul style="padding-left: 24px; margin-bottom: 18px;">
       <li><strong>Incident</strong> : login bypass récurrent (3ème fois). Root cause = site statique + auth 100% côté client = HTML protégé téléchargeable par tout visiteur.</li>
-      <li><strong>Fix architectural</strong> : nouveau Cloudflare Worker (<code>worker/src/worker.js</code>) sur la route <code>ndashiz.be/lazypo/*</code> qui valide un cookie <code>lazypo_jwt</code> en <strong>ES256 via JWKS</strong> AVANT que le HTML soit servi.</li>
+      <li><strong>Fix architectural</strong> : nouveau Cloudflare Worker (<code>worker/src/worker.js</code>) sur la route <code>ndashiz.be/pro/*</code> qui valide un cookie <code>lazypo_jwt</code> en <strong>ES256 via JWKS</strong> AVANT que le HTML soit servi.</li>
       <li><strong>Cookie sync</strong> : <code>auth.js</code> mirror automatique du <code>access_token</code> Supabase sur les events <code>SIGNED_IN</code> / <code>TOKEN_REFRESHED</code> / <code>USER_UPDATED</code> / <code>INITIAL_SESSION</code>, clear sur <code>SIGNED_OUT</code>. <code>login.html</code> pose le cookie inline synchroneusement avant le redirect (anti-race).</li>
       <li><strong>Durcissement</strong> : <code>auth-gate.js</code> retire le "reveal after 3s no matter what" (fail-closed, redirige vers login). <code>DEV_SESSION</code> bypass nécessite désormais opt-in explicite (plus d'activation auto sur localhost).</li>
       <li><strong>Diagrammes</strong> : voir section <a href="#security">★ Architecture de sécurité</a>, <a href="#worker-gate">Cloudflare Worker</a> et <a href="#threat-model">Threat model</a>.</li>
@@ -2081,7 +2300,7 @@ graph TB
 
   <!-- ─── Footer ─── -->
   <div style="text-align:center; color: var(--muted); font-size: 13px; font-family: 'DM Mono', monospace; padding-top: 16px;">
-    LazyPO · Documentation Technique · v2.1 · Mai 2026
+    LazyPO · Documentation Technique · v2.2 · Juin 2026
   </div>
 
 </main>
@@ -2134,6 +2353,37 @@ graph TB
   }, { rootMargin: '-30% 0px -60% 0px' });
 
   sections.forEach(s => observer.observe(s));
+
+  /* ─── Mobile TOC toggle ─── */
+  const menuBtn   = document.getElementById('menuToggle');
+  const backdrop  = document.getElementById('tocBackdrop');
+
+  function openNav()  {
+    document.body.classList.add('nav-open');
+    menuBtn.setAttribute('aria-expanded', 'true');
+    menuBtn.setAttribute('aria-label', 'Fermer le menu');
+  }
+  function closeNav() {
+    document.body.classList.remove('nav-open');
+    menuBtn.setAttribute('aria-expanded', 'false');
+    menuBtn.setAttribute('aria-label', 'Ouvrir le menu');
+  }
+  function toggleNav() {
+    if (document.body.classList.contains('nav-open')) closeNav(); else openNav();
+  }
+
+  menuBtn.addEventListener('click', toggleNav);
+  backdrop.addEventListener('click', closeNav);
+  links.forEach(a => a.addEventListener('click', () => {
+    if (window.matchMedia('(max-width: 900px)').matches) closeNav();
+  }));
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && document.body.classList.contains('nav-open')) closeNav();
+  });
+  /* Si l'utilisateur agrandit la fenêtre, ferme proprement le drawer */
+  window.matchMedia('(max-width: 900px)').addEventListener('change', e => {
+    if (!e.matches) closeNav();
+  });
 </script>
 
 </body>
