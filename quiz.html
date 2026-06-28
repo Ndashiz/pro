@@ -5777,21 +5777,34 @@ var TOPICS = [
     subtitle: 'Formation du pluriel en néerlandais',
     theory: `
 <div class="gr-rule">
-  <strong>Règle générale : + EN</strong>
-  <div class="gr-eg"><span class="gr-nl">het huis → de huizen</span><span class="gr-arr">|</span><span class="gr-nl">de man → de mannen</span></div>
-  <div style="margin-top:8px;font-size:12.5px;color:var(--muted)">⚠️ Règles orthographe : S→Z (kaas→kazen), F→V (fotograaf→fotografen), doublement consonne (bed→bedden), voyelle longue (dag→dagen)</div>
+  <strong>A/ Pluriel en +EN</strong>
+  <div class="gr-eg"><span class="gr-nl">dorp/dorpen · kerk/kerken · vrouw/vrouwen · man/mannen · bed/bedden · huis/huizen · kasteel/kastelen · zee/zeeën · idee/ideeën · knie/knieën</span></div>
+  <div style="margin-top:8px"><strong>S → Z :</strong> <span class="gr-nl">kaas/kazen · laars/laarzen · roos/rozen · huis/huizen</span></div>
+  <div style="font-size:12px;color:var(--muted)">⚠️ Exceptions (pas de S→Z) : wens/wensen · kans/kansen · kous/kousen · prins/prinsen · dans/dansen · mens/mensen</div>
+  <div style="margin-top:6px"><strong>F → V :</strong> <span class="gr-nl">fotograaf/fotografen · brief/brieven · dief/dieven</span></div>
+  <div style="margin-top:6px"><strong>Allongement voyelle :</strong> <span class="gr-nl">bad/baden · bedrag/bedragen · dag/dagen · dak/daken · gat/gaten · glas/glazen · pad/paden · gebrek/gebreken · spel/spelen · weg/wegen · lid/leden · schip/schepen · stad/steden</span></div>
 </div>
 <div class="gr-rule">
-  <strong>+ S</strong> — mots en <code>-el -em -en -er -aar</code>, diminutifs <code>-je</code>, mots étrangers
-  <div class="gr-eg"><span class="gr-nl">de lepel → de lepels</span><span class="gr-arr">|</span><span class="gr-nl">het café → de cafés</span><span class="gr-arr">|</span><span class="gr-nl">het ijsje → de ijsjes</span></div>
+  <strong>B/ Pluriel en +S</strong>
+  <div style="margin-top:6px">a) Terminés par <em>-el / -em / -en / -er / -aar</em> : <span class="gr-nl">lepel/lepels · bliksem/bliksems · wagen/wagens · fietser/fietsers · leraar/leraars</span></div>
+  <div style="font-size:12px;color:var(--muted)">NB exceptions : middel→middelen · artikel→artikelen · geneesmiddel→geneesmiddelen</div>
+  <div style="margin-top:4px">b) Mots d'autre langue : <span class="gr-nl">café/cafés · bureau/bureaus · machine/machines · dame/dames · station/stations · tante/tantes</span></div>
+  <div style="margin-top:4px">c) Diminutifs en <em>-je</em> : <span class="gr-nl">ijsje/ijsjes · deurtje/deurtjes</span></div>
+  <div style="margin-top:4px">d) Terminés en <em>-ie</em> : <span class="gr-nl">familie/families · serie/series</span></div>
+  <div style="margin-top:4px">e) Terminés en <em>-ier / -eur / -oor</em> : <span class="gr-nl">chauffeur/chauffeurs · directeur/directeurs · acteur/acteurs · officier/officiers · cipier/cipiers · pastoor/pastoors</span></div>
+  <div style="margin-top:4px">f) Néerlandais : <span class="gr-nl">broer/broers · oom/ooms · lente/lentes</span></div>
 </div>
 <div class="gr-rule">
-  <strong>+ 'S</strong> — mots terminés par A, I, O, U, Y
-  <div class="gr-eg"><span class="gr-nl">de auto → de auto's</span><span class="gr-arr">|</span><span class="gr-nl">de taxi → de taxi's</span></div>
+  <strong>C/ Pluriel en +'S</strong> — terminés par A, I, O, U, Y
+  <div class="gr-eg"><span class="gr-nl">agenda/agenda's · taxi/taxi's · auto/auto's · paraplu/paraplu's · baby/baby's</span></div>
 </div>
 <div class="gr-rule">
-  <strong>Irréguliers</strong>
-  <div class="gr-eg"><span class="gr-nl">het kind → de kinderen</span><span class="gr-arr">|</span><span class="gr-nl">het ei → de eieren</span><span class="gr-arr">|</span><span class="gr-nl">de stad → de steden</span></div>
+  <strong>D/ Autres pluriels</strong>
+  <div style="margin-top:4px">1) <strong>-eren</strong> : <span class="gr-nl">kind/kinderen · ei/eieren</span> — NB : been/beenderen/benen · blad/bladeren+blaren/bladen</div>
+  <div style="margin-top:4px">2) <strong>-heid → -heden</strong> : <span class="gr-nl">schoonheid/schoonheden · waarheid/waarheden</span></div>
+  <div style="margin-top:4px">3) <strong>Latin</strong> : -us→-i (musicus/musici) · -um→-ums/-a (museum/musea)</div>
+  <div style="margin-top:4px">4) <strong>-man → -lui</strong> : <span class="gr-nl">koopman/kooplui · werkman/werklui</span> — exc. politieman/politiemannen ; NB Engelsman/Engelsen</div>
+  <div style="margin-top:4px">5) Singulier NL = pluriel FR ; 6) Poids/mesures → singulier ; 7) Uniquement au pluriel</div>
 </div>`,
     exercises: [
       { p: 'de kat → ?', a: 'de katten' },
@@ -5814,8 +5827,23 @@ var TOPICS = [
     subtitle: 'Sujets, objets et possessifs',
     theory: `
 <div class="gr-rule">
-  <strong>Pronoms sujets</strong>
-  <table class="gr-table">
+  <strong>Pronoms possessifs</strong>
+  <table class="gr-table" style="margin-top:6px">
+    <tr><th>FR</th><th>NL</th></tr>
+    <tr><td>mon/ma/mes</td><td class="gr-nl">mijn</td></tr>
+    <tr><td>ton/ta/tes</td><td class="gr-nl">je / jouw</td></tr>
+    <tr><td>votre (poli)</td><td class="gr-nl">uw</td></tr>
+    <tr><td>son/sa/ses (masc.)</td><td class="gr-nl">zijn</td></tr>
+    <tr><td>son/sa/ses (fém.)</td><td class="gr-nl">haar</td></tr>
+    <tr><td>notre/nos</td><td class="gr-nl">ons (het-woord sg.) / onze (ailleurs)</td></tr>
+    <tr><td>votre/vos (pl.)</td><td class="gr-nl">jullie</td></tr>
+    <tr><td>leur/leurs</td><td class="gr-nl">hun</td></tr>
+  </table>
+  <div style="margin-top:6px;font-size:12.5px"><span class="gr-nl">ons huis</span> (het-woord) · <span class="gr-nl">onze auto</span> (de-woord) · <span class="gr-nl">onze vrienden</span> (pluriel)</div>
+</div>
+<div class="gr-rule">
+  <strong>Pronoms personnels sujets</strong>
+  <table class="gr-table" style="margin-top:6px">
     <tr><th>FR</th><th>Non accentué</th><th>Accentué</th></tr>
     <tr><td>je</td><td class="gr-nl">ik</td><td class="gr-nl">ik</td></tr>
     <tr><td>tu</td><td class="gr-nl">je</td><td class="gr-nl">jij</td></tr>
@@ -5828,23 +5856,20 @@ var TOPICS = [
   </table>
 </div>
 <div class="gr-rule">
-  <strong>Pronoms objets</strong>
-  <table class="gr-table">
+  <strong>Pronoms personnels objets</strong>
+  <table class="gr-table" style="margin-top:6px">
     <tr><th>Sujet</th><th>Objet</th></tr>
     <tr><td class="gr-nl">ik</td><td class="gr-nl">me</td></tr>
-    <tr><td class="gr-nl">je / jij</td><td class="gr-nl">je</td></tr>
+    <tr><td class="gr-nl">je / u</td><td class="gr-nl">je / u</td></tr>
     <tr><td class="gr-nl">hij</td><td class="gr-nl">hem</td></tr>
-    <tr><td class="gr-nl">ze / zij</td><td class="gr-nl">haar (pers.) / ze (choses)</td></tr>
+    <tr><td class="gr-nl">haar / ze</td><td class="gr-nl">haar / ze</td></tr>
     <tr><td class="gr-nl">het</td><td class="gr-nl">het</td></tr>
-    <tr><td class="gr-nl">we / wij</td><td class="gr-nl">ons</td></tr>
-    <tr><td class="gr-nl">ze / zij (pl.)</td><td class="gr-nl">hen / hun / ze</td></tr>
+    <tr><td class="gr-nl">ons</td><td class="gr-nl">ons</td></tr>
+    <tr><td class="gr-nl">jullie / u</td><td class="gr-nl">jullie / u</td></tr>
+    <tr><td class="gr-nl">hen / hun / ze</td><td class="gr-nl">hen / hun / ze</td></tr>
   </table>
-  <div style="margin-top:8px;font-size:12px;color:var(--muted)"><strong>hun</strong> = COI sans préposition · <strong>hen</strong> = COD ou après préposition · <strong>ze</strong> = toujours COD</div>
-</div>
-<div class="gr-rule">
-  <strong>Possessifs — ons vs onze</strong><br>
-  <code>ons</code> devant un <em>het</em>-woord singulier — <code>onze</code> partout ailleurs
-  <div class="gr-eg"><span class="gr-nl">ons huis</span><span class="gr-arr">|</span><span class="gr-nl">onze auto</span><span class="gr-arr">|</span><span class="gr-nl">onze vrienden</span></div>
+  <div style="margin-top:8px;font-size:12px;color:var(--muted)"><strong>hen</strong> = COI avec préposition ou COD · <strong>hun</strong> = COI sans préposition · <strong>ze</strong> = COD<br>
+  Ex : <span class="gr-nl">Ik zie hen.</span> (COD) · <span class="gr-nl">Ik geef hun een cadeau.</span> (COI sans prép.)</div>
 </div>`,
     exercises: [
       { p: 'Je parle le néerlandais. → _____ spreek Nederlands.', a: 'ik' },
@@ -5865,20 +5890,28 @@ var TOPICS = [
     subtitle: 'Épithète vs attribut — règle du -e',
     theory: `
 <div class="gr-rule">
-  <strong>Adjectif attribut → INVARIABLE</strong> (suit le verbe)
-  <div class="gr-eg"><span class="gr-nl">De wagen is rood.</span><span class="gr-arr">→</span><span class="gr-fr">La voiture est rouge.</span></div>
+  <strong>Adjectif attribut → INVARIABLE</strong> (suit le verbe être/paraître)
+  <div class="gr-eg"><span class="gr-nl">Mijn jas is groen.</span><span class="gr-arr">|</span><span class="gr-nl">Jurgen is mooi.</span><span class="gr-arr">|</span><span class="gr-nl">Kim is sportief.</span></div>
 </div>
 <div class="gr-rule">
   <strong>Adjectif épithète → + E (règle générale)</strong>
-  <div class="gr-eg"><span class="gr-nl">de rode wagen</span><span class="gr-arr">|</span><span class="gr-nl">een mooie jongen</span><span class="gr-arr">|</span><span class="gr-nl">een lieve hond</span> <span class="gr-fr">(F→V)</span></div>
+  <div class="gr-eg"><span class="gr-nl">een groene jas · een mooie jongen · een sportieve vrouw</span></div>
+  <div style="margin-top:6px;font-size:12.5px">Orthographe : dik→<strong>dikke</strong> · rood→<strong>rode</strong> · lief→<strong>lieve</strong> · dwaas→<strong>dwaze</strong></div>
 </div>
 <div class="gr-rule">
-  <strong>⚠️ PAS DE -E</strong> si le nom est <em>het</em>-woord + singulier + indéterminé (<code>een / geen / Ø</code>)
-  <div class="gr-eg"><span class="gr-nl">een mooi huis</span><span class="gr-arr">|</span><span class="gr-nl">geen rood haar</span><span class="gr-arr">|</span><span class="gr-nl">Mooi geschenk!</span></div>
+  <strong>⚠️ EXCEPTION — PAS DE -E</strong> si <em>het</em>-woord + singulier + indéterminé (een / geen / Ø)
+  <div class="gr-eg"><span class="gr-nl">Ik heb een mooi huis.</span><span class="gr-arr">|</span><span class="gr-nl">Ik heb geen rossig haar.</span><span class="gr-arr">|</span><span class="gr-nl">Mooi geschenk!</span></div>
+</div>
+<div class="gr-rule">
+  <strong>L'adjectif épithète est invariable quand :</strong>
+  <div style="margin-top:6px">a) Il se termine par <strong>-EN</strong> (adjectifs de matière) :
+  <div class="gr-eg"><span class="gr-nl">mijn bescheiden bijdrage · deze houten tafel · de open deur</span></div></div>
+  <div style="margin-top:6px">b) Adjectifs d'origine étrangère désignant une couleur, ou : <em>prima, extra, privé, gratis</em>
+  <div class="gr-eg"><span class="gr-nl">een privé detective · een beige broek</span></div></div>
 </div>
 <div class="gr-rule">
   <strong>Terminaison -S</strong> après <code>iets · niets · veel · wat · weinig</code>
-  <div class="gr-eg"><span class="gr-nl">iets moois</span><span class="gr-arr">|</span><span class="gr-nl">niets interessants</span><span class="gr-arr">|</span><span class="gr-nl">veel nieuws</span></div>
+  <div class="gr-eg"><span class="gr-nl">iets moois</span> (quelque chose de beau)<span class="gr-arr">|</span><span class="gr-nl">niets interessants</span> (rien d'intéressant)<span class="gr-arr">|</span><span class="gr-nl">veel nieuws</span> (beaucoup de nouveau)</div>
 </div>`,
     exercises: [
       { p: 'de (jong) leraar → ?', a: 'de jonge leraar' },
@@ -5908,12 +5941,17 @@ var TOPICS = [
 <div class="gr-rule">
   <strong>Supériorité</strong> → <code>adjectif + -er ... dan</code>
   <div class="gr-eg"><span class="gr-nl">Jan is groter dan zijn broer.</span></div>
-  ⚠️ Adj. terminé par -R → <code>-der</code> : <span class="gr-nl">lekkerder</span><br>
-  ⚠️ "De plus en plus" → <code>steeds + comparatif</code> ou <code>comparatif + en + comparatif</code>
+  2° Adj. terminé par -R → <code>-DER</code> : <span class="gr-nl">lekker → lekkerder · zeker → zekerder</span><br>
+  3° Participes passés / adj. en <strong>-st / -isch</strong> → <code>MEER + adj. (comp.) · MEEST + adj. (sup.)</code>
+  <div class="gr-eg"><span class="gr-nl">interessant → meer interessant · meest interessant</span></div>
+  4° Orthographe : voyelle longue → perd une lettre : <span class="gr-nl">hoog → hoger</span> · consonne double → perd une consonne : <span class="gr-nl">dik → dikker</span><br>
+  <strong>"De plus en plus"</strong> → <code>steeds + comparatif</code> ou <code>comparatif + en + comparatif</code>
+  <div class="gr-eg"><span class="gr-nl">steeds groter · groter en groter</span></div>
 </div>
 <div class="gr-rule">
   <strong>Superlatif</strong> → <code>adjectif + -st(e)</code>
-  <div class="gr-eg"><span class="gr-nl">de mooiste stad</span><span class="gr-arr">|</span><span class="gr-nl">het beste antwoord</span></div>
+  <div class="gr-eg"><span class="gr-nl">de mooiste stad · het beste antwoord · de grootste</span></div>
+  ⚠️ Adj. en -st/-isch ou participe passé → <code>het MEEST + adj.</code> : <span class="gr-nl">het meest interessant</span>
 </div>
 <div class="gr-rule">
   <strong>Irréguliers</strong>
@@ -5978,15 +6016,23 @@ var TOPICS = [
   <table class="gr-table" style="margin-top:8px">
     <tr><th>Personne</th><th>Forme</th><th>Exemple (werken)</th></tr>
     <tr><td class="gr-nl">ik</td><td>radical</td><td class="gr-nl">werk</td></tr>
-    <tr><td class="gr-nl">je / u / hij / ze / het</td><td>radical + t</td><td class="gr-nl">werkt</td></tr>
+    <tr><td class="gr-nl">je / jij</td><td>radical + t</td><td class="gr-nl">werkt → Werk je?</td></tr>
+    <tr><td class="gr-nl">u</td><td>radical + t</td><td class="gr-nl">werkt → Werkt u?</td></tr>
+    <tr><td class="gr-nl">hij / ze / het</td><td>radical + t</td><td class="gr-nl">werkt</td></tr>
     <tr><td class="gr-nl">we / jullie / ze</td><td>= infinitif</td><td class="gr-nl">werken</td></tr>
   </table>
-  <div style="margin-top:8px;font-size:12.5px;color:var(--muted)">⚠️ Inversion avec <em>je/jij</em> → le -t disparaît : <code>Je werkt</code> → <code>Werk je?</code></div>
+  <div style="margin-top:8px;font-size:12.5px;color:var(--muted)">⚠️ Inversion avec <em>je/jij</em> → le -t disparaît : <code>Je werkt</code> → <code>Werk je?</code><br>
+  ⚠️ Inversion avec <em>u</em> → le -t se maintient : <code>U werkt</code> → <code>Werkt u?</code><br>
+  ⚠️ Verbe <em>zitten</em> : radical = <strong>zit</strong> (niet zitten)</div>
 </div>
 <div class="gr-rule">
   <strong>Particule séparable</strong> → la particule se place <strong>à la fin</strong> de la principale
-  <div class="gr-eg"><span class="gr-nl">op|staan → Ik sta om 7 uur <strong>op</strong>.</span></div>
-  <div class="gr-eg"><span class="gr-nl">terug|komen → Hij komt morgen <strong>terug</strong>.</span></div>
+  <table class="gr-table" style="margin-top:6px">
+    <tr><th>Infinitif</th><th>Exemple</th></tr>
+    <tr><td class="gr-nl">op|staan</td><td class="gr-nl">Ik sta om 7 uur <strong>op</strong>.</td></tr>
+    <tr><td class="gr-nl">terug|komen</td><td class="gr-nl">Hij komt morgen <strong>terug</strong>.</td></tr>
+    <tr><td class="gr-nl">op|bellen</td><td class="gr-nl">Ze belt haar moeder <strong>op</strong>.</td></tr>
+  </table>
 </div>`,
     exercises: [
       { p: 'radical de "werken" → ?', a: 'werk' },
@@ -6007,20 +6053,34 @@ var TOPICS = [
     subtitle: "'t kofschip — imparfait & passé simple",
     theory: `
 <div class="gr-rule">
-  <strong>Règle : 't kofschip</strong> (= FranKlin Prend Son THé CHaud)<br>
-  Si la consonne finale du radical ∈ <code>t k f s ch p</code> → <code>-te / -ten</code><br>
-  Sinon → <code>-de / -den</code>
-  <table class="gr-table" style="margin-top:8px">
-    <tr><th>Personne</th><th class="gr-nl">werken (-te)</th><th class="gr-nl">wandelen (-de)</th></tr>
-    <tr><td class="gr-nl">ik / je / hij</td><td class="gr-nl">werkte</td><td class="gr-nl">wandelde</td></tr>
-    <tr><td class="gr-nl">we / jullie / ze</td><td class="gr-nl">werkten</td><td class="gr-nl">wandelden</td></tr>
+  <table class="gr-table">
+    <tr><th>Forme affirmative</th><th>Formation</th><th>Emplois</th></tr>
+    <tr>
+      <td class="gr-nl">Ik / je / hij werkte<br>We / jullie / ze werkten</td>
+      <td>RADICAL + te(n)<br><strong>'t kofschip</strong><br><em>FranKlin Prend Son Thé CHaud</em><br>Ex : maken → <strong>maakte</strong><br>leggen → <strong>legde</strong></td>
+      <td>Les règles d'orthographe sont toujours d'application.<br><br>⚠️ C'est la consonne finale du radical telle qu'elle est écrite à l'infinitif qui décide du choix entre <strong>-te</strong> et <strong>-de</strong>.<br><br>Ex : beven → <strong>beefde</strong><br>bonzen → <strong>bonsde</strong></td>
+    </tr>
+    <tr>
+      <td class="gr-nl">Ik / je / hij wandelde<br>We / jullie / ze wandelden</td>
+      <td>RADICAL + de(n)</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td class="gr-nl">Ik / je / hij riep<br>We / jullie / ze riepen</td>
+      <td>VERBES IRRÉGULIERS</td>
+      <td>L'OVT correspond à l'imparfait <strong>et</strong> au passé simple en français.<br><br>L'OVT exprime :<br>— une situation passée<br>— une situation passée habituelle ou permanente</td>
+    </tr>
+    <tr>
+      <td class="gr-nl">Ik / je / hij <strong>was</strong><br>We / jullie / ze <strong>waren</strong></td>
+      <td>ZIJN</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td class="gr-nl">Ik / je / hij <strong>had</strong><br>We / jullie / ze <strong>hadden</strong></td>
+      <td>HEBBEN</td>
+      <td></td>
+    </tr>
   </table>
-  <div style="margin-top:8px;font-size:12px;color:var(--muted)">⚠️ C'est la consonne telle qu'elle est écrite à l'infinitif qui décide : <em>leven</em> → radical <em>leef</em> → <strong>leefde</strong> (pas dans kofschip)</div>
-</div>
-<div class="gr-rule">
-  <strong>Irréguliers courants</strong>
-  <div class="gr-eg"><span class="gr-nl">zijn → was / waren</span><span class="gr-arr">|</span><span class="gr-nl">hebben → had / hadden</span></div>
-  <div class="gr-eg"><span class="gr-nl">gaan → ging / gingen</span><span class="gr-arr">|</span><span class="gr-nl">komen → kwam / kwamen</span></div>
 </div>`,
     exercises: [
       { p: 'werken → prétérit (ik)', a: 'werkte', h: "k ∈ 't kofschip → -te" },
@@ -6040,21 +6100,29 @@ var TOPICS = [
     subtitle: 'Auxiliaire + participe passé',
     theory: `
 <div class="gr-rule">
-  <strong>Participe passé (régulier)</strong> : <code>ge + radical + d/t</code><br>
-  Même règle <em>'t kofschip</em> : radical ∈ kofschip → <code>-t</code>, sinon → <code>-d</code>
-  <div class="gr-eg"><span class="gr-nl">wonen → gewoond</span><span class="gr-arr">|</span><span class="gr-nl">werken → gewerkt</span></div>
-  <div style="margin-top:6px;font-size:12.5px">⚠️ <strong>Verbes en be-, ge-, er-, her-, ont-, ver-</strong> → pas de <code>ge-</code>
-  <div class="gr-eg"><span class="gr-nl">vertalen → vertaald</span><span class="gr-arr">|</span><span class="gr-nl">ontdekken → ontdekt</span></div>
-  </div>
-  <div style="margin-top:6px;font-size:12.5px">⚠️ <strong>Particule séparable</strong> : ge- s'insère entre particule et radical
-  <div class="gr-eg"><span class="gr-nl">uitnodigen → uitgenodigd</span><span class="gr-arr">|</span><span class="gr-nl">opruimen → opgeruimd</span></div>
-  </div>
+  <strong>Structure</strong> : SUJET + AUXILIAIRE + COMPLÉMENTS + PARTICIPE PASSÉ
+  <div class="gr-eg"><span class="gr-nl">Ik heb gisteren een brief geschreven.</span></div>
 </div>
 <div class="gr-rule">
-  <strong>HEBBEN ou ZIJN ?</strong><br>
-  <code>zijn</code> avec : <em>zijn, worden, gaan, komen, blijven, blijken, gebeuren</em>, verbes de mouvement avec but précis, passage d'état<br>
-  <div class="gr-eg"><span class="gr-nl">Ze zijn lang gebleven.</span><span class="gr-arr">|</span><span class="gr-nl">Hij is naar buiten gefietst.</span><span class="gr-arr">|</span><span class="gr-nl">Ze is gisteren gestorven.</span></div>
-  <code>hebben</code> avec tous les autres verbes.
+  <strong>Participe passé (régulier)</strong> : (particule séparable) – <code>ge</code> – radical – <code>d / t</code><br>
+  Même règle <em>'t kofschip</em> : radical ∈ kofschip → <code>-t</code>, sinon → <code>-d</code>
+  <div class="gr-eg"><span class="gr-nl">wonen → gewoond · werken → gewerkt · uitnodigen → uitgenodigd · opruimen → opgeruimd</span></div>
+  <div style="margin-top:6px;font-size:12.5px">⚠️ <strong>Préfixes be- / ge- / er- / her- / ont- / ver-</strong> → pas de <code>ge-</code><br>
+  <span class="gr-nl">bekennen → bekend · gebeuren → gebeurd · erkennen → erkend · herhalen → herhaald · ontdekken → ontdekt · vertalen → vertaald</span></div>
+</div>
+<div class="gr-rule">
+  <strong>HEBBEN ou ZIJN ?</strong>
+  <table class="gr-table" style="margin-top:6px">
+    <tr><th>HEBBEN</th><th>ZIJN</th></tr>
+    <tr>
+      <td>Verbes transitifs<br>Verbes intransitifs <em>non inclus ci-contre</em></td>
+      <td>zijn · worden · blijven · blijken · lijken · schijnen<br>gaan · komen · vertrekken · terugkeren · vluchten<br>vallen · zakken · stijgen · groeien · slinken<br>geboren worden · sterven · trouwen · scheiden<br>slagen · mislukken · gebeuren</td>
+    </tr>
+    <tr>
+      <td class="gr-nl">Ik heb gisteren een brief geschreven.<br>Ze hebben lang geslapen.</td>
+      <td class="gr-nl">Hij is naar Brussel gegaan.<br>Ze is gisteren gestorven.<br>Ze zijn lang gebleven.</td>
+    </tr>
+  </table>
 </div>`,
     exercises: [
       { p: 'wonen → participe passé', a: 'gewoond' },
@@ -6071,24 +6139,213 @@ var TOPICS = [
     ]
   },
   {
-    id: 'negation',
-    title: '9. La négation',
-    subtitle: 'Niet vs geen — position dans la phrase',
+    id: 'plus-que-parfait',
+    title: '9. Plus-que-parfait',
+    subtitle: 'Auxiliaire à l\'imparfait + participe passé',
     theory: `
 <div class="gr-rule">
-  <strong>GEEN</strong> — remplace <em>un/une/du/de la/des</em> (groupe nominal indéterminé)<br>
-  Aussi devant un nombre ou l'heure
-  <div class="gr-eg"><span class="gr-nl">Ik heb geen auto.</span><span class="gr-arr">→</span><span class="gr-fr">Je n'ai pas de voiture.</span></div>
-  <div class="gr-eg"><span class="gr-nl">Hij is geen twaalf jaar.</span><span class="gr-arr">→</span><span class="gr-fr">Il n'a pas douze ans.</span></div>
+  <table class="gr-table">
+    <tr><th>Forme affirmative</th><th>Formation</th><th>Emplois</th></tr>
+    <tr>
+      <td class="gr-nl">Ik / je / hij <strong>had gewerkt</strong><br>We / jullie / ze <strong>hadden gewerkt</strong><br><br>Ik / je / hij <strong>had gewandeld</strong><br>We / jullie / ze <strong>hadden gewandeld</strong><br><br>Ik / je / hij <strong>was gekomen</strong><br>We / jullie / ze <strong>waren gekomen</strong></td>
+      <td>Auxiliaire HEBBEN / ZIJN à l'imparfait + participe passé</td>
+      <td>Le plus-que-parfait peut correspondre :<br>— au plus-que-parfait français<br>— au passé antérieur français<br><br>Le P.Q.P. exprime une action antérieure à un moment donné du passé.<br><br>Ex : <span class="gr-nl">Toen ik belde, <strong>was</strong> ze al <strong>weggegaan</strong>.</span><br><br>Le P.Q.P. exprime un souhait irréalisable et un regret (avec 'maar')<br><br>Ex : <span class="gr-nl"><strong>Had</strong> ik dat maar <strong>geweten</strong>!</span><br><br>Le P.Q.P. remplace souvent le conditionnel passé.<br><br>Ex : <span class="gr-nl"><strong>Had</strong> ik dat <strong>geweten</strong>, dan <strong>had</strong> ik het niet <strong>gezegd</strong>!</span></td>
+    </tr>
+  </table>
+</div>`,
+    exercises: [
+      { p: 'wonen → plus-que-parfait (hij)', a: 'had gewoond' },
+      { p: 'wandelen → plus-que-parfait (we)', a: 'hadden gewandeld' },
+      { p: 'komen → plus-que-parfait (ik)', a: 'was gekomen', h: 'komen → zijn' },
+      { p: 'werken → plus-que-parfait (jullie)', a: 'hadden gewerkt' },
+      { p: 'gaan → plus-que-parfait (ze / sg)', a: 'was gegaan', h: 'gaan → zijn' },
+      { p: 'Souhait irréalisable : "Si seulement je l\'avais su !" → Had ik dat maar _____ !', a: 'geweten' },
+      { p: 'opruimen → plus-que-parfait (ik)', a: 'had opgeruimd' },
+      { p: 'blijven → plus-que-parfait (we)', a: 'waren gebleven', h: 'blijven → zijn' },
+      { p: 'beginnen → plus-que-parfait (hij)', a: 'was begonnen', h: 'beginnen → zijn; PP irrégulier' },
+      { p: 'vertalen → plus-que-parfait (ze / pl.)', a: 'hadden vertaald', h: 'ver- → pas de ge-' },
+    ]
+  },
+  {
+    id: 'futur-simple',
+    title: '10. Futur simple (OTkT)',
+    subtitle: 'ZAL / ZULLEN + infinitif',
+    theory: `
+<div class="gr-rule">
+  <strong>Formation</strong> : <code>ZAL / ZULLEN + INFINITIF</code>
+  <table class="gr-table" style="margin-top:8px">
+    <tr><th>Personne</th><th>Forme</th></tr>
+    <tr><td class="gr-nl">ik / je / hij / ze / het</td><td class="gr-nl">zal werken</td></tr>
+    <tr><td class="gr-nl">we / jullie / ze</td><td class="gr-nl">zullen werken</td></tr>
+  </table>
 </div>
 <div class="gr-rule">
-  <strong>NIET</strong> — dans tous les autres cas<br>
-  <div style="margin-top:8px">
-  <strong>Devant</strong> : adjectif attribut · préposition · adverbe · particule séparable · infinitif<br>
-  <div class="gr-eg"><span class="gr-nl">De auto is <strong>niet</strong> mooi.</span><span class="gr-arr">|</span><span class="gr-nl">Ik woon <strong>niet</strong> in Luik.</span><span class="gr-arr">|</span><span class="gr-nl">Ik ruim mijn kamer <strong>niet</strong> op.</span></div>
-  <strong>Après</strong> : groupe nominal déterminé (COD défini)
-  <div class="gr-eg"><span class="gr-nl">Dat is mijn boek <strong>niet</strong>.</span><span class="gr-arr">|</span><span class="gr-nl">Hij kent dat meisje <strong>niet</strong>.</span></div>
-  </div>
+  <strong>Emplois</strong><br>
+  1. Futur simple : <span class="gr-nl">Morgen zal hij werken.</span><br>
+  2. Offre : <span class="gr-nl">Zal ik uw boekentas dragen?</span><br>
+  3. Possibilité / supposition : <span class="gr-nl">Hij zal zeker afwezig zijn.</span><br>
+  4. Futur proche (= aller + inf.) : <span class="gr-nl">Ik zal het je meteen zeggen.</span>
+</div>`,
+    exercises: [
+      { p: 'ik (amuseren zich) → futur simple', a: 'ik zal me amuseren' },
+      { p: 'hij (wandelen) → futur simple', a: 'hij zal wandelen' },
+      { p: 'we (maken) → futur simple', a: 'we zullen maken' },
+      { p: 'ze (klaarmaken) → futur simple (particule séparable)', a: 'ze zullen klaarmaken', h: 'Particule reste attachée à l\'infinitif' },
+      { p: 'Offre : "Vais-je porter votre sac ?" → _____ ik uw tas dragen?', a: 'zal' },
+      { p: 'jullie (begrijpen) → futur simple', a: 'jullie zullen begrijpen' },
+      { p: 'hij (vertrekken) → futur simple', a: 'hij zal vertrekken' },
+      { p: 'ik (schoonmaken) → futur simple', a: 'ik zal schoonmaken' },
+      { p: 'we (logeren) → futur simple', a: 'we zullen logeren' },
+      { p: '"Il partira sûrement à l\'heure." → supposition : Hij _____ zeker op tijd vertrekken.', a: 'zal' },
+    ]
+  },
+  {
+    id: 'futur-anterieur',
+    title: '11. Futur antérieur (VTkT)',
+    subtitle: 'ZAL/ZULLEN + participe passé + hebben/zijn',
+    theory: `
+<div class="gr-rule">
+  <strong>Formation</strong> : <code>ZAL/ZULLEN + PP + infinitif de hebben/zijn</code>
+  <div class="gr-eg"><span class="gr-nl">ik zal gewerkt <strong>hebben</strong></span><span class="gr-arr">|</span><span class="gr-nl">we zullen gewerkt <strong>hebben</strong></span></div>
+  <div class="gr-eg"><span class="gr-nl">ik zal gekomen <strong>zijn</strong></span><span class="gr-arr">|</span><span class="gr-nl">we zullen gekomen <strong>zijn</strong></span></div>
+</div>
+<div class="gr-rule">
+  <strong>Emplois</strong><br>
+  1. Action terminée avant un moment futur :<br>
+  <span class="gr-nl">Op dat ogenblik zal ik al 110 km <strong>gereden hebben</strong>.</span><br>
+  2. Probabilité / supposition sur un fait passé :<br>
+  <span class="gr-nl">Hij zal zeker later <strong>gewerkt hebben</strong>.</span>
+</div>`,
+    exercises: [
+      { p: 'werken → futur antérieur (ik)', a: 'ik zal gewerkt hebben' },
+      { p: 'gaan → futur antérieur (ze / sg)', a: 'ze zal gegaan zijn', h: 'gaan → zijn' },
+      { p: 'klaarmaken → futur antérieur (moeder)', a: 'moeder zal klaargemaakt hebben' },
+      { p: 'kopen → futur antérieur (ze / sg)', a: 'ze zal gekocht hebben' },
+      { p: 'schrijven → futur antérieur (mijn zusje)', a: 'mijn zusje zal geschreven hebben' },
+      { p: 'blijven steken → futur antérieur (ze / pl.) → ze _____ _____ _____ _____ .', a: 'ze zullen blijven steken zijn', h: 'blijven steken → zijn' },
+      { p: '"Il aura sûrement eu de la malchance." → Hij zal zeker pech _____ _____ .', a: 'gehad hebben' },
+      { p: 'opruimen → futur antérieur (grootvader)', a: 'grootvader zal opgeruimd hebben' },
+    ]
+  },
+  {
+    id: 'conditionnel-present',
+    title: '12. Conditionnel présent (OVkT)',
+    subtitle: 'ZOU / ZOUDEN + infinitif',
+    theory: `
+<div class="gr-rule">
+  <strong>Formation</strong> : <code>ZOU / ZOUDEN + INFINITIF</code>
+  <table class="gr-table" style="margin-top:8px">
+    <tr><th>Personne</th><th>Forme</th></tr>
+    <tr><td class="gr-nl">ik / je / hij / ze / het</td><td class="gr-nl">zou werken</td></tr>
+    <tr><td class="gr-nl">we / jullie / ze</td><td class="gr-nl">zouden werken</td></tr>
+  </table>
+</div>
+<div class="gr-rule">
+  <strong>Emplois</strong><br>
+  1. Condition / supposition / désir : <span class="gr-nl">Als ik tijd had, zou ik komen.</span><br>
+  2. Chose convenue d'avance dans le passé (= devait) : <span class="gr-nl">We zouden het rapport meenemen.</span><br>
+  3. Fatalité inévitable : <span class="gr-nl">Die oude vrouw zou wat later sterven.</span><br>
+  4. Souhait (+ willen) : <span class="gr-nl">Ik zou dokter willen worden.</span>
+</div>`,
+    exercises: [
+      { p: '"Als ik tijd had, (gaan) ik naar de schouwburg." → ?', a: 'zou gaan' },
+      { p: '"Als je mijn raad volgde, (slagen) je." → ?', a: 'zou slagen' },
+      { p: '"Als wij niet ziek waren, (komen) wij op het fuifje." → ?', a: 'zouden komen' },
+      { p: '"Als ik ouder was, (kopen) ik een auto." → ?', a: 'zou kopen' },
+      { p: 'Souhait : "Je voudrais devenir médecin." → Ik _____ dokter willen worden.', a: 'zou' },
+      { p: '"Ils devaient apporter le rapport." → Ze _____ het rapport meenemen.', a: 'zouden', h: 'Chose convenue dans le passé' },
+      { p: '"Als we die mensen uitnodigen, (maken) ze ruzie." → conditionnel présent', a: 'zouden maken' },
+      { p: 'we / zouden → forme complète avec "werken"', a: 'we zouden werken' },
+    ]
+  },
+  {
+    id: 'conditionnel-passe',
+    title: '13. Conditionnel passé (VVTkT)',
+    subtitle: 'ZOU/ZOUDEN + PP + infinitif hebben/zijn',
+    theory: `
+<div class="gr-rule">
+  <strong>Formation</strong> : <code>ZOU/ZOUDEN + PP + infinitif de hebben/zijn</code>
+  <div class="gr-eg"><span class="gr-nl">ik zou gewerkt <strong>hebben</strong></span><span class="gr-arr">|</span><span class="gr-nl">we zouden gegaan <strong>zijn</strong></span></div>
+</div>
+<div class="gr-rule">
+  <strong>Emploi</strong> : fait irréel dépendant d'une condition non réalisée<br>
+  <span class="gr-nl">Als ik het maar had geweten, dan zou ik hem gesproken hebben.</span>
+  <div style="margin-top:8px;font-size:12.5px;color:var(--muted)">⚠️ En néerlandais, le plus-que-parfait remplace souvent le conditionnel passé dans la condition : <em>Had ik dat geweten, dan had ik het niet gezegd.</em></div>
+</div>`,
+    exercises: [
+      { p: '"Als ik dat geweten had, (blijven) ik thuis." → ?', a: 'zou gebleven zijn', h: 'blijven → zijn' },
+      { p: '"Als ik niet ziek was geweest, (wandelen) ik." → ?', a: 'zou gewandeld hebben' },
+      { p: '"Als het niet geregend had, (tennissen) we." → ?', a: 'zouden getennist hebben' },
+      { p: '"Als mijn vriendin dat had gezegd, (vertrekken) ik vlug." → ?', a: 'zou vertrokken zijn', h: 'vertrekken → zijn' },
+      { p: '"Als ze rijker waren geweest, (kopen) ze een groter huis." → ?', a: 'zouden gekocht hebben' },
+      { p: '"Als je het boek had gelezen, (falen) je niet." → ?', a: 'zou gefaald hebben/zou niet gefaald hebben' },
+      { p: 'we / conditionnel passé avec "afmaken" → we _____ ons werk _____ _____', a: 'zouden afgemaakt hebben' },
+    ]
+  },
+  {
+    id: 'phrase-simple',
+    title: '14. La phrase simple',
+    subtitle: 'Ordre des mots et inversion',
+    theory: `
+<div class="gr-rule">
+  <strong>Ordre normal</strong> : Sujet — Verbe — Temps — Manière — Lieu
+  <table class="gr-table" style="margin-top:6px">
+    <tr><td class="gr-nl">Ik</td><td class="gr-nl">rijd</td><td class="gr-nl">morgen</td><td class="gr-nl">met de fiets</td><td class="gr-nl">naar Antwerpen</td></tr>
+    <tr><td>S</td><td>V</td><td>Temps</td><td>Manière</td><td>Lieu</td></tr>
+  </table>
+</div>
+<div class="gr-rule">
+  <strong>Inversion</strong> — quand un autre élément est en 1ère position, le verbe reste en 2ème :
+  <div class="gr-eg"><span class="gr-nl">Morgen <strong>ga ik</strong> met de trein naar zee.</span></div>
+  <div class="gr-eg"><span class="gr-nl">Met de trein <strong>ga ik</strong> morgen naar zee.</span></div>
+  <div style="margin-top:8px;font-size:12.5px;color:var(--muted)">⚠️ PAS d'inversion après : <code>ja · nee · en · maar · want · wel</code></div>
+</div>`,
+    exercises: [
+      { p: '"Ik / ga / morgen / naar zee" — commence par "Morgen" → ?', a: 'Morgen ga ik naar zee', h: 'Inversion : V avant S' },
+      { p: '"Ik / reis / met de trein / naar Brussel" — commence par "Met de trein" → ?', a: 'Met de trein reis ik naar Brussel' },
+      { p: '"Wij / gaan / volgende week / op vakantie" — commence par "Volgende week" → ?', a: 'Volgende week gaan we/wij op vakantie' },
+      { p: 'Inversion après "En" ? (oui/non)', a: 'nee/non', h: 'Pas d\'inversion après ja, nee, en, maar, want, wel' },
+      { p: 'Reorder: "ik - las - op het strand - tijdens de vakantie - een paar boeken" (commence par Tijdens)', a: 'Tijdens de vakantie las ik een paar boeken op het strand' },
+      { p: 'Ordre : temps avant manière avant lieu → "hij - fietst - in het park - elke dag - snel" → ?', a: 'hij fietst elke dag snel in het park' },
+      { p: '"Ik / zal / morgen / hem / zijn boek / op school / terugbrengen" — commence par "Morgen" → ?', a: 'Morgen zal ik hem zijn boek op school terugbrengen' },
+      { p: 'Pas d\'inversion : "Ja, _____ komt vandaag." (Mark)', a: 'Ja, Mark komt vandaag' },
+    ]
+  },
+  {
+    id: 'negation',
+    title: '15. La négation',
+    subtitle: 'Niet vs geen — quand et où les placer',
+    theory: `
+<div class="gr-rule">
+  <table class="gr-table">
+    <tr><th>On utilise GEEN</th><th>On utilise NIET</th></tr>
+    <tr>
+      <td>Quand en français on utilise <em>'pas un…, pas de…'</em><br>
+      <span class="gr-nl">Ik heb geen auto.</span><br><br>
+      Quand il y a un nombre<br>
+      <span class="gr-nl">Ik ben geen 10 jaar.</span></td>
+      <td>Dans tous les autres cas</td>
+    </tr>
+  </table>
+</div>
+<div class="gr-rule">
+  <strong>Où placer NIET ?</strong>
+  <table class="gr-table" style="margin-top:6px">
+    <tr><th>DEVANT</th><th>APRÈS</th></tr>
+    <tr>
+      <td>L'adjectif attribut<br><span class="gr-nl">De auto is niet <strong>mooi</strong>.</span><br><br>
+      Une préposition<br><span class="gr-nl">Ik woon niet <strong>in</strong> Luik.</span><br><br>
+      L'adverbe<br><span class="gr-nl">Ik ga niet <strong>dikwijls</strong> naar de bios.</span><br><br>
+      La particule séparable<br><span class="gr-nl">Ik ruim mijn kamer niet <strong>op</strong>.</span><br><br>
+      L'infinitif<br><span class="gr-nl">Mijn zus kan niet <strong>tennissen</strong>.</span></td>
+      <td>Le groupe nominal déterminé<br><span class="gr-nl">Dat is <strong>mijn boek</strong> niet.</span><br><span class="gr-nl">Hij kent <strong>dat meisje</strong> niet.</span><br><span class="gr-nl">Hij doet <strong>de oefening</strong> niet.</span></td>
+    </tr>
+  </table>
+</div>
+<div class="gr-rule">
+  <strong>Où placer GEEN ?</strong><br>
+  DEVANT : un nombre, l'heure, le groupe nominal indéterminé<br>
+  <span class="gr-nl">Hij is geen <strong>twaalf</strong> jaar oud. · Het is geen <strong>drie</strong> uur. · Hij heeft geen <strong>rode auto</strong>.</span>
 </div>`,
     exercises: [
       { p: "Je n'ai pas de nouvelles chaussures. → Ik heb _____ nieuwe schoenen.", a: 'geen', h: 'Indéterminé' },
@@ -6105,47 +6362,307 @@ var TOPICS = [
   },
   {
     id: 'subordinee',
-    title: '10. Phrase subordonnée',
-    subtitle: 'Inversion, subordonnée, proposition relative',
+    title: '16. La phrase complexe',
+    subtitle: 'Coordination, subordination et inversion P1',
     theory: `
 <div class="gr-rule">
-  <strong>Ordre normal</strong> : S — V — (Temps — Manière — Lieu)
-  <div class="gr-eg"><span class="gr-nl">Ik ga morgen met de trein naar zee.</span></div>
-  <strong>Inversion</strong> : complément en 1ère position → V avant S
-  <div class="gr-eg"><span class="gr-nl">Morgen <strong>ga ik</strong> met de trein naar zee.</span></div>
-  <div style="margin-top:6px;font-size:12px;color:var(--muted)">⚠️ PAS d'inversion après : <code>ja, nee, en, maar, want, wel</code></div>
+  <strong>A. La phrase coordonnée</strong> — conjonctions sans influence sur l'ordre
+  <table class="gr-table" style="margin-top:6px">
+    <tr><td class="gr-nl">en</td><td>et</td><td class="gr-nl">De jongen eet zijn boterham op <strong>en</strong> gaat vlug naar school.</td></tr>
+    <tr><td class="gr-nl">maar</td><td>mais</td><td class="gr-nl">Hij is weg <strong>maar</strong> hij zal vlug terugkomen.</td></tr>
+    <tr><td class="gr-nl">of</td><td>ou</td><td class="gr-nl">Ik lees vanavond <strong>of</strong> ik kijk naar de televisie.</td></tr>
+    <tr><td class="gr-nl">want</td><td>car</td><td class="gr-nl">De kinderen spelen in de tuin <strong>want</strong> het is mooi weer.</td></tr>
+  </table>
 </div>
 <div class="gr-rule">
-  <strong>Proposition subordonnée</strong> : conj. + sujet + ... + <strong>verbe conjugué en fin</strong>
+  <strong>B. La phrase juxtaposée</strong> — énumération / phrases de même sens<br>
+  <div class="gr-eg"><span class="gr-nl">Ik lees, kijk naar de televisie en ga slapen.</span></div>
+  <div class="gr-eg"><span class="gr-nl">Hij kwam binnen, trok zijn jas uit, ging zitten.</span></div>
+</div>
+<div class="gr-rule">
+  <strong>C. La phrase insérée</strong><br>
+  1. Commentaire (séparé par des tirets, sans influence) : <span class="gr-nl">Het leven — dat spreekt vanzelf — is soms moeilijk.</span><br>
+  2. Paroles de quelqu'un (construction avec inversion) : <span class="gr-nl">Hij kon, dacht hij, niet beter doen.</span>
+</div>
+<div class="gr-rule">
+  <strong>D. La phrase subordonnée</strong> : conj. + <strong>S</strong> + compléments + <strong>V conjugué en fin</strong><br>
   <div class="gr-eg"><span class="gr-nl">De kinderen spelen <strong>omdat</strong> het mooi weer <strong>is</strong>.</span></div>
-  P2 en tête → inversion dans la P1 :
-  <div class="gr-eg"><span class="gr-nl"><strong>Als je morgen wil komen</strong>, <strong>moet</strong> je vroeg naar bed.</span></div>
+  <div class="gr-eg"><span class="gr-nl">Ik weet niet <strong>waarom</strong> hij vandaag afwezig <strong>is</strong>.</span></div>
+  <div class="gr-eg"><span class="gr-nl">Ze zegt dat ze geen invloed <strong>heeft</strong> op hun eetgewoonten.</span></div>
+  ⚠️ Conjonctions courantes : <code>omdat · dat · als · toen · terwijl · wanneer · of · hoewel · sinds · waarom</code><br>
+  ⚠️ Ne pas mélanger les compléments des propositions : finir P2 avant de commencer P3.<br>
+  <div class="gr-eg"><span class="gr-nl">Ze zeggen // dat ze hun PC zullen meenemen // als ze komen.</span></div>
 </div>
 <div class="gr-rule">
-  <strong>Pronoms relatifs</strong>
-  <table class="gr-table">
+  <strong>P2 en tête → inversion dans la P1</strong>
+  <div class="gr-eg"><span class="gr-nl"><strong>Als je morgen wil komen</strong>, <strong>moet je</strong> vandaag vroeg naar bed gaan.</span></div>
+  <div class="gr-eg"><span class="gr-nl"><strong>Toen de oorlog in 1939 uitbrak</strong>, <strong>woonde hij</strong> in Kenia.</span></div>
+  <div class="gr-eg"><span class="gr-nl"><strong>Sinds ze in Boedapest wonen</strong>, <strong>hebben ze</strong> veel bezoek gekregen.</span></div>
+</div>`,
+    exercises: [
+      { p: 'Ik weet dat hij Nederlands _____ . (spreken — subordonnée)', a: 'spreekt', h: 'V conjugué en fin de subordonnée' },
+      { p: '"Als het regent, _____ ik thuis blijven." (moeten) — inversion P1', a: 'moet', h: 'P2 en tête → inversion P1' },
+      { p: '"...ik ziek ben, bel ik de dokter." — conjonction correcte', a: 'Als', h: 'Als = si/quand (condition)' },
+      { p: '"Hij heeft griep, _____ hij wil toch komen." — coord. (mais)', a: 'maar' },
+      { p: '"Ik lees vanavond _____ ik kijk naar de televisie." — coord. (ou)', a: 'of' },
+      { p: '"Het boek _____ ik lees, is erg spannend." — conjonction relative', a: 'dat', h: 'het boek = het-woord → dat' },
+      { p: '"Weet je _____ Sanders van Rita houdt?" — mot interrogatif indirect', a: 'dat/of', h: 'dat (que) ou of (si)' },
+      { p: '"Toen de training _____ afgelopen, gingen we wat drinken." — verbe en fin', a: 'was', h: 'Verbe rejeté en fin de subordonnée' },
+      { p: '"Ik begrijp niet, _____ je zoiets kan zeggen." — conjonction', a: 'hoe' },
+      { p: '"Sinds ze in Boedapest wonen, _____ ze veel bezoek gekregen." — inversion P1', a: 'hebben', h: 'P2 devant → inversion : hebben ze' },
+    ]
+  },
+  {
+    id: 'prop-relative',
+    title: '17. La proposition relative',
+    subtitle: 'DIE · DAT · WIE · WAAR · WAT',
+    theory: `
+<div class="gr-rule">
+  <strong>Pronoms relatifs (antécédent exprimé)</strong>
+  <table class="gr-table" style="margin-top:6px">
     <tr><th>Antécédent</th><th>Pronom</th><th>Exemple</th></tr>
-    <tr><td>de-woord</td><td class="gr-nl">die</td><td class="gr-nl">de man die naast me zit</td></tr>
-    <tr><td>het-woord</td><td class="gr-nl">dat</td><td class="gr-nl">het kind dat huilt</td></tr>
-    <tr><td>Personne + prép.</td><td class="gr-nl">prep. + wie</td><td class="gr-nl">de vriend met wie ik reis</td></tr>
-    <tr><td>Chose + prép.</td><td class="gr-nl">waar + prép.</td><td class="gr-nl">de pen waarmee ik schrijf</td></tr>
+    <tr><td>de-woord</td><td class="gr-nl">die</td><td class="gr-nl">de man <strong>die</strong> naast me zit</td></tr>
+    <tr><td>het-woord</td><td class="gr-nl">dat</td><td class="gr-nl">het kind <strong>dat</strong> huilt</td></tr>
+    <tr><td>Personne + prép.</td><td class="gr-nl">prép. + wie</td><td class="gr-nl">de vriend <strong>met wie</strong> ik reis</td></tr>
+    <tr><td>Chose/animal + prép.</td><td class="gr-nl">waar + prép.</td><td class="gr-nl">de pen <strong>waarmee</strong> ik schrijf</td></tr>
+    <tr><td>Lieu</td><td class="gr-nl">waar</td><td class="gr-nl">het dorp <strong>waar</strong> hij geboren is</td></tr>
+  </table>
+</div>
+<div class="gr-rule">
+  <strong>Antécédent non exprimé ou phrase entière</strong>
+  <div class="gr-eg"><span class="gr-nl"><strong>WIE</strong> = qui / celui qui : <em>Wie de bal verliest, moet gaan halen.</em></span></div>
+  <div class="gr-eg"><span class="gr-nl"><strong>WAT</strong> = ce qui/que (iets/niets/alles ou toute une phrase) : <em>Iets <strong>wat</strong> ik al wist…</em></span></div>
+</div>`,
+    exercises: [
+      { p: '"de man _____ naast me zit" (de-woord)', a: 'die' },
+      { p: '"het meisje _____ blond haar heeft" (het-woord)', a: 'dat' },
+      { p: '"de pen _____ ik schrijf" (chose + met)', a: 'waarmee', h: 'waar + mee soudé' },
+      { p: '"de vriend _____ ik reis" (personne + met)', a: 'met wie', h: 'prép. + wie séparés' },
+      { p: '"het dorp _____ Jeanne d\'Arc geboren is" (lieu)', a: 'waar' },
+      { p: '"Iets _____ ik al lang wist…" (iets = antécédent indéfini)', a: 'wat' },
+      { p: '"_____ de bal verliest, moet gaan halen." (= celui qui)', a: 'Wie' },
+      { p: '"Hij speelt met het speelgoed _____ hij van zijn opa gekregen heeft." (het speelgoed)', a: 'dat' },
+      { p: '"De auto _____ ik het mooist vind, is ook het duurst." (de auto)', a: 'die' },
+      { p: '"Ga je naar die winkel _____ zo vroeg sluit?" (de winkel)', a: 'die' },
+      { p: '"Ze woont in het huis _____ op de hoek staat." (het huis)', a: 'dat' },
+      { p: '"Mijn vrienden, _____ altijd in de kroeg zitten, drinken te veel." (personne, pl.)', a: 'die' },
+    ]
+  },
+  {
+    id: 'prop-infinitive',
+    title: '18. La proposition infinitive',
+    subtitle: 'TE · OM...TE · forme progressive',
+    theory: `
+<div class="gr-rule">
+  <strong>TE + INFINITIF</strong><br>
+  — Le <em>te</em> + infinitif sont toujours en fin de phrase<br>
+  — Le <em>te</em> se place entre la particule séparable et le radical : <span class="gr-nl">uit<strong>te</strong>leggen · over<strong>te</strong>steken</span>
+  <div class="gr-eg"><span class="gr-nl">Het begon plots te regenen. · Ik heb vergeten te betalen. · Hij probeerde de straat over te steken.</span></div>
+  Verbes <strong>sans TE</strong> (bien que suivis de "à/de" en français) :<br>
+  <code>helpen · leren · blijven · gaan · komen · zien · horen · laten · mogen · moeten · willen · kunnen · durven</code>
+  <div class="gr-eg"><span class="gr-nl">Aider à = helpen → Ik help mijn vriend verhuizen. · Apprendre à = leren → Mijn vader leert me rijden.</span></div>
+  Verbes <strong>avec TE</strong> (bien que sans "à/de" en français) :<br>
+  <code>lijken / blijken / schijnen</code> (sembler/paraître) · <code>hopen / wensen / verlangen</code> · <code>denken / geloven / menen / beweren</code>
+  <div class="gr-eg"><span class="gr-nl">De leerlingen lijken de les te begrijpen. · Ik hoop op het feest te komen. · Ik geloof voor die toets te kunnen slagen.</span></div>
+</div>
+<div class="gr-rule">
+  <strong>Prépositions + TE</strong>
+  <table class="gr-table" style="margin-top:4px">
+    <tr><td class="gr-nl">alvorens… te</td><td>avant de</td><td class="gr-nl">Je moet goed nadenken alvorens een beslissing te nemen.</td></tr>
+    <tr><td class="gr-nl">door… te</td><td>en + part. présent</td><td class="gr-nl">Door deel te nemen, zal je punten krijgen.</td></tr>
+    <tr><td class="gr-nl">in plaats van… te</td><td>au lieu de</td><td class="gr-nl">In plaats van thuis te luieren, ga je werken.</td></tr>
+    <tr><td class="gr-nl">na… te</td><td>après</td><td class="gr-nl">Na de hele dag in de tuin te hebben gewerkt, waren we moe.</td></tr>
+    <tr><td class="gr-nl">zonder… te</td><td>sans</td><td class="gr-nl">Je wordt geen kampioen zonder regelmatig te trainen.</td></tr>
+    <tr><td class="gr-nl">van plan zijn te</td><td>avoir l'intention de</td><td class="gr-nl">We zijn van plan met vakantie te vertrekken.</td></tr>
+  </table>
+</div>
+<div class="gr-rule">
+  <strong>OM … TE</strong> = pour / afin de + infinitif (but, intention)
+  <div class="gr-eg"><span class="gr-nl">Ik heb geld nodig om een nieuwe wagen te kopen. · Ze neemt elke dag de trein om naar school te gaan.</span></div>
+</div>
+<div class="gr-rule">
+  <strong>Forme progressive</strong>
+  <table class="gr-table" style="margin-top:4px">
+    <tr><th>Verbes de position + te</th><th>Zijn aan het + inf.</th><th>Bezig zijn te + inf.</th></tr>
+    <tr><td class="gr-nl">Ik zit te lezen.</td><td class="gr-nl">Ik ben aan het lezen.</td><td class="gr-nl">Ik ben bezig te lezen.</td></tr>
+    <tr><td class="gr-nl">Hij ligt te slapen.</td><td class="gr-nl">Hij is aan het slapen.</td><td></td></tr>
+    <tr><td class="gr-nl">Ze staan te kletsen.</td><td class="gr-nl">Ze zijn aan het kletsen.</td><td></td></tr>
+    <tr><td>Décrit la position du sujet (zitten/liggen/staan/hangen)</td><td>Surtout en langue parlée. Peu précis.</td><td>Bezig = occupé + connotation de dérangement/irritation.</td></tr>
+  </table>
+</div>
+<div class="gr-rule">
+  <strong>Le double infinitif</strong> — les verbes sans TE forment leurs temps composés avec 2 infinitifs<br>
+  (auxiliaires de mode, doen/laten, komen/gaan, zien/horen/voelen, leren/helpen/blijven/durven)
+  <div class="gr-eg"><span class="gr-nl">Ik heb hem niet zien vertrekken. · Ze is bij ons komen slapen. · Hij heeft me leren zwemmen.</span></div>
+  ⚠️ Particule séparable : devant les 2 infinitifs (Pays-Bas) ou attachée au verbe dont elle dépend (Belgique)<br>
+  <span class="gr-nl">Ze heeft haar cadeau <strong>terug willen geven</strong> (NL) / Ze heeft haar cadeau willen <strong>teruggeven</strong> (BE)</span>
+</div>`,
+    exercises: [
+      { p: 'Faut-il TE ? "Wil je ons _____ helpen?"', a: 'non/geen te', h: 'willen ne demande pas TE' },
+      { p: '"We zitten al een uur _____ werken." → TE ou non ?', a: 'te werken', h: 'zitten + TE + inf. (posture)' },
+      { p: '"In plaats van _____ lachen was hij kwaad." → TE ?', a: 'te lachen', h: 'in plaats van → te' },
+      { p: '"Ik ben van plan _____ werken." → TE ?', a: 'te werken', h: 'van plan zijn te' },
+      { p: '"Hij lijkt gelukkig _____ zijn." → TE ?', a: 'te zijn', h: 'lijken demande TE' },
+      { p: '"Ik ga morgen _____ werken." → TE ?', a: 'non/geen te', h: 'gaan ne demande pas TE' },
+      { p: '"Ik heb geld nodig _____ een nieuwe wagen _____ kopen." (but)', a: 'om ... te', h: 'OM ... TE = pour + inf.' },
+      { p: '"Ze zijn aan het _____." (kletsen) → forme progressive', a: 'kletsen', h: 'zijn aan het + infinitif (sans TE)' },
+      { p: '"Proberen jullie deze studenten _____ helpen?" → TE ?', a: 'te helpen', h: 'proberen demande TE' },
+      { p: '"Hij leert mij auto _____ rijden." → TE ?', a: 'non/geen te', h: 'leren (apprendre à) sans TE' },
+    ]
+  },
+  {
+    id: 'kunnen',
+    title: '19. Kunnen',
+    subtitle: 'Capacité et possibilité',
+    theory: `
+<div class="gr-rule">
+  <strong>Kunnen</strong> = pouvoir (capacité / possibilité)
+  <table class="gr-table" style="margin-top:8px">
+    <tr><th>Pronom</th><th>Forme</th></tr>
+    <tr><td class="gr-nl">ik / hij / ze / het</td><td class="gr-nl"><strong>kan</strong></td></tr>
+    <tr><td class="gr-nl">je / u</td><td class="gr-nl"><strong>kan / kunt</strong></td></tr>
+    <tr><td class="gr-nl">we / jullie / ze</td><td class="gr-nl"><strong>kunnen</strong></td></tr>
+  </table>
+  <div style="margin-top:8px">Suivi d'un <strong>infinitif en fin de phrase</strong> (sans TE) :<br>
+  <span class="gr-nl">Ik <strong>kan</strong> 100 meter <strong>zwemmen</strong>.</span></div>
+</div>`,
+    exercises: [
+      { p: 'Mijn broer _____ Engels spreken.', a: 'kan' },
+      { p: 'De ouders van Piet _____ gitaar spelen.', a: 'kunnen' },
+      { p: 'Jullie _____ spaghetti koken.', a: 'kunnen' },
+      { p: 'Ik _____ niet tekenen.', a: 'kan' },
+      { p: 'Meneer, _____ U vlot Nederlands spreken?', a: 'kan/kunt', h: 'Forme polie u → kan ou kunt' },
+      { p: 'Bij slecht weer _____ we niet buiten trainen.', a: 'kunnen' },
+      { p: '"Je peux nager 100 mètres." → Ik _____ 100 meter zwemmen.', a: 'kan' },
+      { p: 'Sorry, maar we _____ vanavond niet komen.', a: 'kunnen' },
+      { p: 'Hij _____ zijn moeder niet opbellen want zijn kaart is leeg.', a: 'kan' },
+      { p: 'Else _____ één uur lopen.', a: 'kan' },
+    ]
+  },
+  {
+    id: 'moeten',
+    title: '20. Moeten',
+    subtitle: 'Obligation',
+    theory: `
+<div class="gr-rule">
+  <strong>Moeten</strong> = devoir (obligation)
+  <table class="gr-table" style="margin-top:8px">
+    <tr><th>Pronom</th><th>Forme</th></tr>
+    <tr><td class="gr-nl">ik / je / u / hij / ze / het</td><td class="gr-nl"><strong>moet</strong></td></tr>
+    <tr><td class="gr-nl">we / jullie / ze</td><td class="gr-nl"><strong>moeten</strong></td></tr>
+  </table>
+  <div style="margin-top:8px">Suivi d'un <strong>infinitif en fin de phrase</strong> (sans TE) :<br>
+  <span class="gr-nl">Ik <strong>moet</strong> mijn kamer <strong>opruimen</strong>.</span></div>
+</div>`,
+    exercises: [
+      { p: 'Mieke _____ de boodschappen doen.', a: 'moet' },
+      { p: 'Vader _____ de auto wassen.', a: 'moet' },
+      { p: 'De kinderen _____ hun huiswerk maken.', a: 'moeten' },
+      { p: 'Vandaag _____ we voor de toets studeren.', a: 'moeten' },
+      { p: 'Jullie _____ de hond uitlaten.', a: 'moeten' },
+      { p: 'In de zomer _____ ik vaak grasmaaien.', a: 'moet' },
+      { p: 'We _____ vandaag afwassen.', a: 'moeten' },
+      { p: 'Op woensdag _____ ik het eten klaarmaken.', a: 'moet' },
+      { p: '"Je dois ranger ma chambre." → Ik _____ mijn kamer opruimen.', a: 'moet' },
+      { p: '"Ils doivent étudier." → Ze _____ studeren.', a: 'moeten' },
+    ]
+  },
+  {
+    id: 'phrases-interrogatives',
+    title: '21. Phrases interrogatives',
+    subtitle: 'Mots interrogatifs et construction',
+    theory: `
+<div class="gr-rule">
+  <strong>Structure</strong> : (Mot inter.) + V conjugué + S + compléments ?
+  <div class="gr-eg"><span class="gr-nl">Hoelaat <strong>sta</strong> je op?</span><span class="gr-arr">|</span><span class="gr-nl">Wat <strong>moet</strong> je morgen studeren?</span></div>
+</div>
+<div class="gr-rule">
+  <strong>Mots interrogatifs</strong>
+  <table class="gr-table" style="margin-top:4px">
+    <tr><th>NL</th><th>FR</th><th>Exemple</th></tr>
+    <tr><td class="gr-nl">Wie?</td><td>Qui?</td><td class="gr-nl">Wie ben je?</td></tr>
+    <tr><td class="gr-nl">Wat?</td><td>Que? Quoi?</td><td class="gr-nl">Wat is dat?</td></tr>
+    <tr><td class="gr-nl">Welk? (het)</td><td>Quel? Lequel?</td><td class="gr-nl">Welk dier heb je thuis?</td></tr>
+    <tr><td class="gr-nl">Welke? (de)</td><td>Quelle(s)? Lesquel(les)?</td><td class="gr-nl">Welke taal spreek je?</td></tr>
+    <tr><td class="gr-nl">Waar?</td><td>Où?</td><td class="gr-nl">Waar woon jij?</td></tr>
+    <tr><td class="gr-nl">Wanneer?</td><td>Quand?</td><td class="gr-nl">Wanneer ben je jarig?</td></tr>
+    <tr><td class="gr-nl">Hoe?</td><td>Comment?</td><td class="gr-nl">Hoe ga jij naar school?</td></tr>
+    <tr><td class="gr-nl">Hoeveel?</td><td>Combien?</td><td class="gr-nl">Hoeveel broers heb jij?</td></tr>
+    <tr><td class="gr-nl">Hoe oud?</td><td>Quel âge?</td><td class="gr-nl">Hoe oud is ze?</td></tr>
+    <tr><td class="gr-nl">Hoe groot?</td><td>Quelle taille?</td><td class="gr-nl">Hoe groot ben jij?</td></tr>
+    <tr><td class="gr-nl">Hoelaat?</td><td>À quelle heure?</td><td class="gr-nl">Hoelaat vertrekt hij?</td></tr>
+    <tr><td class="gr-nl">Hoelang?</td><td>Combien de temps?</td><td class="gr-nl">Hoelang kan je lopen?</td></tr>
+    <tr><td class="gr-nl">Hoe vaak?</td><td>À quelle fréquence?</td><td class="gr-nl">Hoe vaak traint ze?</td></tr>
   </table>
 </div>`,
     exercises: [
-      { p: 'Inversion → "Gisteren / ik / werkte / thuis" → ?', a: 'gisteren werkte ik thuis', h: 'Complément en tête → V avant S' },
-      { p: '"de man _____ naast me zit" (de man = de-woord)', a: 'die' },
-      { p: '"het huis _____ groot is" (het huis = het-woord)', a: 'dat' },
-      { p: 'Ik weet dat hij Nederlands _____ . (spreken, subordonnée)', a: 'spreekt', h: 'Verbe en fin de subordonnée' },
-      { p: '"Als het regent, _____ ik thuis blijven." (moeten) — inversion dans P1', a: 'moet', h: 'P2 en tête → inversion P1' },
-      { p: 'But : "Ik heb geld nodig _____ een auto te kopen."', a: 'om', h: 'om ... te = pour + infinitif' },
-      { p: '"de pen _____ ik schrijf" (chose + préposition met)', a: 'waarmee', h: 'Chose + préposition → waar + préposition soudée' },
-      { p: '"de vriend _____ ik reis" (personne + préposition met)', a: 'met wie', h: 'Personne + préposition → prép. + wie (séparé)' },
-      { p: 'Iets _____ ik al lang wist, is dat... (pronom relatif — chose indéfinie)', a: 'wat', h: 'Antécédent indéfini (iets, niets, alles) → wat' },
+      { p: '"Où habites-tu?" → _____ woon je?', a: 'Waar' },
+      { p: '"Comment t\'appelles-tu?" → _____ heet je?', a: 'Hoe' },
+      { p: '"Quel âge as-tu?" → _____ ben je?', a: 'Hoe oud' },
+      { p: '"Quelle langue parles-tu à la maison?" → _____ taal spreek je thuis?', a: 'Welke', h: 'taal = de-woord → welke' },
+      { p: '"Combien de frères as-tu?" → _____ broers heb je?', a: 'Hoeveel' },
+      { p: '"À quelle heure part-il?" → _____ vertrekt hij?', a: 'Hoelaat' },
+      { p: '"Qui est-ce?" → _____ ben je?', a: 'Wie' },
+      { p: '"Combien de temps peux-tu courir?" → _____ kan je lopen?', a: 'Hoelang' },
+      { p: '"Quel animal avez-vous chez vous?" → _____ dier heb je thuis? (het dier)', a: 'Welk', h: 'dier = het-woord → welk' },
+      { p: '"À quelle fréquence s\'entraîne-t-elle?" → _____ traint ze?', a: 'Hoe vaak' },
+    ]
+  },
+  {
+    id: 'prepositions',
+    title: '22. Prépositions',
+    subtitle: 'Temps, lieu, et prépositions liées aux verbes',
+    theory: `
+<div class="gr-rule">
+  <strong>Voorzetsels van tijd</strong> (prépositions de temps)
+  <table class="gr-table" style="margin-top:4px">
+    <tr><td class="gr-nl"><strong>in</strong></td><td>+ année / mois / saison</td><td class="gr-nl">in 2006 · in de zomer · in januari</td></tr>
+    <tr><td class="gr-nl"><strong>op</strong></td><td>+ jour / date</td><td class="gr-nl">op maandag · op 5 mei</td></tr>
+    <tr><td class="gr-nl"><strong>om</strong></td><td>+ heure</td><td class="gr-nl">om 13.00</td></tr>
+    <tr><td class="gr-nl"><strong>voor</strong></td><td>avant + complément</td><td class="gr-nl">voor de school</td></tr>
+    <tr><td class="gr-nl"><strong>na</strong></td><td>après + complément</td><td class="gr-nl">na de school</td></tr>
+  </table>
+</div>
+<div class="gr-rule">
+  <strong>Voorzetsels van plaats</strong> (prépositions de lieu)
+  <table class="gr-table" style="margin-top:4px">
+    <tr><td class="gr-nl"><strong>voor</strong></td><td>= devant</td><td class="gr-nl">Voor het huis is er een tuin.</td></tr>
+    <tr><td class="gr-nl"><strong>achter</strong></td><td>= derrière</td><td class="gr-nl">Er is een garage achter mijn huis.</td></tr>
+    <tr><td class="gr-nl"><strong>op</strong></td><td>= sur</td><td class="gr-nl">Er liggen twee boeken op mijn tafel.</td></tr>
+    <tr><td class="gr-nl"><strong>onder</strong></td><td>= en-dessous</td><td class="gr-nl">De kat zit onder de tafel.</td></tr>
+    <tr><td class="gr-nl"><strong>boven</strong></td><td>= au-dessus</td><td class="gr-nl">Mijn poster hangt boven mijn bed.</td></tr>
+    <tr><td class="gr-nl"><strong>tussen</strong></td><td>= entre</td><td class="gr-nl">Mijn zus zit tussen mijn vader en mijn moeder.</td></tr>
+    <tr><td class="gr-nl"><strong>naast</strong></td><td>= à côté de</td><td class="gr-nl">De bank staat naast de deur.</td></tr>
+  </table>
+</div>
+<div class="gr-rule">
+  <strong>Voorzetsels en werkwoorden</strong>
+  <table class="gr-table" style="margin-top:4px">
+    <tr><td class="gr-nl">Ik ben dol <strong>op</strong> computers.</td><td>= J'adore les ordinateurs.</td></tr>
+    <tr><td class="gr-nl">Ik ben jarig <strong>op</strong> 13 mei.</td><td>= Mon anniversaire est le 13 mai.</td></tr>
+    <tr><td class="gr-nl">Ik ben <strong>in</strong> 1995 geboren.</td><td>= Je suis né en 1995.</td></tr>
+    <tr><td class="gr-nl">Ik hou <strong>van</strong> chocola.</td><td>= J'aime le chocolat.</td></tr>
+    <tr><td class="gr-nl">Ik kijk <strong>naar</strong> een film.</td><td>= Je regarde un film.</td></tr>
+    <tr><td class="gr-nl">Ik luister <strong>naar</strong> mijn nieuwe cd.</td><td>= J'écoute mon nouveau cd.</td></tr>
+    <tr><td class="gr-nl">Ik ga <strong>naar</strong> zee.</td><td>= Je vais à la mer.</td></tr>
+  </table>
+</div>`,
+    exercises: [
+      { p: '"Mon père est né en 1962." → Mijn vader is _____ 1962 geboren.', a: 'in', h: 'Année → in' },
+      { p: '"Je vais à l\'école le lundi." → Ik ga _____ maandag naar school.', a: 'op', h: 'Jour → op' },
+      { p: '"Le train part à 13h." → De trein vertrekt _____ 13.00.', a: 'om', h: 'Heure → om' },
+      { p: '"Mon anniversaire est le 5 mai." → Ik ben jarig _____ 5 mei.', a: 'op' },
+      { p: '"J\'adore les ordinateurs." → Ik ben dol _____ computers.', a: 'op', h: 'dol op' },
+      { p: '"J\'aime le chocolat." → Ik hou _____ chocola.', a: 'van', h: 'houden van' },
+      { p: '"Je regarde un film." → Ik kijk _____ een film.', a: 'naar', h: 'kijken naar' },
+      { p: '"Les livres sont sur la table." → Er liggen boeken _____ mijn tafel.', a: 'op', h: 'op = sur' },
+      { p: '"Le chat est sous la table." → De kat zit _____ de tafel.', a: 'onder', h: 'onder = sous' },
+      { p: '"Après la classe, nous avons histoire." → _____ de les Nederlands hebben we geschiedenis.', a: 'Na' },
     ]
   },
   {
     id: 'verbes-irreguliers',
-    title: '11. Verbes Irréguliers',
+    title: '23. Verbes Irréguliers',
     subtitle: 'Infinitif · OVT (prétérit) · VTT (participe passé)',
     theory: `
 <div class="gr-rule">
