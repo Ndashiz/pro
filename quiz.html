@@ -8668,9 +8668,10 @@ document.addEventListener('DOMContentLoaded', function() {
   document.addEventListener('lazypo:profile', async function() {
     if (!window.sb) return;
     try {
-      var r = await window.sb.auth.getUser();
-      if (r.data && r.data.user) {
-        await grLoadProgress(r.data.user.id);
+      var r = await window.sb.auth.getSession();
+      var user = r.data && r.data.session && r.data.session.user;
+      if (user) {
+        await grLoadProgress(user.id);
         var grid = document.getElementById('gr-modules-grid');
         if (grid && grid.children.length) grShowCards();
       }
