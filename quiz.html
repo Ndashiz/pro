@@ -6958,11 +6958,21 @@ document.addEventListener('DOMContentLoaded', function() {
     try {
       var r = await window.sb.auth.getSession();
       var user = r.data && r.data.session && r.data.session.user;
-      if (user) {
-        await grLoadProgress(user.id);
-        var grid = document.getElementById('gr-modules-grid');
-        if (grid && grid.children.length) grShowCards();
-      }
+      if (!user) return;
+      await grLoadProgress(user.id);
+      var grid = document.getElementById('gr-modules-grid');
+      if (!grid) return;
+      /* lazypo:profile se redéclenche au retour d'onglet (Supabase
+         rafraîchit le token sur visibilitychange → SIGNED_IN →
+         renderNavUser → re-dispatch). On NE doit PAS rappeler
+         grShowCards() si l'utilisateur lit un cours (gr-detail), passe
+         un quiz (gr-quiz), voit un résumé (gr-summary) ou entraîne les
+         verbes (gr-verbes-embed) — sinon sa page « se ferme » et revient
+         à la liste des modules. On ne (re)rend la grille que si elle est
+         déjà la vue active (pour rafraîchir les scores) ou jamais rendue. */
+      var cards = document.getElementById('gr-cards');
+      var onCards = cards && cards.style.display !== 'none';
+      if (!grid.children.length || onCards) grShowCards();
     } catch(_) {}
   });
 });
