@@ -95,10 +95,10 @@ const CSP = [
   "img-src 'self' data: blob: https://hrvxhnmtvzvrsmmmmtsv.supabase.co",
   "connect-src 'self' https://hrvxhnmtvzvrsmmmmtsv.supabase.co wss://hrvxhnmtvzvrsmmmmtsv.supabase.co https://accounts.spotify.com https://api.spotify.com wss://dealer.spotify.com",
   "media-src 'self'",
-  // 'self' (not 'none') so same-origin apps on ndashiz.be — e.g. the Jarvis
-  // front at /jarvis — can embed the quiz in an iframe. Cross-origin framing
-  // stays blocked (clickjacking protection preserved).
-  "frame-ancestors 'self'",
+  // Allow embedding from the same origin AND the Jarvis front, which lives on
+  // its own subdomain jarvis.ndashiz.be (cross-origin but same-site). Every
+  // other origin stays blocked (clickjacking protection preserved).
+  "frame-ancestors 'self' https://jarvis.ndashiz.be",
   "upgrade-insecure-requests",
 ].join('; ');
 
@@ -106,9 +106,10 @@ function addSecurityHeaders(response) {
   const ct = response.headers.get('Content-Type') || '';
   const newHeaders = new Headers(response.headers);
   newHeaders.set('X-Content-Type-Options',         'nosniff');
-  // SAMEORIGIN (not DENY) — legacy header mirroring CSP frame-ancestors 'self'
-  // so same-origin apps on ndashiz.be (Jarvis) can iframe the quiz.
-  newHeaders.set('X-Frame-Options',                'SAMEORIGIN');
+  // No X-Frame-Options: it cannot express "allow jarvis.ndashiz.be" (cross-origin
+  // but same-site). CSP frame-ancestors (below) is the modern, precise gate and
+  // supersedes XFO where both exist — we drop XFO so no browser blocks the embed.
+  newHeaders.delete('X-Frame-Options');
   newHeaders.set('Referrer-Policy',                'strict-origin-when-cross-origin');
   newHeaders.set('Permissions-Policy',             'camera=(), microphone=(), geolocation=()');
   newHeaders.set('Strict-Transport-Security',      'max-age=31536000');
@@ -135,7 +136,6 @@ function redirectToLogin(originalUrl) {
       'Location':                    loc.toString(),
       'Cache-Control':               'no-store',
       'X-Content-Type-Options':      'nosniff',
-      'X-Frame-Options':             'SAMEORIGIN',
       'Referrer-Policy':             'strict-origin-when-cross-origin',
       'Strict-Transport-Security':   'max-age=31536000',
     },
