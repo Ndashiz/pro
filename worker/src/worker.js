@@ -2,52 +2,59 @@
    LazyPO — Cloudflare Worker auth gate
    ─────────────────────────────────────────────────────────────────────
    Runs in front of GitHub Pages (the origin). Intercepts every request
-   to /lazypo/*.html (and /lazypo/) and verifies a Supabase JWT cookie
+   to /pro/*.html (and /pro/) and verifies a Supabase JWT cookie
    BEFORE serving the HTML. Static assets (.js/.css/.svg/.ico) and a few
    explicitly-public pages (login, OAuth callback, email confirm, the
    favicon) pass through untouched.
 
-   JWT verification is done locally using the Supabase project's HS256
-   secret stored as a Worker secret (SUPABASE_JWT_SECRET). No round-trip
-   to Supabase per request. Results are cached in caches.default for 60s
-   per token to make repeat hits free.
+   JWT verification supports:
+     • ES256 — current Supabase default (asymmetric, verified via JWKS)
+     • HS256 — legacy fallback (SUPABASE_JWT_SECRET Worker secret)
 
-   Failure modes — all redirect to /lazypo/login.html with a 302:
+   JWKS is fetched from Supabase and cached in caches.default for 1h.
+   Individual JWT verification results are cached for 60s per token.
+
+   Failure modes — all redirect to /pro/login.html with a 302:
      • missing cookie
      • cookie value is not a valid JWT shape
-     • JWT signature invalid (forged / wrong secret)
+     • JWT signature invalid (forged / wrong key)
      • JWT expired
      • Unexpected exception (fail-closed)
 ═════════════════════════════════════════════════════════════════════ */
 
-const LOGIN_PATH = '/lazypo/login.html';
-const APP_PREFIX = '/lazypo/';
-const COOKIE_NAME = 'lazypo_jwt';
+const LOGIN_PATH   = '/pro/login.html';
+const APP_PREFIX   = '/pro/';
+const COOKIE_NAME  = 'lazypo_jwt';
+const SUPABASE_URL = 'https://hrvxhnmtvzvrsmmmmtsv.supabase.co';
+const JWKS_URL     = SUPABASE_URL + '/auth/v1/.well-known/jwks.json';
 
 // Pages that MUST stay accessible without a session
 const PUBLIC_PAGES = new Set([
-  '/lazypo/login.html',
-  '/lazypo/email_confirm.html',
-  '/lazypo/spotify-callback.html',
+  '/pro/login.html',
+  '/pro/email_confirm.html',
+  '/pro/spotify-callback.html',
 ]);
 
 // File extensions that are static assets — never gated
-const PUBLIC_EXTENSIONS = /\.(js|css|svg|ico|png|jpg|jpeg|gif|webp|woff2?|ttf|map)$/i;
+const PUBLIC_EXTENSIONS = /\.(js|css|svg|ico|png|jpg|jpeg|gif|webp|woff2?|ttf|map|txt)$/i;
+
+// Path prefixes that are always public (well-known, etc.)
+const PUBLIC_PREFIXES = ['/pro/.well-known/'];
 
 export default {
   async fetch(request, env, ctx) {
     try {
-      const url = new URL(request.url);
+      const url  = new URL(request.url);
       const path = url.pathname;
 
-      // 1. Only gate /lazypo/* paths. Anything else, pass through.
+      // 1. Only gate /pro/* paths. Anything else, pass through.
       if (!path.startsWith(APP_PREFIX)) {
         return fetch(request);
       }
 
-      // 2. Static assets and public pages — pass through.
+      // 2. Static assets and public pages — pass through with security headers.
       if (isPublicPath(path)) {
-        return fetch(request);
+        return addSecurityHeaders(await fetch(request));
       }
 
       // 3. Read JWT from cookie.
@@ -62,12 +69,9 @@ export default {
         return redirectToLogin(url);
       }
 
-      // 5. Authorized — forward to origin (GitHub Pages, automatic loop
-      //    avoidance: CF won't run the Worker again on a sub-fetch of its
-      //    own route).
-      return fetch(request);
+      // 5. Authorized — forward to origin with security headers.
+      return addSecurityHeaders(await fetch(request));
     } catch (err) {
-      // Fail closed. Better to break the app than to leak content.
       console.error('[lazypo-worker] error:', err && err.stack || err);
       return redirectToLogin(new URL(request.url));
     }
@@ -79,25 +83,61 @@ export default {
 function isPublicPath(path) {
   if (PUBLIC_PAGES.has(path)) return true;
   if (PUBLIC_EXTENSIONS.test(path)) return true;
-  // /lazypo/ root is gated (it serves index.html which is protected)
-  // /lazypo (no slash) is also gated — but CF Pages usually 301s to /lazypo/ anyway
+  if (PUBLIC_PREFIXES.some(p => path.startsWith(p))) return true;
   return false;
 }
 
+const CSP = [
+  "default-src 'self'",
+  "script-src 'self' 'unsafe-inline' https://sdk.scdn.co",
+  "style-src 'self' 'unsafe-inline'",
+  "font-src 'self'",
+  "img-src 'self' data: blob: https://hrvxhnmtvzvrsmmmmtsv.supabase.co",
+  "connect-src 'self' https://hrvxhnmtvzvrsmmmmtsv.supabase.co wss://hrvxhnmtvzvrsmmmmtsv.supabase.co https://accounts.spotify.com https://api.spotify.com wss://dealer.spotify.com",
+  "media-src 'self'",
+  // 'self' (not 'none') so same-origin apps on ndashiz.be — e.g. the Jarvis
+  // front at /jarvis — can embed the quiz in an iframe. Cross-origin framing
+  // stays blocked (clickjacking protection preserved).
+  "frame-ancestors 'self'",
+  "upgrade-insecure-requests",
+].join('; ');
+
+function addSecurityHeaders(response) {
+  const ct = response.headers.get('Content-Type') || '';
+  const newHeaders = new Headers(response.headers);
+  newHeaders.set('X-Content-Type-Options',         'nosniff');
+  // SAMEORIGIN (not DENY) — legacy header mirroring CSP frame-ancestors 'self'
+  // so same-origin apps on ndashiz.be (Jarvis) can iframe the quiz.
+  newHeaders.set('X-Frame-Options',                'SAMEORIGIN');
+  newHeaders.set('Referrer-Policy',                'strict-origin-when-cross-origin');
+  newHeaders.set('Permissions-Policy',             'camera=(), microphone=(), geolocation=()');
+  newHeaders.set('Strict-Transport-Security',      'max-age=31536000');
+  // Only add CSP on HTML responses — avoids breaking JS/CSS MIME parsing
+  if (ct.includes('text/html')) {
+    newHeaders.set('Content-Security-Policy', CSP);
+  }
+  return new Response(response.body, {
+    status:     response.status,
+    statusText: response.statusText,
+    headers:    newHeaders,
+  });
+}
+
 function redirectToLogin(originalUrl) {
-  const loc = new URL(LOGIN_PATH, originalUrl.origin);
-  // Pass return target so login.html can bounce back after success.
-  // Only carry the path (no host) to prevent open-redirect.
+  const loc    = new URL(LOGIN_PATH, originalUrl.origin);
   const target = originalUrl.pathname + originalUrl.search;
   if (target && target !== LOGIN_PATH) {
-    loc.searchParams.set('return_to', target);
+    loc.searchParams.set('next', target);
   }
   return new Response(null, {
     status: 302,
     headers: {
-      'Location': loc.toString(),
-      'Cache-Control': 'no-store',
-      'X-LazyPO-Gate': 'redirect',
+      'Location':                    loc.toString(),
+      'Cache-Control':               'no-store',
+      'X-Content-Type-Options':      'nosniff',
+      'X-Frame-Options':             'SAMEORIGIN',
+      'Referrer-Policy':             'strict-origin-when-cross-origin',
+      'Strict-Transport-Security':   'max-age=31536000',
     },
   });
 }
@@ -106,71 +146,60 @@ function redirectToLogin(originalUrl) {
 
 function readCookie(cookieHeader, name) {
   if (!cookieHeader) return null;
-  const parts = cookieHeader.split(/;\s*/);
+  const parts  = cookieHeader.split(/;\s*/);
   const prefix = name + '=';
   for (const p of parts) {
     if (p.startsWith(prefix)) {
-      try {
-        return decodeURIComponent(p.slice(prefix.length));
-      } catch {
-        return null;
-      }
+      try { return decodeURIComponent(p.slice(prefix.length)); }
+      catch { return null; }
     }
   }
   return null;
 }
 
-/* ── JWT verification (HS256 via Web Crypto) ─────────────────────── */
+/* ── JWT verification ────────────────────────────────────────────── */
 
-async function verifyJwt(token, secret, ctx) {
-  if (!secret) {
-    // Misconfiguration — fail closed. Don't silently let traffic through.
-    console.error('[lazypo-worker] SUPABASE_JWT_SECRET is not configured');
-    return false;
-  }
+async function verifyJwt(token, hs256Secret, ctx) {
+  const parts = token.split('.');
+  if (parts.length !== 3) return false;
+  const [headerB64, payloadB64, sigB64] = parts;
 
-  // Token cache — keyed by last 24 chars of the JWT signature (enough to
-  // uniquely identify a token). Stored in caches.default with 60s TTL.
+  let header, payload;
+  try {
+    header  = JSON.parse(base64UrlToString(headerB64));
+    payload = JSON.parse(base64UrlToString(payloadB64));
+  } catch { return false; }
+
+  // Basic payload checks
+  if (typeof payload.exp !== 'number') return false;
+  if (payload.exp < Math.floor(Date.now() / 1000)) return false;
+  if (!payload.sub) return false;
+
+  // Token cache — keyed by last 24 chars of the JWT signature.
   const cacheKey = new Request('https://lazypo-jwt-cache/' + token.slice(-24));
-  const cache = caches.default;
-  const cached = await cache.match(cacheKey);
-  if (cached) {
-    return cached.status === 200;
-  }
+  const cache    = caches.default;
+  const cached   = await cache.match(cacheKey);
+  if (cached) return cached.status === 200;
 
   let valid = false;
   try {
-    const parts = token.split('.');
-    if (parts.length !== 3) return false;
-    const [headerB64, payloadB64, sigB64] = parts;
-
-    // Decode header — must be HS256, alg=HS256, typ=JWT
-    const header = JSON.parse(base64UrlToString(headerB64));
-    if (header.alg !== 'HS256') return false;
-
-    // Decode payload — check exp and basic shape
-    const payload = JSON.parse(base64UrlToString(payloadB64));
-    if (typeof payload.exp !== 'number') return false;
-    if (payload.exp < Math.floor(Date.now() / 1000)) return false;
-    if (!payload.sub) return false; // no user id → reject
-
-    // Verify HMAC-SHA256 signature
-    const key = await crypto.subtle.importKey(
-      'raw',
-      new TextEncoder().encode(secret),
-      { name: 'HMAC', hash: { name: 'SHA-256' } },
-      false,
-      ['verify'],
-    );
-    const data = new TextEncoder().encode(headerB64 + '.' + payloadB64);
-    const sig = base64UrlToBytes(sigB64);
-    valid = await crypto.subtle.verify('HMAC', key, sig, data);
+    if (header.alg === 'ES256') {
+      valid = await verifyES256(headerB64, payloadB64, sigB64, header.kid, ctx);
+    } else if (header.alg === 'HS256') {
+      if (!hs256Secret) {
+        console.error('[lazypo-worker] SUPABASE_JWT_SECRET is not configured (needed for HS256)');
+        return false;
+      }
+      valid = await verifyHS256(headerB64, payloadB64, sigB64, hs256Secret);
+    } else {
+      console.warn('[lazypo-worker] unsupported JWT alg:', header.alg);
+      return false;
+    }
   } catch (err) {
-    console.warn('[lazypo-worker] JWT parse error:', err && err.message);
+    console.warn('[lazypo-worker] JWT verify error:', err && err.message);
     valid = false;
   }
 
-  // Cache result for 60s (both valid and invalid — saves CPU on retries)
   const cacheResponse = new Response(valid ? 'ok' : 'bad', {
     status: valid ? 200 : 401,
     headers: { 'Cache-Control': 'max-age=60' },
@@ -179,15 +208,77 @@ async function verifyJwt(token, secret, ctx) {
   return valid;
 }
 
+/* ── ES256 (ECDSA P-256 + SHA-256) via Supabase JWKS ────────────── */
+
+async function verifyES256(headerB64, payloadB64, sigB64, kid, ctx) {
+  const jwk = await getJwk(kid, ctx);
+  if (!jwk) {
+    console.warn('[lazypo-worker] no JWK found for kid:', kid);
+    return false;
+  }
+
+  const key = await crypto.subtle.importKey(
+    'jwk', jwk,
+    { name: 'ECDSA', namedCurve: 'P-256' },
+    false, ['verify'],
+  );
+
+  const data = new TextEncoder().encode(headerB64 + '.' + payloadB64);
+  const sig  = base64UrlToBytes(sigB64);
+
+  return await crypto.subtle.verify({ name: 'ECDSA', hash: 'SHA-256' }, key, sig, data);
+}
+
+// Fetches + caches the JWKS, returns the JWK matching `kid` or null.
+async function getJwk(kid, ctx) {
+  const cache    = caches.default;
+  const cacheReq = new Request(JWKS_URL);
+
+  let jwks;
+  const cached = await cache.match(cacheReq);
+  if (cached) {
+    jwks = await cached.json();
+  } else {
+    const res = await fetch(JWKS_URL);
+    if (!res.ok) {
+      console.error('[lazypo-worker] JWKS fetch failed:', res.status);
+      return null;
+    }
+    const body = await res.text();
+    jwks = JSON.parse(body);
+    // Cache for 1 hour
+    ctx.waitUntil(cache.put(cacheReq, new Response(body, {
+      headers: { 'Content-Type': 'application/json', 'Cache-Control': 'max-age=3600' },
+    })));
+  }
+
+  return (jwks.keys || []).find(k => k.kid === kid) || null;
+}
+
+/* ── HS256 (HMAC-SHA256) — legacy fallback ───────────────────────── */
+
+async function verifyHS256(headerB64, payloadB64, sigB64, secret) {
+  const key = await crypto.subtle.importKey(
+    'raw',
+    new TextEncoder().encode(secret),
+    { name: 'HMAC', hash: { name: 'SHA-256' } },
+    false, ['verify'],
+  );
+  const data = new TextEncoder().encode(headerB64 + '.' + payloadB64);
+  const sig  = base64UrlToBytes(sigB64);
+  return await crypto.subtle.verify('HMAC', key, sig, data);
+}
+
+/* ── Base64url helpers ───────────────────────────────────────────── */
+
 function base64UrlToString(b64url) {
   return new TextDecoder().decode(base64UrlToBytes(b64url));
 }
 
 function base64UrlToBytes(b64url) {
-  // base64url → base64
   let b64 = b64url.replace(/-/g, '+').replace(/_/g, '/');
   while (b64.length % 4) b64 += '=';
-  const bin = atob(b64);
+  const bin   = atob(b64);
   const bytes = new Uint8Array(bin.length);
   for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
   return bytes;

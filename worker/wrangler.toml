@@ -9,7 +9,7 @@ workers_dev = false
 # (configured as the origin in your Cloudflare DNS) serves the actual
 # files; the Worker is the gate in front.
 [[routes]]
-pattern = "ndashiz.be/lazypo/*"
+pattern = "ndashiz.be/pro/*"
 zone_name = "ndashiz.be"
 
 # Required secret (set via `wrangler secret put SUPABASE_JWT_SECRET`).

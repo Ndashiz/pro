@@ -6,6 +6,30 @@
       "runtimeExecutable": "npx",
       "runtimeArgs": ["serve", "-l", "3000", "."],
       "port": 3000
+    },
+    {
+      "name": "lazysyndic-static",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["serve", "-l", "8099", "/Users/ndashiz/Documents/lazysyndic"],
+      "port": 8099
+    },
+    {
+      "name": "jarvis-dev",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": ["-c", "cd /Users/ndashiz/Documents/jarvis && PORT=3007 npm run dev"],
+      "port": 5173
+    },
+    {
+      "name": "jarvis-dev-alt",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": ["-c", "cd /Users/ndashiz/Documents/jarvis && PORT=3009 BACKEND_URL=http://localhost:3009 npm run dev"],
+      "port": 5174
+    },
+    {
+      "name": "rikiki-static",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["serve", "-l", "8123", "/Users/ndashiz/Downloads"],
+      "port": 8123
     }
   ]
 }

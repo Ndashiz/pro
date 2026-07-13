@@ -11,7 +11,7 @@
 
   /* ── Config ─────────────────────────────────────────────────────── */
   const CLIENT_ID    = '0dfc3d28793c44a1a33146961974c867';
-  const REDIRECT_URI = 'https://ndashiz.be/lazypo/spotify-callback.html';
+  const REDIRECT_URI = 'https://ndashiz.be/pro/spotify-callback.html';
   const SCOPES = [
     'streaming','user-read-email','user-read-private',
     'user-read-playback-state','user-modify-playback-state',
