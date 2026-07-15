@@ -15,10 +15,16 @@
      renders as a native module. Same Supabase session/cookie is shared same-origin. -->
 <script>try{if(window.top!==window.self)document.documentElement.classList.add('qz-embed');}catch(_){document.documentElement.classList.add('qz-embed');}</script>
 <style>
+/* LazyPO chrome: sidebar, burger, overlay, focus-fm player — none of it in embed */
 html.qz-embed #sb-sidebar, html.qz-embed #sb-burger, html.qz-embed #sb-overlay,
 html.qz-embed #_fm_mini, html.qz-embed #_fm_panel,
 html.qz-embed #_fm_track_toast, html.qz-embed #_fm_toast { display: none !important; }
 html.qz-embed body { padding-left: 0 !important; }
+/* Page title + subtitle are redundant inside Jarvis (its topbar already titles
+   the view) — keep only the tab pills, and tighten the page padding. */
+html.qz-embed .qz-header-left { display: none !important; }
+html.qz-embed .qz-header { margin-bottom: 20px !important; justify-content: center; }
+html.qz-embed .qz-main { padding: 20px 24px 60px !important; }
 </style>
 <style>
 /*

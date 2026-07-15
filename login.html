@@ -399,10 +399,14 @@ const SUPABASE_ANON = 'sb_publishable_Mj-FuPZcN_oTeLQ0ME84yQ_uulPdJ4c';
 const REDIRECT_AFTER_LOGIN = 'index.html';
 function _postLoginTarget(){
   try {
-    var qp = new URLSearchParams(location.search).get('return_to');
+    // The Worker gate redirects with ?next= ; older links may still carry
+    // ?return_to=. Honor both — otherwise a deep link (e.g. the quiz embedded
+    // in Jarvis) silently lands on index.html instead of where the user was.
+    var sp = new URLSearchParams(location.search);
+    var qp = sp.get('next') || sp.get('return_to');
     if (!qp) return REDIRECT_AFTER_LOGIN;
-    // Reject anything that isn't a same-origin path under /lazypo/
-    // (defence against open-redirect via a crafted return_to).
+    // Reject anything that isn't a same-origin path under /pro/
+    // (defence against open-redirect via a crafted param).
     if (!qp.startsWith('/pro/')) return REDIRECT_AFTER_LOGIN;
     if (qp.startsWith('//')) return REDIRECT_AFTER_LOGIN;
     return qp;
