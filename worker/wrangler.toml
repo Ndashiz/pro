@@ -12,6 +12,11 @@ workers_dev = false
 pattern = "ndashiz.be/pro/*"
 zone_name = "ndashiz.be"
 
-# Required secret (set via `wrangler secret put SUPABASE_JWT_SECRET`).
-# Documented here for visibility — DO NOT inline its value.
-# SUPABASE_JWT_SECRET = "<set as a Worker secret, not a var>"
+# Supabase anon key (publishable — safe as a plain var).
+[vars]
+SUPABASE_ANON_KEY = "sb_publishable_Mj-FuPZcN_oTeLQ0ME84yQ_uulPdJ4c"
+
+# Secrets (set via `wrangler secret put <NAME>`):
+# SUPABASE_JWT_SECRET    — Supabase project JWT secret (HS256 verification)
+# LAZYPO_EMBED_EMAIL     — email for silent quiz embed auth
+# LAZYPO_EMBED_PASSWORD  — password for silent quiz embed auth

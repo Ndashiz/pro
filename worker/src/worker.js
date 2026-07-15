@@ -48,6 +48,11 @@ export default {
       const url  = new URL(request.url);
       const path = url.pathname;
 
+      // 0. Embed session API — Jarvis iframe auto-login (no user interaction).
+      if (path === '/pro/api/embed-session' && request.method === 'POST') {
+        return handleEmbedSession(request, env);
+      }
+
       // 1. Only gate /pro/* paths. Anything else, pass through.
       if (!path.startsWith(APP_PREFIX)) {
         return fetch(request);
@@ -268,6 +273,50 @@ async function verifyHS256(headerB64, payloadB64, sigB64, secret) {
   const data = new TextEncoder().encode(headerB64 + '.' + payloadB64);
   const sig  = base64UrlToBytes(sigB64);
   return await crypto.subtle.verify('HMAC', key, sig, data);
+}
+
+/* ── Embed session API ──────────────────────────────────────────── */
+
+const EMBED_ALLOWED_ORIGINS = new Set([
+  'https://jarvis.ndashiz.be',
+  'https://ndashiz.be',
+]);
+
+async function handleEmbedSession(request, env) {
+  const origin = request.headers.get('Origin') || '';
+  if (!EMBED_ALLOWED_ORIGINS.has(origin)) {
+    return new Response('forbidden', { status: 403 });
+  }
+
+  if (!env.LAZYPO_EMBED_EMAIL || !env.LAZYPO_EMBED_PASSWORD) {
+    return new Response(JSON.stringify({ error: 'embed auth not configured' }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+
+  const res = await fetch(SUPABASE_URL + '/auth/v1/token?grant_type=password', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'apikey': env.SUPABASE_ANON_KEY,
+    },
+    body: JSON.stringify({
+      email: env.LAZYPO_EMBED_EMAIL,
+      password: env.LAZYPO_EMBED_PASSWORD,
+    }),
+  });
+
+  const body = await res.text();
+  return new Response(body, {
+    status: res.status,
+    headers: {
+      'Content-Type': 'application/json',
+      'Access-Control-Allow-Origin': origin,
+      'Access-Control-Allow-Methods': 'POST',
+      'Cache-Control': 'no-store',
+    },
+  });
 }
 
 /* ── Base64url helpers ───────────────────────────────────────────── */

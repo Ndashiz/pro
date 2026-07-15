@@ -23,51 +23,20 @@ html.qz-embed body { padding-left: 0 !important; }
 html.qz-embed .qz-header-left { display: none !important; }
 html.qz-embed .qz-header { margin-bottom: 20px !important; justify-content: center; }
 html.qz-embed .qz-main { padding: 20px 24px 60px !important; }
-/* Inline login gate for embed mode (no redirect to login.html) */
-html.qz-embed .qz-embed-login { display: flex !important; }
-html.qz-embed.qz-authed .qz-embed-login { display: none !important; }
+/* Embed auto-auth: hide quiz until Supabase session is established */
 html.qz-embed:not(.qz-authed) .qz-main,
 html.qz-embed:not(.qz-authed) .main-bg,
 html.qz-embed:not(.qz-authed) .main-grid { display: none !important; }
-.qz-embed-login {
+html.qz-embed:not(.qz-authed) .qz-embed-loading { display: flex !important; }
+.qz-embed-loading {
   display: none;
   align-items: center; justify-content: center;
   min-height: 100vh;
-  padding: 24px;
   font-family: 'DM Sans', sans-serif;
+  color: var(--muted, #6b6b6b);
+  font-size: 0.9rem;
   background: var(--bg, #0c0c0c);
-  color: var(--text, #f0f0f0);
 }
-.qz-embed-login-card {
-  width: 100%; max-width: 380px;
-  background: var(--surface, #161616);
-  border: 1px solid var(--border, #222);
-  border-radius: 16px;
-  padding: 32px 28px;
-  display: flex; flex-direction: column; gap: 20px;
-}
-.qz-embed-login-card h2 { font-size: 1.1rem; text-align: center; font-weight: 600; margin: 0; }
-.qz-embed-login-card p { font-size: 0.8rem; text-align: center; color: var(--muted, #6b6b6b); margin: 0; }
-.qz-embed-login-card label { display: block; font-size: 0.75rem; font-weight: 500; color: var(--muted, #6b6b6b); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 5px; }
-.qz-embed-login-card input[type="email"],
-.qz-embed-login-card input[type="password"] {
-  width: 100%; box-sizing: border-box;
-  background: var(--surface2, #1c1c1c); border: 1px solid var(--border2, #2a2a2a);
-  border-radius: 10px; padding: 10px 12px;
-  font-family: 'DM Sans', sans-serif; font-size: 0.9rem;
-  color: var(--text, #f0f0f0); outline: none;
-  transition: border-color 0.15s, box-shadow 0.15s;
-}
-.qz-embed-login-card input:focus { border-color: var(--accent, #3b82f6); box-shadow: 0 0 0 3px rgba(59,130,246,0.15); }
-.qz-embed-login-card button[type="submit"] {
-  width: 100%; padding: 11px; background: var(--accent, #3b82f6); color: #fff;
-  border: none; border-radius: 10px; font-family: 'DM Sans', sans-serif;
-  font-size: 0.9rem; font-weight: 600; cursor: pointer;
-  transition: background 0.15s, opacity 0.15s;
-}
-.qz-embed-login-card button[type="submit"]:hover { background: var(--accent2, #60a5fa); }
-.qz-embed-login-card button[type="submit"]:disabled { opacity: 0.5; cursor: not-allowed; }
-.qz-embed-login-err { font-size: 0.8rem; color: #f87171; text-align: center; display: none; }
 </style>
 <style>
 /*
@@ -1968,24 +1937,7 @@ tr.row-selected { background: rgba(59,130,246,.05); }
 </head>
 <body>
 
-<div class="qz-embed-login">
-  <div class="qz-embed-login-card">
-    <h2>Knowledge Quiz</h2>
-    <p>Connecte-toi avec ton compte LazyPO</p>
-    <form id="qz-embed-auth" autocomplete="on">
-      <div style="margin-bottom:12px">
-        <label for="qz-el-email">Email</label>
-        <input type="email" id="qz-el-email" required autocomplete="email" placeholder="you@example.com">
-      </div>
-      <div style="margin-bottom:16px">
-        <label for="qz-el-pass">Mot de passe</label>
-        <input type="password" id="qz-el-pass" required autocomplete="current-password">
-      </div>
-      <div class="qz-embed-login-err" id="qz-el-err"></div>
-      <button type="submit">Se connecter</button>
-    </form>
-  </div>
-</div>
+<div class="qz-embed-loading">Chargement du quiz…</div>
 
 <div class="main-bg"></div>
 <div class="main-grid"></div>
@@ -2792,39 +2744,24 @@ tr.row-selected { background: rgba(59,130,246,.05); }
 <script>
 (function(){
   if (!document.documentElement.classList.contains('qz-embed')) return;
-  var SURL = 'https://hrvxhnmtvzvrsmmmmtsv.supabase.co';
-  var SKEY = 'sb_publishable_Mj-FuPZcN_oTeLQ0ME84yQ_uulPdJ4c';
-  var sb = window.sb || supabase.createClient(SURL, SKEY);
+  var sb = window.sb;
 
   function markAuthed() { document.documentElement.classList.add('qz-authed'); }
 
   sb.auth.getSession().then(function(res) {
-    if (res.data.session) markAuthed();
-  });
-
-  sb.auth.onAuthStateChange(function(event) {
-    if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-      markAuthed();
-      location.reload();
-    }
-  });
-
-  var form = document.getElementById('qz-embed-auth');
-  if (!form) return;
-  form.addEventListener('submit', async function(e) {
-    e.preventDefault();
-    var btn = form.querySelector('button[type="submit"]');
-    var errEl = document.getElementById('qz-el-err');
-    var email = document.getElementById('qz-el-email').value.trim();
-    var pass = document.getElementById('qz-el-pass').value;
-    btn.disabled = true;
-    errEl.style.display = 'none';
-    var { error } = await sb.auth.signInWithPassword({ email: email, password: pass });
-    if (error) {
-      errEl.textContent = error.message || 'Connexion échouée';
-      errEl.style.display = 'block';
-      btn.disabled = false;
-    }
+    if (res.data.session) { markAuthed(); return; }
+    fetch('/pro/api/embed-session', { method: 'POST' })
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (data.access_token) {
+          return sb.auth.setSession({
+            access_token: data.access_token,
+            refresh_token: data.refresh_token
+          });
+        }
+      })
+      .then(function() { markAuthed(); location.reload(); })
+      .catch(function() {});
   });
 })();
 </script>
