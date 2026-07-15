@@ -11,8 +11,9 @@
 <meta charset="UTF-8">
 <link rel="icon" type="image/svg+xml" href="favicon.svg">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>LazyPO — Login</title>
-<link href="https://fonts.googleapis.com/css2?family=Permanent+Marker&family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<title>LazyPO — Sign in to my personal productivity project</title>
+<meta name="description" content="LazyPO — personal productivity toolkit and language-learning side project. Independent hobby project, not affiliated with any employer or organization.">
+<link rel="stylesheet" href="fonts.css">
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -386,7 +387,7 @@ body {
 </div>
 
 <!-- Supabase JS v2 -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase.min.js"></script>
 <script>
 // ─────────────────────────────────────────────────────────
 // CONFIG — replace with your project's values
@@ -394,7 +395,7 @@ body {
 const SUPABASE_URL  = 'https://hrvxhnmtvzvrsmmmmtsv.supabase.co';
 const SUPABASE_ANON = 'sb_publishable_Mj-FuPZcN_oTeLQ0ME84yQ_uulPdJ4c';
 
-// After successful login, redirect here unless a ?return_to= was passed
+// After successful login, redirect here unless a ?next= was passed
 // by the Worker gate (e.g. user hit a deep link unauthenticated).
 const REDIRECT_AFTER_LOGIN = 'index.html';
 function _postLoginTarget(){
@@ -631,8 +632,8 @@ async function handleOAuth(provider) {
 }
 </script>
 <script src="focusfm.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/vanta@0.5.24/dist/vanta.net.min.js"></script>
+<script src="three.min.js"></script>
+<script src="vanta.net.min.js"></script>
 <script>
 VANTA.NET({
   el: '#vanta-bg',
