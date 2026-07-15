@@ -272,7 +272,9 @@
       }
       if (event === 'SIGNED_OUT') {
         _clearSessionCookie();
-        if (!IS_LOCAL) window.location.href = LOGIN_PAGE;
+        if (!IS_LOCAL && !document.documentElement.classList.contains('qz-embed')) {
+          window.location.href = LOGIN_PAGE;
+        }
       }
       if (event === 'SIGNED_IN') {
         await _flushPendingAvatar();

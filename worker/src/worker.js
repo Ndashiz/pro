@@ -33,6 +33,7 @@ const PUBLIC_PAGES = new Set([
   '/pro/login.html',
   '/pro/email_confirm.html',
   '/pro/spotify-callback.html',
+  '/pro/quiz.html',
 ]);
 
 // File extensions that are static assets — never gated
