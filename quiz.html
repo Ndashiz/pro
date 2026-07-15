@@ -8,6 +8,22 @@
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
+<!-- Embed mode: when the quiz runs inside an iframe (e.g. the Jarvis front at
+     ndashiz.be/jarvis), hide the LazyPO chrome (sidebar + focus-fm bar) so it
+     renders as a native module. Same Supabase session/cookie is shared same-origin. -->
+<script>try{if(window.top!==window.self)document.documentElement.classList.add('qz-embed');}catch(_){document.documentElement.classList.add('qz-embed');}</script>
+<style>
+/* LazyPO chrome: sidebar, burger, overlay, focus-fm player — none of it in embed */
+html.qz-embed #sb-sidebar, html.qz-embed #sb-burger, html.qz-embed #sb-overlay,
+html.qz-embed #_fm_mini, html.qz-embed #_fm_panel,
+html.qz-embed #_fm_track_toast, html.qz-embed #_fm_toast { display: none !important; }
+html.qz-embed body { padding-left: 0 !important; }
+/* Page title + subtitle are redundant inside Jarvis (its topbar already titles
+   the view) — keep only the tab pills, and tighten the page padding. */
+html.qz-embed .qz-header-left { display: none !important; }
+html.qz-embed .qz-header { margin-bottom: 20px !important; justify-content: center; }
+html.qz-embed .qz-main { padding: 20px 24px 60px !important; }
+</style>
 <style>
 /*
 -- Run once in Supabase SQL Editor
@@ -2060,6 +2076,9 @@ tr.row-selected { background: rgba(59,130,246,.05); }
         <h2>Start a Quiz Session</h2>
         <p class="subtitle">Choose your options and test your knowledge.</p>
 
+        <!-- Révisions dues (répétition espacée) -->
+        <div id="due-banner" style="display:none;margin:0 0 16px;padding:10px 14px;border-radius:10px;background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.25);color:#93c5fd;font-size:13px;font-weight:600;"></div>
+
         <!-- Mode -->
         <div class="qz-option-group">
           <div class="qz-option-label">Direction</div>
@@ -2068,6 +2087,16 @@ tr.row-selected { background: rgba(59,130,246,.05); }
             <button class="qz-pill"        data-mode="forward">Word → Translation</button>
             <button class="qz-pill"        data-mode="reverse">Translation → Word</button>
           </div>
+        </div>
+
+        <!-- Phrases à trous -->
+        <div class="qz-option-group">
+          <div class="qz-option-label">Phrases à trous</div>
+          <div class="qz-pill-group" id="cloze-pills" role="group" aria-label="Phrases à trous">
+            <button class="qz-pill active" data-cloze="off">🚫 Non</button>
+            <button class="qz-pill"        data-cloze="mix">🧩 Mix (~1 question sur 3)</button>
+          </div>
+          <p class="qz-avail-note" style="margin-top:6px;">Complète le mot manquant dans sa phrase d'exemple — uniquement pour les mots qui en ont une.</p>
         </div>
 
         <!-- Filter -->
@@ -2747,7 +2776,7 @@ function startQuizTimer() {
       clearQuizTimer();
       // Auto-skip
       const item = quizQueue[quizIndex];
-      sessionAnswers.push({ word: item.word, correct: false, skipped: true, givenAnswer: '', direction: item.direction });
+      sessionAnswers.push({ word: item.word, correct: false, skipped: true, givenAnswer: '', direction: item.direction, question: item.question, answer: item.answer });
       recordAnswer(item.word.id, false);
       advanceQuiz();
     }
@@ -3057,22 +3086,84 @@ async function loadProgress() {
   all.forEach(r => { progress[r.word_id] = r; });
 }
 
+/* ── SRS constants ── */
+const SRS_MAX_EASE      = 2.5;   // plafond SM-2 (l'ease ne croît plus au-delà)
+const SRS_MIN_EASE      = 1.3;
+const NEW_WORDS_PER_DAY = 15;    // limite d'introduction de nouveaux mots / jour
+const RECENT_WINDOW     = 10;    // fenêtre glissante pour la mesure de maîtrise
+
+/* Taux de réussite « fenêtré » : les 10 dernières réponses si dispo,
+   sinon le ratio lifetime (fallback avant migration `recent`). */
+function wordRate(p) {
+  if (!p || !p.attempts) return -1;
+  const recent = Array.isArray(p.recent) ? p.recent : null;
+  if (recent && recent.length >= 3) {
+    return recent.reduce((s, v) => s + (v ? 1 : 0), 0) / recent.length;
+  }
+  return p.correct / p.attempts;
+}
+
+/* Mot « dû » : last_tested + interval_days est dépassé. */
+function isDueWord(p, nowMs) {
+  if (!p || !p.attempts || !p.last_tested) return false;
+  const iv = Math.max(1, p.interval_days || 1);
+  return (new Date(p.last_tested).getTime() + iv * 86400000) <= nowMs;
+}
+
+/* Compteur local de nouveaux mots introduits aujourd'hui (heuristique par device). */
+function _newIntroState() {
+  try {
+    const s = JSON.parse(localStorage.getItem('lazypo_new_intro') || '{}');
+    return s.date === _today() ? s : { date: _today(), count: 0 };
+  } catch { return { date: _today(), count: 0 }; }
+}
+function newWordsIntroducedToday() { return _newIntroState().count; }
+function trackNewWordIntro() {
+  const s = _newIntroState();
+  s.count += 1;
+  localStorage.setItem('lazypo_new_intro', JSON.stringify(s));
+}
+
+/* ── Normalisation des réponses (P7) ── */
+/* Retire l'article initial (fr / nl / en) : « le chien » → « chien », « de fiets » → « fiets » */
+function stripArticles(s) {
+  return (s || '').replace(/^(le |la |les |l'|l’|un |une |des |de |het |een |the |an |a )/i, '').trim();
+}
+/* Forme canonique : minuscules, sans accents, sans article, espaces normalisés */
+function normalizeAnswer(s) {
+  let t = (s || '').toLowerCase().trim()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')  // é → e, ï → i…
+    .replace(/[’]/g, "'")
+    .replace(/\s+/g, ' ');
+  return stripArticles(t);
+}
+
+let recentColMissing = false; // colonne `recent` absente (migration pas encore appliquée)
+
 async function recordAnswer(wordId, isCorrect) {
+  if (!wordId) return; // mots de Challenge Back (snapshot cross-user, id null)
   const existing = progress[wordId];
   let ef  = existing ? existing.ease_factor    : 2.5;
   let iv  = existing ? existing.interval_days  : 1;
   let c   = existing ? existing.correct        : 0;
   let att = existing ? existing.attempts       : 0;
 
+  if (!existing) trackNewWordIntro(); // première rencontre = nouveau mot introduit aujourd'hui
+
   att += 1;
   if (isCorrect) {
     c  += 1;
-    ef  = Math.max(1.3, ef + 0.1);
+    ef  = Math.min(SRS_MAX_EASE, ef + 0.1);   // plafond (avant : croissance illimitée)
     iv  = Math.round(iv * ef);
   } else {
-    ef  = Math.max(1.3, ef - 0.2);
+    ef  = Math.max(SRS_MIN_EASE, ef - 0.2);
     iv  = 1;
   }
+
+  // Fenêtre glissante des dernières réponses (1 = correct, 0 = raté)
+  const recent = ((existing && Array.isArray(existing.recent)) ? existing.recent : [])
+    .concat(isCorrect ? 1 : 0)
+    .slice(-RECENT_WINDOW);
 
   const payload = {
     user_id:       currentUser.id,
@@ -3084,12 +3175,26 @@ async function recordAnswer(wordId, isCorrect) {
     interval_days: iv
   };
 
-  const { error } = await window.sb
-    .from('quiz_progress')
-    .upsert(payload, { onConflict: 'user_id,word_id' });
+  let error = null;
+  if (!recentColMissing) {
+    ({ error } = await window.sb
+      .from('quiz_progress')
+      .upsert({ ...payload, recent }, { onConflict: 'user_id,word_id' }));
+    // Colonne `recent` pas encore migrée → retomber sur le payload sans elle
+    if (error && /recent/i.test(error.message || '')) {
+      recentColMissing = true;
+      ({ error } = await window.sb
+        .from('quiz_progress')
+        .upsert(payload, { onConflict: 'user_id,word_id' }));
+    }
+  } else {
+    ({ error } = await window.sb
+      .from('quiz_progress')
+      .upsert(payload, { onConflict: 'user_id,word_id' }));
+  }
 
   if (!error) {
-    progress[wordId] = payload;
+    progress[wordId] = recentColMissing ? payload : { ...payload, recent };
   }
 }
 
@@ -3270,9 +3375,7 @@ function getFilteredVocab() {
 }
 
 function rateOf(wordId) {
-  const p = progress[wordId];
-  if (!p || !p.attempts) return -1;
-  return p.correct / p.attempts;
+  return wordRate(progress[wordId]); // fenêtre glissante (fallback lifetime)
 }
 
 function renderVocab() {
@@ -3383,7 +3486,8 @@ function renderEditRow(word) {
 
 function rateCell(p) {
   if (!p || !p.attempts) return `<span class="rate-none">—</span>`;
-  const pct = Math.round((p.correct / p.attempts) * 100);
+  // Couleur basée sur la fenêtre glissante ; compteur lifetime affiché pour contexte
+  const pct = Math.round(wordRate(p) * 100);
   const cls = pct >= 80 ? 'rate-good' : pct >= 40 ? 'rate-mid' : 'rate-bad';
   return `<span class="${cls}">${p.correct}/${p.attempts} (${pct}%)</span>`;
 }
@@ -3475,6 +3579,16 @@ document.querySelectorAll('#mode-pills .qz-pill').forEach(btn => {
   });
 });
 
+/* Cloze pills */
+let clozeMode = 'off';
+document.querySelectorAll('#cloze-pills .qz-pill').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('#cloze-pills .qz-pill').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    clozeMode = btn.dataset.cloze;
+  });
+});
+
 /* Filter pills */
 document.querySelectorAll('#filter-pills .qz-pill').forEach(btn => {
   btn.addEventListener('click', () => {
@@ -3500,8 +3614,38 @@ function updateAvailNote() {
   const avail    = filtered.length;
   const startBtn = document.getElementById('btn-start-quiz');
   const note     = document.getElementById('avail-note');
-  if (note) note.textContent = `${avail} word${avail !== 1 ? 's' : ''} available`;
+
+  // Répartition SRS pour le filtre courant
+  const now = Date.now();
+  let dueCount = 0, freshCount = 0;
+  filtered.forEach(w => {
+    const p = progress[w.id];
+    if (!p || !p.attempts)      freshCount++;
+    else if (isDueWord(p, now)) dueCount++;
+  });
+  const newAllowance = Math.max(0, NEW_WORDS_PER_DAY - newWordsIntroducedToday());
+
+  if (note) {
+    let txt = `${avail} word${avail !== 1 ? 's' : ''} available`;
+    if (freshCount > 0 && newAllowance === 0) {
+      txt += ` · limite de nouveaux mots atteinte (${NEW_WORDS_PER_DAY}/jour)`;
+    } else if (freshCount > newAllowance) {
+      txt += ` · ${newAllowance} nouveau${newAllowance > 1 ? 'x' : ''} mot${newAllowance > 1 ? 's' : ''} max aujourd'hui`;
+    }
+    note.textContent = txt;
+  }
   if (startBtn) startBtn.disabled = avail === 0;
+
+  // Bannière révisions dues
+  const banner = document.getElementById('due-banner');
+  if (banner) {
+    if (dueCount > 0) {
+      banner.style.display = 'block';
+      banner.textContent = `🔔 ${dueCount} mot${dueCount > 1 ? 's' : ''} à réviser aujourd'hui — ils seront priorisés dans ta session.`;
+    } else {
+      banner.style.display = 'none';
+    }
+  }
 }
 
 function filterVocabForQuiz(filter) {
@@ -3515,7 +3659,7 @@ function filterVocabForQuiz(filter) {
     list = list.filter(w => {
       const p = progress[w.id];
       if (!p || !p.attempts) return true;
-      return (p.correct / p.attempts) < 0.6;
+      return wordRate(p) < 0.6;
     });
   }
 
@@ -3527,29 +3671,43 @@ function filterVocabForQuiz(filter) {
 }
 
 function buildQuizQueue(filter, count, mode) {
-  let list = filterVocabForQuiz(filter);
+  const list = filterVocabForQuiz(filter);
   const n = (count === 'all') ? list.length : Math.min(count, list.length);
+  const now = Date.now();
 
-  if (mode === 'auto') {
-    // Pure random — no bias toward date added or score
-    shuffle(list);
-    list = list.slice(0, n);
-  } else {
-    // forward / reverse: untested first, then hardest
-    list.sort((a, b) => {
-      const pa = progress[a.id], pb = progress[b.id];
-      const ra = (pa && pa.attempts) ? pa.correct / pa.attempts : -1;
-      const rb = (pb && pb.attempts) ? pb.correct / pb.attempts : -1;
-      return ra - rb;
-    });
-    const priority = list.slice(0, Math.ceil(n * 0.6));
-    const rest     = list.slice(Math.ceil(n * 0.6), n);
-    shuffle(rest);
-    list = [...priority, ...rest].slice(0, n);
-    shuffle(list);
+  // ── Vraie répétition espacée ──
+  // 1. dus (last_tested + interval dépassé) — le moment optimal de révision
+  // 2. nouveaux (jamais testés), plafonnés à NEW_WORDS_PER_DAY
+  // 3. déjà vus mais pas encore dus, en remplissage
+  const due = [], fresh = [], notDue = [];
+  list.forEach(w => {
+    const p = progress[w.id];
+    if (!p || !p.attempts)      fresh.push(w);
+    else if (isDueWord(p, now)) due.push(w);
+    else                        notDue.push(w);
+  });
+
+  // Dus les plus fragiles d'abord (fenêtre glissante), pour survivre au slice
+  due.sort((a, b) => wordRate(progress[a.id]) - wordRate(progress[b.id]));
+  shuffle(fresh);
+  shuffle(notDue);
+
+  const newAllowance = Math.max(0, NEW_WORDS_PER_DAY - newWordsIntroducedToday());
+  let selected = due.slice(0, n);
+  if (selected.length < n) {
+    selected = selected.concat(fresh.slice(0, Math.min(newAllowance, n - selected.length)));
   }
+  if (selected.length < n) {
+    selected = selected.concat(notDue.slice(0, n - selected.length));
+  }
+  shuffle(selected);
 
-  return list.map(word => {
+  return selected.map(word => {
+    // Cloze (~1/3) quand activé et qu'une phrase d'exemple contient le mot
+    if (clozeMode === 'mix' && Math.random() < 0.34) {
+      const cloze = buildClozeItem(word);
+      if (cloze) return cloze;
+    }
     // In auto mode, randomly pick direction per word
     const dir = (mode === 'auto')
       ? (Math.random() < 0.5 ? 'forward' : 'reverse')
@@ -3558,6 +3716,24 @@ function buildQuizQueue(filter, count, mode) {
     const answer   = dir === 'forward' ? word.target_translation : word.source_word;
     return { word, question, answer, direction: dir };
   });
+}
+
+/* Phrase à trou : masque le mot source dans sa phrase d'exemple.
+   Retourne null si la phrase ne contient pas le mot (pas de cloze possible). */
+function buildClozeItem(word) {
+  const ex  = (word.example_sentence || '').trim();
+  const src = (word.source_word || '').trim();
+  if (!ex || !src) return null;
+  // Tenter le mot complet, puis sans article (« de fiets » → « fiets »)
+  const candidates = [src, stripArticles(src)].filter(Boolean);
+  for (const cand of candidates) {
+    const idx = ex.toLowerCase().indexOf(cand.toLowerCase());
+    if (idx === -1) continue;
+    const blanked = ex.slice(0, idx) + '_____' + ex.slice(idx + cand.length);
+    // La réponse = la forme réelle dans la phrase (casse d'origine)
+    return { word, question: blanked, answer: ex.substr(idx, cand.length), direction: 'cloze' };
+  }
+  return null;
 }
 
 function shuffle(arr) {
@@ -3587,28 +3763,43 @@ function showQuestion() {
   document.getElementById('quiz-progress-fill').style.width = pct + '%';
   document.getElementById('quiz-progress-text').textContent = `${quizIndex + 1} / ${total}`;
 
-  const dir = item.direction;  // 'forward' | 'reverse' (resolved per-item)
+  const dir = item.direction;  // 'forward' | 'reverse' | 'cloze' (resolved per-item)
   const pair = item.word.language_pair; // e.g. 'NL→FR'
   const [srcLang, tgtLang] = pair.split('→');  // ['NL','FR']
 
-  // Direction label: shows which way the question goes
-  const fromLang = dir === 'forward' ? srcLang : tgtLang;
-  const toLang   = dir === 'forward' ? tgtLang : srcLang;
-  document.getElementById('quiz-mode-label').textContent =
-    quizMode === 'auto' ? '🔀 Mixed mode' : (dir === 'forward' ? 'Word → Translation' : 'Translation → Word');
+  const questionEl = document.getElementById('quiz-question');
+  const exampleEl  = document.getElementById('quiz-example');
 
-  // Visual direction badge replacing lang-badge
-  document.getElementById('quiz-lang-badge').innerHTML =
-    `<span class="qz-direction-badge dir-${dir}">
-       ${fromLang} <span style="opacity:.6;font-weight:400;">→</span> ${toLang}
-     </span>`;
+  if (dir === 'cloze') {
+    // Phrase à trou : la phrase d'exemple EST la question, la traduction sert d'indice
+    document.getElementById('quiz-mode-label').textContent = '🧩 Phrase à trou — complète le mot manquant';
+    document.getElementById('quiz-lang-badge').innerHTML =
+      `<span class="qz-direction-badge dir-forward">🧩 ${pair}</span>`;
+    questionEl.textContent = item.question;
+    questionEl.style.fontSize = '20px';   // une phrase entière, pas un mot isolé
+    exampleEl.textContent = `Traduction : ${item.word.target_translation}`;
+  } else {
+    // Direction label: shows which way the question goes
+    const fromLang = dir === 'forward' ? srcLang : tgtLang;
+    const toLang   = dir === 'forward' ? tgtLang : srcLang;
+    document.getElementById('quiz-mode-label').textContent =
+      quizMode === 'auto' ? '🔀 Mixed mode' : (dir === 'forward' ? 'Word → Translation' : 'Translation → Word');
 
-  document.getElementById('quiz-question').textContent = item.question;
-  // Show example sentence only when asking for translation (forward), not when asking for source word
-  document.getElementById('quiz-example').textContent  =
-    item.word.example_sentence && dir === 'forward'
-      ? item.word.example_sentence
-      : '';
+    // Visual direction badge replacing lang-badge
+    document.getElementById('quiz-lang-badge').innerHTML =
+      `<span class="qz-direction-badge dir-${dir}">
+         ${fromLang} <span style="opacity:.6;font-weight:400;">→</span> ${toLang}
+       </span>`;
+
+    questionEl.textContent = item.question;
+    questionEl.style.fontSize = '';
+    // Show example sentence only when asking for translation (forward), not when asking for source word
+    // (en reverse, la phrase contient le mot source = la réponse → fuite)
+    exampleEl.textContent =
+      item.word.example_sentence && dir === 'forward'
+        ? item.word.example_sentence
+        : '';
+  }
 
   // Tip / indice — toujours affiché par défaut quand il existe
   const tipWrap = document.getElementById('quiz-tip-wrap');
@@ -3667,7 +3858,7 @@ document.getElementById('quiz-answer-input').addEventListener('keydown', e => {
 document.getElementById('btn-skip').addEventListener('click', () => {
   clearQuizTimer();
   const item = quizQueue[quizIndex];
-  sessionAnswers.push({ word: item.word, correct: false, skipped: true, givenAnswer: '', direction: item.direction });
+  sessionAnswers.push({ word: item.word, correct: false, skipped: true, givenAnswer: '', direction: item.direction, question: item.question, answer: item.answer });
   recordAnswer(item.word.id, false);
   advanceQuiz();
 });
@@ -3705,16 +3896,29 @@ function checkAnswer() {
   const alternatives = correct.split(/\s*\/\s*/).map(s => s.trim()).filter(Boolean);
   const givenLower   = given.toLowerCase();
   const exact        = alternatives.some(alt => givenLower === alt.toLowerCase());
-  const closedAlt    = !exact && alternatives.find(alt => levenshtein(givenLower, alt.toLowerCase()) === 1);
-  const close        = !!closedAlt;
-  const isCorrect    = exact || close;
+
+  // « Proche » : accents / article manquant / typo d'une lettre — sur formes normalisées
+  let closedAlt = null, closeReason = '';
+  if (!exact) {
+    const gNorm = normalizeAnswer(given);
+    for (const alt of alternatives) {
+      const aNorm = normalizeAnswer(alt);
+      if (!gNorm || !aNorm) continue;
+      if (gNorm === aNorm) { closedAlt = alt; closeReason = 'form'; break; }   // accents/article
+      if (levenshtein(gNorm, aNorm) === 1) { closedAlt = alt; closeReason = 'typo'; break; }
+    }
+  }
+  const close     = !!closedAlt;
+  const isCorrect = exact || close;
 
   const fb = document.getElementById('quiz-feedback');
   if (isCorrect) {
     input.classList.add('correct-flash');
     if (close) {
       fb.className = 'qz-feedback close';
-      fb.innerHTML = `✓ Proche ! <span class="qz-correct-answer">Accepté : "${closedAlt}"</span>`;
+      fb.innerHTML = closeReason === 'form'
+        ? `✓ Accepté ! <span class="qz-correct-answer">Forme exacte : "${closedAlt}"</span>`
+        : `✓ Proche ! <span class="qz-correct-answer">Accepté : "${closedAlt}"</span>`;
     } else {
       fb.className = 'qz-feedback correct';
       // If multiple alternatives exist, show the others as hint
@@ -3724,13 +3928,13 @@ function checkAnswer() {
         : '✓ Correct !';
     }
     recordAnswer(item.word.id, true);
-    sessionAnswers.push({ word: item.word, correct: true, skipped: false, givenAnswer: given, direction: item.direction });
+    sessionAnswers.push({ word: item.word, correct: true, skipped: false, givenAnswer: given, direction: item.direction, question: item.question, answer: item.answer });
   } else {
     input.classList.add('wrong-flash');
     fb.className = 'qz-feedback wrong';
     fb.innerHTML = `✗ Incorrect <div class="qz-correct-answer">Correct answer: "${correct}"</div>`;
     recordAnswer(item.word.id, false);
-    sessionAnswers.push({ word: item.word, correct: false, skipped: false, givenAnswer: given, direction: item.direction });
+    sessionAnswers.push({ word: item.word, correct: false, skipped: false, givenAnswer: given, direction: item.direction, question: item.question, answer: item.answer });
   }
 
   input.disabled = true;
@@ -3916,10 +4120,7 @@ function renderProgressCharts() {
   if (barNlfrVal)  barNlfrVal.textContent  = nlfr;
 
   // Update KPI cards
-  const mastered = vocab.filter(w => {
-    const p = progress[w.id];
-    return p && p.attempts >= 3 && p.correct / p.attempts >= 0.8;
-  }).length;
+  const mastered = vocab.filter(w => getWordStatus(w.id) === 'mastered').length;
   const allProgress = Object.values(progress).filter(p => p.attempts > 0);
   const avgRate = allProgress.length > 0
     ? Math.round(allProgress.reduce((s, p) => s + p.correct / p.attempts, 0) / allProgress.length * 100)
@@ -4007,8 +4208,11 @@ function showReviewItem() {
   document.getElementById('review-counter').textContent      = `${reviewIndex + 1} / ${total}`;
   document.getElementById('review-prog-fill').style.width    = pct + '%';
 
-  const asked   = a.direction === 'forward' ? a.word.source_word        : a.word.target_translation;
-  const correct = a.direction === 'forward' ? a.word.target_translation : a.word.source_word;
+  // Cloze : montrer la phrase à trou et le mot attendu (stockés sur l'answer)
+  const asked   = a.direction === 'cloze' ? (a.question || a.word.example_sentence)
+                : a.direction === 'forward' ? a.word.source_word        : a.word.target_translation;
+  const correct = a.direction === 'cloze' ? (a.answer || a.word.source_word)
+                : a.direction === 'forward' ? a.word.target_translation : a.word.source_word;
 
   document.getElementById('review-asked').textContent   = asked;
   document.getElementById('review-correct').textContent = correct;
@@ -4136,7 +4340,8 @@ document.getElementById('prog-sort').addEventListener('change', e => {
 function getWordStatus(wordId) {
   const p = progress[wordId];
   if (!p || !p.attempts) return 'untested';
-  const rate = p.correct / p.attempts;
+  // Fenêtre glissante : les vieux échecs ne plombent plus un mot désormais su
+  const rate = wordRate(p);
   if (rate >= 0.8 && p.attempts >= 3) return 'mastered';
   if (rate < 0.6) return 'needs';
   return 'learning';
@@ -4391,6 +4596,8 @@ function escHtml(str) {
 }
 
 function levenshtein(a, b) {
+  // Damerau-Levenshtein (OSA) : la transposition de 2 lettres adjacentes
+  // (« chein » → « chien ») compte pour 1 édition — la typo la plus fréquente.
   const m = a.length, n = b.length;
   const dp = Array.from({length: m+1}, (_, i) => [i]);
   for (let j = 0; j <= n; j++) dp[0][j] = j;
@@ -4400,6 +4607,9 @@ function levenshtein(a, b) {
         dp[i][j] = dp[i-1][j-1];
       } else {
         dp[i][j] = 1 + Math.min(dp[i-1][j], dp[i][j-1], dp[i-1][j-1]);
+      }
+      if (i > 1 && j > 1 && a[i-1] === b[j-2] && a[i-2] === b[j-1]) {
+        dp[i][j] = Math.min(dp[i][j], dp[i-2][j-2] + 1);
       }
     }
   }
@@ -4976,7 +5186,7 @@ async function runXpReconciliation() {
     const todayStart = today + 'T00:00:00.000Z';
     const todayEnd   = today + 'T23:59:59.999Z';
 
-    const [{ data: sessions }, { count: commentsCount }, { data: progressRows }] = await Promise.all([
+    const [{ data: sessions }, { count: commentsCount }, progressRes] = await Promise.all([
       window.sb.from('quiz_sessions')
         .select('score, total, mode, direction')
         .eq('user_id', currentUser.id)
@@ -4986,16 +5196,24 @@ async function runXpReconciliation() {
         .eq('user_id', currentUser.id)
         .gte('created_at', todayStart),
       window.sb.from('quiz_progress')
-        .select('word_id, attempts, correct')
+        .select('word_id, attempts, correct, recent')
         .eq('user_id', currentUser.id),
     ]);
+    let progressRows = progressRes.data;
+    if (progressRes.error) {
+      // Colonne `recent` pas encore migrée — retomber sur la sélection historique
+      ({ data: progressRows } = await window.sb.from('quiz_progress')
+        .select('word_id, attempts, correct')
+        .eq('user_id', currentUser.id));
+    }
 
     /* ── Detect new masteries ── */
     const alreadyMastered = new Set(userXpState.mastered_word_ids || []);
     const newMasteries   = [];
     const recoveries     = [];
     for (const p of (progressRows || [])) {
-      const rate = p.attempts > 0 ? p.correct / p.attempts : 0;
+      // Fenêtre glissante : cohérent avec getWordStatus (les vieux échecs ne bloquent plus la maîtrise)
+      const rate = p.attempts > 0 ? wordRate(p) : 0;
       const mastered = rate >= 0.80 && p.attempts >= 3;
       if (mastered && !alreadyMastered.has(p.word_id)) newMasteries.push(p.word_id);
       // Recovery: word was in rework (tracked by low historical rate) — simplified:
