@@ -33,6 +33,11 @@ const PUBLIC_PAGES = new Set([
   '/pro/login.html',
   '/pro/email_confirm.html',
   '/pro/spotify-callback.html',
+  // quiz.html is framed by the Jarvis front, which may not carry the gate
+  // cookie on the very first load. A 302 there would navigate the IFRAME to
+  // the login page, so the HTML is served ungated and quiz.html runs its own
+  // in-place login gate. Nothing sensitive ships in the markup — all data
+  // comes from Supabase, where RLS is the real boundary.
   '/pro/quiz.html',
 ]);
 
@@ -47,11 +52,6 @@ export default {
     try {
       const url  = new URL(request.url);
       const path = url.pathname;
-
-      // 0. Embed session API — Jarvis iframe auto-login (no user interaction).
-      if (path === '/pro/api/embed-session' && request.method === 'POST') {
-        return handleEmbedSession(request, env);
-      }
 
       // 1. Only gate /pro/* paths. Anything else, pass through.
       if (!path.startsWith(APP_PREFIX)) {
@@ -273,106 +273,6 @@ async function verifyHS256(headerB64, payloadB64, sigB64, secret) {
   const data = new TextEncoder().encode(headerB64 + '.' + payloadB64);
   const sig  = base64UrlToBytes(sigB64);
   return await crypto.subtle.verify('HMAC', key, sig, data);
-}
-
-/* ── Embed session API ──────────────────────────────────────────── */
-
-const EMBED_ALLOWED_ORIGINS = new Set([
-  'https://jarvis.ndashiz.be',
-  'https://ndashiz.be',
-]);
-
-async function handleEmbedSession(request, env) {
-  const origin = request.headers.get('Origin') || '';
-  if (!EMBED_ALLOWED_ORIGINS.has(origin)) {
-    return new Response('forbidden', { status: 403 });
-  }
-
-  if (!env.SUPABASE_JWT_SECRET) {
-    return new Response(JSON.stringify({ error: 'jwt secret not configured' }), {
-      status: 500, headers: { 'Content-Type': 'application/json' },
-    });
-  }
-
-  try {
-    const svcToken = await signHS256({
-      sub: '00000000-0000-0000-0000-000000000000',
-      role: 'service_role',
-      iss: SUPABASE_URL + '/auth/v1',
-      aud: 'authenticated',
-      exp: Math.floor(Date.now() / 1000) + 60,
-    }, env.SUPABASE_JWT_SECRET);
-
-    const profilesRes = await fetch(
-      SUPABASE_URL + '/rest/v1/profiles?select=id&limit=1', {
-        headers: {
-          'apikey': env.SUPABASE_ANON_KEY || '',
-          'Authorization': 'Bearer ' + svcToken,
-        },
-      }
-    );
-    if (!profilesRes.ok) {
-      return new Response(JSON.stringify({ error: 'profile lookup failed' }), {
-        status: 500, headers: { 'Content-Type': 'application/json' },
-      });
-    }
-    const profiles = await profilesRes.json();
-    if (!profiles.length) {
-      return new Response(JSON.stringify({ error: 'no user found' }), {
-        status: 404, headers: { 'Content-Type': 'application/json' },
-      });
-    }
-
-    const userId = profiles[0].id;
-    const now = Math.floor(Date.now() / 1000);
-    const accessToken = await signHS256({
-      sub: userId,
-      role: 'authenticated',
-      iss: SUPABASE_URL + '/auth/v1',
-      aud: 'authenticated',
-      iat: now,
-      exp: now + 3600,
-    }, env.SUPABASE_JWT_SECRET);
-
-    return new Response(JSON.stringify({
-      access_token: accessToken,
-      refresh_token: accessToken,
-      expires_in: 3600,
-      token_type: 'bearer',
-    }), {
-      status: 200,
-      headers: {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': origin,
-        'Access-Control-Allow-Methods': 'POST',
-        'Cache-Control': 'no-store',
-      },
-    });
-  } catch (err) {
-    return new Response(JSON.stringify({ error: err.message || 'internal' }), {
-      status: 500, headers: { 'Content-Type': 'application/json' },
-    });
-  }
-}
-
-async function signHS256(payload, secret) {
-  const header = { alg: 'HS256', typ: 'JWT' };
-  const enc = new TextEncoder();
-  const h = bytesToBase64Url(enc.encode(JSON.stringify(header)));
-  const p = bytesToBase64Url(enc.encode(JSON.stringify(payload)));
-  const key = await crypto.subtle.importKey(
-    'raw', enc.encode(secret),
-    { name: 'HMAC', hash: 'SHA-256' },
-    false, ['sign'],
-  );
-  const sig = await crypto.subtle.sign('HMAC', key, enc.encode(h + '.' + p));
-  return h + '.' + p + '.' + bytesToBase64Url(new Uint8Array(sig));
-}
-
-function bytesToBase64Url(bytes) {
-  let bin = '';
-  for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
-  return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 
 /* ── Base64url helpers ───────────────────────────────────────────── */

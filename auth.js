@@ -91,6 +91,16 @@
                  '            To disable: sessionStorage.setItem("lazypo:disableLocalBypass","1") + reload.');
   }
 
+  /* ── Embed mode ──────────────────────────────────────────────
+     True when the page runs inside an iframe (the Jarvis front embeds
+     quiz.html). Any `location.href = login.html` would then navigate the
+     IFRAME to the full LazyPO login page instead of gating in place, so
+     embedded pages must handle a missing session themselves. Cross-origin
+     framing makes window.top throw — that also means embedded. */
+  const IS_EMBED = (() => {
+    try { return window.top !== window.self; } catch (_) { return true; }
+  })();
+
   const { createClient } = supabase;
   window.sb = createClient(SUPABASE_URL, SUPABASE_ANON);
 
@@ -272,7 +282,7 @@
       }
       if (event === 'SIGNED_OUT') {
         _clearSessionCookie();
-        if (!IS_LOCAL && !document.documentElement.classList.contains('qz-embed')) {
+        if (!IS_LOCAL && !IS_EMBED) {
           window.location.href = LOGIN_PAGE;
         }
       }
@@ -461,6 +471,9 @@
       const { data: { session } } = await window.sb.auth.getSession();
       if (session) return session;
       if (IS_LOCAL) return DEV_SESSION;
+      // Embedded in an iframe: redirecting would swap the whole embed for
+      // the full login page. The host page owns the login UX there.
+      if (IS_EMBED) return null;
       window.location.href = LOGIN_PAGE; return null;
     },
     /** Re-render the sidebar user widget — call after avatar/username changes */

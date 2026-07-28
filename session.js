@@ -26,6 +26,12 @@
   const _page = location.pathname.split('/').pop().toLowerCase();
   if (_page === 'login.html' || _page === 'spotify-callback.html') return;
 
+  /* True when running inside an iframe — cross-origin framing makes
+     window.top throw, which also means embedded. */
+  function _isEmbed() {
+    try { return window.top !== window.self; } catch (_) { return true; }
+  }
+
   /* ── Constants ──────────────────────────────────────────────────── */
   const INACTIVITY_TIMEOUT  = 2 * 60 * 60 * 1000;  // 2h
   const MAX_SESSION_DURATION = 8 * 60 * 60 * 1000; // 8h
@@ -217,6 +223,11 @@
     }
 
     if (window.sb) await window.sb.auth.signOut();
+
+    // Embedded in an iframe (Jarvis embeds quiz.html): navigating to
+    // login.html would replace the whole embed with the full LazyPO login
+    // page. Reload instead — the host page's own gate takes it from there.
+    if (_isEmbed()) { window.location.reload(); return; }
     window.location.href = 'login.html?reason=' + reason;
   }
 

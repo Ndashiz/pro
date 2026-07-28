@@ -12,11 +12,9 @@ workers_dev = false
 pattern = "ndashiz.be/pro/*"
 zone_name = "ndashiz.be"
 
-# Supabase anon key (publishable — safe as a plain var).
-[vars]
-SUPABASE_ANON_KEY = "sb_publishable_Mj-FuPZcN_oTeLQ0ME84yQ_uulPdJ4c"
-
 # Secrets (set via `wrangler secret put <NAME>`):
-# SUPABASE_JWT_SECRET    — Supabase project JWT secret (HS256 verification)
-# LAZYPO_EMBED_EMAIL     — email for silent quiz embed auth
-# LAZYPO_EMBED_PASSWORD  — password for silent quiz embed auth
+# SUPABASE_JWT_SECRET — Supabase project JWT secret (HS256 verification)
+#
+# The Worker only VERIFIES tokens; it never mints them. The quiz embed gets
+# its session from the browser (jarvis.ndashiz.be and ndashiz.be are
+# same-site, so the iframe shares the top-level storage partition).

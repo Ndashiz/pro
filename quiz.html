@@ -23,11 +23,13 @@ html.qz-embed body { padding-left: 0 !important; }
 html.qz-embed .qz-header-left { display: none !important; }
 html.qz-embed .qz-header { margin-bottom: 20px !important; justify-content: center; }
 html.qz-embed .qz-main { padding: 20px 24px 60px !important; }
-/* Embed auto-auth: hide quiz until Supabase session is established */
+/* Embed auth: hide the quiz until a Supabase session exists */
 html.qz-embed:not(.qz-authed) .qz-main,
 html.qz-embed:not(.qz-authed) .main-bg,
 html.qz-embed:not(.qz-authed) .main-grid { display: none !important; }
 html.qz-embed:not(.qz-authed) .qz-embed-loading { display: flex !important; }
+/* …but once the login gate is up it replaces the loading placeholder. */
+html.qz-embed.qz-gated .qz-embed-loading { display: none !important; }
 .qz-embed-loading {
   display: none;
   align-items: center; justify-content: center;
@@ -37,6 +39,71 @@ html.qz-embed:not(.qz-authed) .qz-embed-loading { display: flex !important; }
   font-size: 0.9rem;
   background: var(--bg, #0c0c0c);
 }
+
+/* Inline login gate — shown inside the iframe instead of navigating it to
+   login.html (which would swap the whole embed for the full LazyPO page). */
+#qz-embed-gate {
+  position: fixed; inset: 0; z-index: 9999;
+  display: flex; align-items: center; justify-content: center;
+  padding: 24px;
+  background: var(--bg, #0c0c0c);
+  font-family: 'DM Sans', sans-serif;
+}
+#qz-embed-gate .qeg-card {
+  width: 100%; max-width: 340px;
+  padding: 28px 26px;
+  background: var(--surface, #161616);
+  border: 1px solid var(--border, #222);
+  border-radius: 14px;
+}
+#qz-embed-gate h2 {
+  margin: 0 0 5px;
+  font-size: 1.02rem; font-weight: 600; letter-spacing: -0.01em;
+  color: var(--text, #f0f0f0);
+}
+#qz-embed-gate .qeg-sub {
+  margin: 0 0 20px;
+  font-size: 0.78rem; line-height: 1.45;
+  color: var(--muted, #6b6b6b);
+}
+#qz-embed-gate label {
+  display: block; margin-bottom: 6px;
+  font-size: 0.66rem; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--muted, #6b6b6b);
+}
+#qz-embed-gate input {
+  width: 100%; box-sizing: border-box;
+  padding: 10px 12px; margin-bottom: 14px;
+  background: var(--bg, #0c0c0c);
+  border: 1px solid var(--border2, #2a2a2a);
+  border-radius: 8px;
+  color: var(--text, #f0f0f0);
+  font-family: inherit; font-size: 0.85rem;
+  outline: none;
+}
+#qz-embed-gate input:focus { border-color: var(--accent, #3b82f6); }
+#qz-embed-gate .qeg-submit {
+  width: 100%; padding: 11px;
+  background: var(--accent, #3b82f6); color: #fff;
+  border: none; border-radius: 8px;
+  font-family: inherit; font-size: 0.85rem; font-weight: 600;
+  cursor: pointer;
+}
+#qz-embed-gate .qeg-submit:disabled { opacity: 0.55; cursor: default; }
+#qz-embed-gate .qeg-msg {
+  display: none; margin-bottom: 14px;
+  padding: 9px 11px; border-radius: 7px;
+  font-size: 0.75rem; line-height: 1.4;
+}
+#qz-embed-gate .qeg-msg.show { display: block; }
+#qz-embed-gate .qeg-msg.error   { background: rgba(239, 68, 68, 0.10); color: #f87171; }
+#qz-embed-gate .qeg-msg.success { background: rgba(34, 197, 94, 0.10); color: #4ade80; }
+#qz-embed-gate .qeg-alt {
+  margin: 16px 0 0; text-align: center;
+  font-size: 0.73rem; line-height: 1.5; color: var(--muted, #6b6b6b);
+}
+#qz-embed-gate .qeg-alt a { color: var(--accent, #3b82f6); text-decoration: none; }
+#qz-embed-gate .qeg-alt a:hover { text-decoration: underline; }
 </style>
 <style>
 /*
@@ -2742,27 +2809,137 @@ tr.row-selected { background: rgba(59,130,246,.05); }
 <script src="sidebar.js"></script>
 <script src="auth.js"></script>
 <script>
+/* ═══════════════════════════════════════════════════════════
+   EMBED AUTH GATE
+   ───────────────────────────────────────────────────────────
+   In embed mode the quiz runs inside a jarvis.ndashiz.be iframe. That is
+   cross-ORIGIN but same-SITE, so this document's localStorage lives in the
+   same storage partition as a top-level ndashiz.be tab: a LazyPO login made
+   anywhere on ndashiz.be is already visible here, no handshake needed.
+
+   When there is no session yet we show a login card INSIDE the iframe.
+   Navigating to login.html instead would replace the embed with the full
+   LazyPO page (that is the bug this replaced).
+
+   Everything downstream — the quiz init, session.js — must wait on
+   window.__qzEmbedAuth before calling LazyAuth.requireAuth(), otherwise it
+   races this gate, sees a null session and bounces the iframe to login.html.
+═══════════════════════════════════════════════════════════ */
 (function(){
-  if (!document.documentElement.classList.contains('qz-embed')) return;
+  var docEl = document.documentElement;
+
+  // Not embedded → the normal LazyPO flow (Worker gate + auth.js) applies.
+  // Resolve immediately so callers can await unconditionally.
+  if (!docEl.classList.contains('qz-embed')) {
+    window.__qzEmbedAuth = Promise.resolve();
+    return;
+  }
+
   var sb = window.sb;
+  var resolveAuth;
+  window.__qzEmbedAuth = new Promise(function (r) { resolveAuth = r; });
 
-  function markAuthed() { document.documentElement.classList.add('qz-authed'); }
+  function markAuthed(session) {
+    // Mirror the token into the Worker-gate cookie so the rest of /pro/*
+    // stays reachable from inside the iframe as well.
+    try { window.LazyAuth.setSessionCookie(session); } catch (_) {}
+    // Fresh start for session.js's inactivity timer — a stale timestamp
+    // would force-logout immediately after signing in.
+    try { localStorage.setItem('lazypo:lastActivity', String(Date.now())); } catch (_) {}
+    var gate = document.getElementById('qz-embed-gate');
+    if (gate) gate.remove();
+    docEl.classList.remove('qz-gated');
+    docEl.classList.add('qz-authed');
+    resolveAuth(session);
+  }
 
-  sb.auth.getSession().then(function(res) {
-    if (res.data.session) { markAuthed(); return; }
-    fetch('/pro/api/embed-session', { method: 'POST' })
-      .then(function(r) { return r.json(); })
-      .then(function(data) {
-        if (data.access_token) {
-          return sb.auth.setSession({
-            access_token: data.access_token,
-            refresh_token: data.refresh_token
-          });
-        }
-      })
-      .then(function() { markAuthed(); location.reload(); })
-      .catch(function() {});
+  /* ── Login card ─────────────────────────────────────────── */
+  function showGate() {
+    if (document.getElementById('qz-embed-gate')) return;
+    docEl.classList.add('qz-gated');
+
+    var gate = document.createElement('div');
+    gate.id = 'qz-embed-gate';
+    gate.innerHTML =
+      '<div class="qeg-card">' +
+        '<h2>Connexion LazyPO</h2>' +
+        '<p class="qeg-sub">Le quiz est un composant partagé avec LazyPO. ' +
+          'Connecte-toi une fois — la session reste valable pour les deux apps.</p>' +
+        '<div class="qeg-msg" id="qeg-msg"></div>' +
+        '<form id="qeg-form">' +
+          '<label for="qeg-email">Email</label>' +
+          '<input id="qeg-email" type="email" autocomplete="username" required>' +
+          '<label for="qeg-password">Mot de passe</label>' +
+          '<input id="qeg-password" type="password" autocomplete="current-password" required>' +
+          '<button type="submit" class="qeg-submit" id="qeg-submit">Se connecter</button>' +
+        '</form>' +
+        '<p class="qeg-alt">Google ou GitHub ? ' +
+          '<a href="login.html" target="_blank" rel="noopener">Connecte-toi dans un onglet ↗</a><br>' +
+          'La session sera détectée ici automatiquement.</p>' +
+      '</div>';
+    document.body.appendChild(gate);
+
+    document.getElementById('qeg-form').addEventListener('submit', handleLogin);
+  }
+
+  function showMsg(text, kind) {
+    var el = document.getElementById('qeg-msg');
+    if (!el) return;
+    el.textContent = text;
+    el.className = 'qeg-msg show ' + (kind || 'error');
+  }
+
+  async function handleLogin(e) {
+    e.preventDefault();
+    var btn   = document.getElementById('qeg-submit');
+    var email = document.getElementById('qeg-email').value.trim();
+    var pass  = document.getElementById('qeg-password').value;
+
+    btn.disabled = true;
+    btn.textContent = 'Connexion…';
+    try {
+      var res = await sb.auth.signInWithPassword({ email: email, password: pass });
+      if (res.error) { showMsg(res.error.message); return; }
+
+      // Same approval check as login.html — a pending account must not slip
+      // into the quiz just because it came in through the iframe.
+      var session = res.data && res.data.session;
+      var prof = await sb.from('profiles')
+        .select('is_approved').eq('id', session.user.id).single();
+      if (prof.data && prof.data.is_approved === false) {
+        await sb.auth.signOut();
+        showMsg('Ton compte est en attente de validation.', 'success');
+        return;
+      }
+      markAuthed(session);
+    } catch (err) {
+      showMsg((err && err.message) || 'Connexion impossible.');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Se connecter';
+    }
+  }
+
+  /* ── Pick up a login made elsewhere on ndashiz.be ────────── */
+  // Same origin + same storage partition, so supabase-js writing its session
+  // in the other tab fires a `storage` event right here. `focus` is the
+  // fallback for browsers that coalesce it.
+  var settled = false;
+  async function recheck() {
+    if (settled) return;
+    var res = await sb.auth.getSession();
+    if (res.data.session) { settled = true; markAuthed(res.data.session); }
+  }
+  window.addEventListener('storage', function (e) {
+    if (!e.key || e.key.indexOf('-auth-token') !== -1) recheck();
   });
+  window.addEventListener('focus', recheck);
+
+  /* ── Boot ───────────────────────────────────────────────── */
+  sb.auth.getSession().then(function (res) {
+    if (res.data.session) { settled = true; markAuthed(res.data.session); }
+    else showGate();
+  }).catch(function () { showGate(); });
 })();
 </script>
 <script src="focusfm.js"></script>
@@ -2850,6 +3027,10 @@ let reviewIndex = 0;
 // Use IIFE instead of DOMContentLoaded so it works both on direct load
 // and on SPA navigation (where DOMContentLoaded never re-fires)
 (async () => {
+  // In embed mode this resolves only once a session exists (see the embed
+  // auth gate above). Without the await, requireAuth() would run first, see
+  // a null session and navigate the iframe to login.html.
+  await (window.__qzEmbedAuth || Promise.resolve());
   await LazyAuth.requireAuth();
   const { data: { user } } = await window.sb.auth.getUser();
   if (!user) return;
