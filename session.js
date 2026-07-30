@@ -32,6 +32,13 @@
     try { return window.top !== window.self; } catch (_) { return true; }
   }
 
+  /* Embedded (the Jarvis front frames quiz.html): LazyPO's session policy
+     does NOT govern the embed — the host app gates access, and the embed
+     runs on its own isolated Supabase session (see auth.js storageKey).
+     Enforcing the inactivity timeout here is what used to destroy that
+     session and demand a fresh login on every visit. Skip entirely. */
+  if (_isEmbed()) return;
+
   /* ── Constants ──────────────────────────────────────────────────── */
   const INACTIVITY_TIMEOUT  = 2 * 60 * 60 * 1000;  // 2h
   const MAX_SESSION_DURATION = 8 * 60 * 60 * 1000; // 8h
@@ -222,12 +229,10 @@
         .eq('id', sessionDbId);
     }
 
-    if (window.sb) await window.sb.auth.signOut();
+    // scope local: end THIS browser's session without revoking the user's
+    // other refresh tokens (e.g. the isolated quiz-embed session in Jarvis).
+    if (window.sb) await window.sb.auth.signOut({ scope: 'local' });
 
-    // Embedded in an iframe (Jarvis embeds quiz.html): navigating to
-    // login.html would replace the whole embed with the full LazyPO login
-    // page. Reload instead — the host page's own gate takes it from there.
-    if (_isEmbed()) { window.location.reload(); return; }
     window.location.href = 'login.html?reason=' + reason;
   }
 

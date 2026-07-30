@@ -2812,16 +2812,18 @@ tr.row-selected { background: rgba(59,130,246,.05); }
 /* ═══════════════════════════════════════════════════════════
    EMBED AUTH GATE
    ───────────────────────────────────────────────────────────
-   In embed mode the quiz runs inside a jarvis.ndashiz.be iframe. That is
-   cross-ORIGIN but same-SITE, so this document's localStorage lives in the
-   same storage partition as a top-level ndashiz.be tab: a LazyPO login made
-   anywhere on ndashiz.be is already visible here, no handshake needed.
+   In embed mode the quiz runs inside a jarvis.ndashiz.be iframe and on its
+   OWN Supabase session: auth.js creates the client with a dedicated
+   storageKey there, so this session is fully decoupled from LazyPO's.
+   LazyPO's inactivity policy (session.js — skipped in embed) and LazyPO
+   sign-outs (scope 'local') can never destroy it. Log in once in the card
+   below and the embed stays signed in on this device via its refresh token.
 
    When there is no session yet we show a login card INSIDE the iframe.
    Navigating to login.html instead would replace the embed with the full
    LazyPO page (that is the bug this replaced).
 
-   Everything downstream — the quiz init, session.js — must wait on
+   Everything downstream — the quiz init — must wait on
    window.__qzEmbedAuth before calling LazyAuth.requireAuth(), otherwise it
    races this gate, sees a null session and bounces the iframe to login.html.
 ═══════════════════════════════════════════════════════════ */
@@ -2843,9 +2845,6 @@ tr.row-selected { background: rgba(59,130,246,.05); }
     // Mirror the token into the Worker-gate cookie so the rest of /pro/*
     // stays reachable from inside the iframe as well.
     try { window.LazyAuth.setSessionCookie(session); } catch (_) {}
-    // Fresh start for session.js's inactivity timer — a stale timestamp
-    // would force-logout immediately after signing in.
-    try { localStorage.setItem('lazypo:lastActivity', String(Date.now())); } catch (_) {}
     var gate = document.getElementById('qz-embed-gate');
     if (gate) gate.remove();
     docEl.classList.remove('qz-gated');
@@ -2864,7 +2863,8 @@ tr.row-selected { background: rgba(59,130,246,.05); }
       '<div class="qeg-card">' +
         '<h2>Connexion LazyPO</h2>' +
         '<p class="qeg-sub">Le quiz est un composant partagé avec LazyPO. ' +
-          'Connecte-toi une fois — la session reste valable pour les deux apps.</p>' +
+          'Connecte-toi une fois avec ton compte LazyPO — le quiz reste ensuite ' +
+          'connecté sur cet appareil.</p>' +
         '<div class="qeg-msg" id="qeg-msg"></div>' +
         '<form id="qeg-form">' +
           '<label for="qeg-email">Email</label>' +
@@ -2873,9 +2873,6 @@ tr.row-selected { background: rgba(59,130,246,.05); }
           '<input id="qeg-password" type="password" autocomplete="current-password" required>' +
           '<button type="submit" class="qeg-submit" id="qeg-submit">Se connecter</button>' +
         '</form>' +
-        '<p class="qeg-alt">Google ou GitHub ? ' +
-          '<a href="login.html" target="_blank" rel="noopener">Connecte-toi dans un onglet ↗</a><br>' +
-          'La session sera détectée ici automatiquement.</p>' +
       '</div>';
     document.body.appendChild(gate);
 
@@ -2907,7 +2904,7 @@ tr.row-selected { background: rgba(59,130,246,.05); }
       var prof = await sb.from('profiles')
         .select('is_approved').eq('id', session.user.id).single();
       if (prof.data && prof.data.is_approved === false) {
-        await sb.auth.signOut();
+        await sb.auth.signOut({ scope: 'local' });
         showMsg('Ton compte est en attente de validation.', 'success');
         return;
       }
@@ -2920,10 +2917,11 @@ tr.row-selected { background: rgba(59,130,246,.05); }
     }
   }
 
-  /* ── Pick up a login made elsewhere on ndashiz.be ────────── */
-  // Same origin + same storage partition, so supabase-js writing its session
-  // in the other tab fires a `storage` event right here. `focus` is the
-  // fallback for browsers that coalesce it.
+  /* ── Pick up a login made in another Jarvis tab ──────────── */
+  // The embed session has its own storage key (see auth.js), so only another
+  // EMBEDDED quiz writing that key is relevant here. Its write fires a
+  // `storage` event in this tab; `focus` is the fallback for browsers that
+  // coalesce it.
   var settled = false;
   async function recheck() {
     if (settled) return;

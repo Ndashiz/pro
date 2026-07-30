@@ -102,7 +102,13 @@
   })();
 
   const { createClient } = supabase;
-  window.sb = createClient(SUPABASE_URL, SUPABASE_ANON);
+  /* In embed mode the client gets its OWN storage key: the quiz-in-Jarvis
+     session is decoupled from LazyPO's, so LazyPO's inactivity policy
+     (session.js) and sign-outs can never wipe the token the embed runs on.
+     The key keeps the "-auth-token" suffix so the embed gate's storage-event
+     filter (quiz.html) still matches it. */
+  window.sb = createClient(SUPABASE_URL, SUPABASE_ANON,
+    IS_EMBED ? { auth: { storageKey: 'sb-lazypo-embed-auth-token' } } : undefined);
 
   /* ── Inject widget CSS once ──────────────────────────────────── */
   const css = document.createElement('style');
@@ -271,7 +277,9 @@
     try {
       const { data: { session } } = await window.sb.auth.getSession();
       if (session) _setSessionCookie(session);
-      else _clearSessionCookie();
+      // In embed mode "no session" only means the EMBED key is empty — a
+      // top-level LazyPO tab may still rely on the cookie, so leave it alone.
+      else if (!IS_EMBED) _clearSessionCookie();
     } catch (_) {}
 
     await renderNavUser();
@@ -281,7 +289,9 @@
         _setSessionCookie(session);
       }
       if (event === 'SIGNED_OUT') {
-        _clearSessionCookie();
+        // Embed sign-outs must not clear the cookie a top-level LazyPO tab
+        // may still be using (the embed has its own session/storage key).
+        if (!IS_EMBED) _clearSessionCookie();
         if (!IS_LOCAL && !IS_EMBED) {
           window.location.href = LOGIN_PAGE;
         }
@@ -338,7 +348,9 @@
 
     /* ── approval check ── */
     if (profile && profile.is_approved === false) {
-      await window.sb.auth.signOut();
+      // scope local: end THIS browser's session without revoking the user's
+      // other refresh tokens (e.g. the quiz-embed session in Jarvis).
+      await window.sb.auth.signOut({ scope: 'local' });
       window.location.href = LOGIN_PAGE + '?pending=1';
       return;
     }
@@ -460,7 +472,10 @@
     // Clear the Worker-gate cookie BEFORE Supabase signOut so even if the
     // navigation races the SIGNED_OUT event, the next request is rejected.
     _clearSessionCookie();
-    await window.sb.auth.signOut();
+    // scope local: sign out THIS browser only. The default (global) revokes
+    // every refresh token of the user server-side — including the isolated
+    // quiz-embed session in Jarvis, which then demands a fresh login.
+    await window.sb.auth.signOut({ scope: 'local' });
     window.location.href = LOGIN_PAGE;
   };
 

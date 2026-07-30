@@ -648,7 +648,9 @@ async function signOut() {
   // Clear the Worker-gate cookie BEFORE Supabase signOut so even if the
   // navigation races, the next request is rejected by the Worker.
   if (window.LazyAuth && window.LazyAuth.clearSessionCookie) window.LazyAuth.clearSessionCookie();
-  await window.sb.auth.signOut();
+  // scope local: sign out this browser only — a global signOut would also
+  // revoke the isolated quiz-embed session used inside Jarvis.
+  await window.sb.auth.signOut({ scope: 'local' });
   window.location.href = 'login.html';
 }
 

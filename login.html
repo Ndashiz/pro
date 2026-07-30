@@ -498,7 +498,7 @@ async function handleLogin(e) {
     // check approval before redirecting
     const { data: profileData } = await sb.from('profiles').select('is_approved').eq('id', (await sb.auth.getUser()).data.user.id).single();
     if (profileData && profileData.is_approved === false) {
-      await sb.auth.signOut();
+      await sb.auth.signOut({ scope: 'local' });
       showMsg('Your account is pending approval. You\'ll get access as soon as it\'s approved.', 'success');
     } else {
       // Reset the inactivity timer on fresh login so session.js doesn't
