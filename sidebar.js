@@ -40,7 +40,7 @@
       icon: '🎫',
       label: 'Jira',
       url: 'jira.html',
-      desc: 'Query Saver, Dashboard and File Cleaner for your Jira workflow.'
+      desc: 'Query Saver, Dashboard, PI Timeline and File Cleaner for your Jira workflow.'
     },
     {
       id: 'livenote',

@@ -1,0 +1,1259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<script>if(location.protocol==="http:"&&location.hostname!=="localhost"&&location.hostname!=="127.0.0.1")location.replace("https:"+location.href.slice(5));</script>
+<script src="auth-gate.js"></script>
+<meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests">
+  <meta charset="UTF-8">
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <title>LazyPO — PI Timeline</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="fonts.css">
+  <style>
+    :root{
+      --navy:#002060; --navy-border:#0a3575;
+      --bg:#0c0c0c; --surface:#161616; --surface2:#1c1c1c;
+      --border:#222; --border2:#2a2a2a;
+      --accent:#3b82f6; --accent2:#60a5fa; --accent3:#93c5fd;
+      --text:#f0f0f0; --muted:#6b6b6b; --faint:#2e2e2e;
+      --amber:#f59e0b; --amber-light:#fbbf24;
+      --green:#22c55e; --red:#ef4444; --violet:#8b5cf6; --pink:#ec4899;
+      --lane-h:26px;
+    }
+
+    *{box-sizing:border-box}
+    html,body{margin:0;padding:0;min-height:100vh;font-family:'DM Sans',system-ui,sans-serif;background:var(--bg);color:var(--text)}
+    body{display:flex;flex-direction:column;position:relative;overflow-x:hidden}
+    .hidden{display:none !important}
+
+    .main-bg{position:fixed;inset:0;z-index:0;pointer-events:none;background:radial-gradient(ellipse 60% 50% at 50% 20%,rgba(20,40,80,.5) 0%,transparent 70%),radial-gradient(ellipse 40% 40% at 85% 80%,rgba(30,58,110,.15) 0%,transparent 60%)}
+
+    /* HEADER */
+    .header{display:flex;align-items:center;gap:20px;position:sticky;top:0;z-index:100;background:var(--navy);border-bottom:3px solid var(--navy-border);padding:14px 28px;color:#fff}
+    .logo-wrap{display:flex;flex-direction:column;text-decoration:none}
+    .logo{font-family:'Permanent Marker',cursive;font-size:26px;color:#fff;transform:rotate(-1.5deg);letter-spacing:1px;line-height:1;text-shadow:3px 3px 0 rgba(59,130,246,.4),-1px -1px 0 rgba(255,255,255,.1);text-decoration:none;display:inline-block}
+    .logo span{color:var(--accent2)}
+    .subtitle{font-size:12px;color:var(--accent3);margin-top:4px}
+    .spacer{flex:1}
+    .back-link{display:inline-flex;align-items:center;gap:6px;color:#fff;text-decoration:none;font-size:13px;padding:8px 14px;border-radius:8px;border:1px solid rgba(255,255,255,.2);transition:background .2s,border-color .2s}
+    .back-link:hover{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.4)}
+    .back-link svg{width:14px;height:14px}
+
+    /* PAGE */
+    .container{max-width:1480px;width:100%;margin:28px auto 40px;padding:0 28px;position:relative;z-index:1;flex:1}
+
+    /* TOPBAR */
+    .topbar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:12px 16px;margin-bottom:18px}
+    .topbar-title{display:flex;align-items:center;gap:10px;font-size:15px;font-weight:600}
+    .topbar-icon{width:32px;height:32px;border-radius:9px;background:rgba(59,130,246,.15);border:1px solid rgba(96,165,250,.25);display:flex;align-items:center;justify-content:center;font-size:16px}
+    .topbar-status{font-family:'DM Mono',monospace;font-size:11px;color:var(--muted);border:1px solid var(--border2);border-radius:100px;padding:3px 10px}
+    .topbar-spacer{flex:1}
+    .topbar-filename{font-family:'DM Mono',monospace;font-size:11.5px;color:var(--accent3);max-width:230px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+    /* BUTTONS */
+    .btn{display:inline-flex;align-items:center;gap:7px;background:var(--surface2);border:1px solid var(--border2);color:var(--text);border-radius:9px;padding:8px 13px;font-size:12.5px;font-family:inherit;font-weight:500;cursor:pointer;transition:border-color .18s,background .18s,transform .18s}
+    .btn:hover{border-color:var(--accent);background:rgba(59,130,246,.08)}
+    .btn:active{transform:translateY(1px)}
+    .btn svg{width:14px;height:14px}
+    .btn-primary{background:var(--accent);border-color:var(--accent);color:#fff}
+    .btn-primary:hover{background:#2563eb;border-color:#2563eb}
+    .btn-sm{padding:5px 9px;font-size:11.5px;border-radius:7px}
+    .btn-ghost{background:transparent;border-color:var(--border2);color:var(--muted)}
+    .btn-ghost:hover{color:var(--text)}
+    .btn-danger:hover{border-color:var(--red);background:rgba(239,68,68,.1);color:#fca5a5}
+
+    /* DROPDOWN */
+    .dropdown{position:relative}
+    .dropdown-menu{position:absolute;top:calc(100% + 6px);right:0;min-width:230px;background:var(--surface2);border:1px solid var(--border2);border-radius:11px;padding:6px;box-shadow:0 12px 34px rgba(0,0,0,.55);opacity:0;visibility:hidden;transform:translateY(-6px);transition:all .18s;z-index:60}
+    .dropdown.open .dropdown-menu{opacity:1;visibility:visible;transform:translateY(0)}
+    .dropdown-item{display:flex;flex-direction:column;gap:2px;padding:9px 11px;border-radius:8px;cursor:pointer;transition:background .15s}
+    .dropdown-item:hover{background:rgba(59,130,246,.12)}
+    .dropdown-item-title{font-size:12.5px;font-weight:600}
+    .dropdown-item-desc{font-size:11px;color:var(--muted);font-family:'DM Mono',monospace}
+    .dropdown-footer{padding:8px 11px 4px;font-size:10.5px;color:var(--muted);border-top:1px solid var(--border);margin-top:4px}
+
+    /* PANELS */
+    .panel{background:var(--surface);border:1px solid var(--border);border-radius:14px;margin-bottom:16px;overflow:hidden}
+    .panel-head{display:flex;align-items:center;gap:10px;padding:14px 18px;cursor:pointer;user-select:none}
+    .panel-head:hover{background:rgba(255,255,255,.02)}
+    .panel-head h3{margin:0;font-size:13.5px;font-weight:600}
+    .panel-head .step{width:22px;height:22px;border-radius:50%;background:rgba(59,130,246,.15);border:1px solid rgba(96,165,250,.3);color:var(--accent2);display:flex;align-items:center;justify-content:center;font-size:11px;font-family:'DM Mono',monospace;flex:none}
+    .panel-head .sub{font-size:11.5px;color:var(--muted);font-weight:400}
+    .panel-head .chev{margin-left:auto;transition:transform .2s;color:var(--muted)}
+    .panel-head .chev svg{width:15px;height:15px;display:block}
+    .panel.collapsed .chev{transform:rotate(-90deg)}
+    .panel.collapsed .panel-body{display:none}
+    .panel-body{padding:2px 18px 18px;border-top:1px solid var(--border)}
+    .panel-body>.row-note{font-size:11.5px;color:var(--muted);margin:12px 0 14px;line-height:1.55}
+
+    /* FORM */
+    .field{display:flex;flex-direction:column;gap:5px}
+    .field label{font-family:'DM Mono',monospace;font-size:10.5px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted)}
+    input[type=date],input[type=text],select{background:var(--surface2);border:1px solid var(--border2);color:var(--text);border-radius:8px;padding:7px 10px;font-family:inherit;font-size:12.5px;outline:none;transition:border-color .18s}
+    input:focus,select:focus{border-color:var(--accent)}
+    input[type=date]{color-scheme:dark}
+    .inline-row{display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;margin-top:14px}
+    .pill-info{display:inline-flex;align-items:center;gap:7px;background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.25);color:var(--accent3);border-radius:100px;padding:6px 13px;font-family:'DM Mono',monospace;font-size:11.5px}
+
+    /* TABLES */
+    .tbl{width:100%;border-collapse:collapse;margin-top:12px}
+    .tbl th{text-align:left;font-family:'DM Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);font-weight:500;padding:6px 8px;border-bottom:1px solid var(--border2)}
+    .tbl td{padding:6px 8px;border-bottom:1px solid var(--border);font-size:12.5px;vertical-align:middle}
+    .tbl tr:last-child td{border-bottom:none}
+    .tbl input[type=date],.tbl input[type=text]{width:100%}
+    .tbl .col-narrow{width:150px}
+    .tbl .col-act{width:38px}
+    .swatch{width:9px;height:9px;border-radius:3px;display:inline-block;margin-right:8px;vertical-align:middle}
+    .count-chip{font-family:'DM Mono',monospace;font-size:10.5px;color:var(--muted);background:var(--surface2);border:1px solid var(--border2);border-radius:100px;padding:2px 8px}
+    .empty-line{font-size:12px;color:var(--muted);padding:14px 4px;font-style:italic}
+
+    /* DROP ZONE */
+    .file-card{background:var(--surface2);border:1.5px dashed var(--border2);border-radius:12px;padding:26px 18px;text-align:center;transition:border-color .2s,background .2s;margin-top:12px}
+    .file-card.drag{border-color:var(--accent);background:rgba(59,130,246,.06)}
+    .file-card-icon{font-size:26px;margin-bottom:8px}
+    .file-card-title{font-size:14px;font-weight:600;margin-bottom:4px}
+    .file-card-meta{font-size:11.5px;color:var(--muted);font-family:'DM Mono',monospace}
+    .file-loaded{display:flex;align-items:center;gap:12px;background:var(--surface2);border:1px solid var(--border2);border-radius:12px;padding:12px 16px;margin-top:12px}
+    .file-loaded .ic{font-size:20px}
+    .file-loaded .nm{font-size:13px;font-weight:600}
+    .file-loaded .mt{font-size:11px;color:var(--muted);font-family:'DM Mono',monospace;margin-top:2px}
+    .file-loaded .ok{margin-left:auto;font-family:'DM Mono',monospace;font-size:10.5px;color:var(--green);border:1px solid rgba(34,197,94,.3);background:rgba(34,197,94,.1);border-radius:100px;padding:3px 10px}
+
+    .error-banner{background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.35);color:#fca5a5;border-radius:10px;padding:11px 15px;font-size:12.5px;margin-bottom:14px}
+
+    /* ══════════ GANTT ══════════ */
+    .chart-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:18px;overflow:hidden}
+    .chart-head{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+    .chart-head h2{margin:0;font-size:16px;font-weight:700}
+    .chart-head .rng{font-family:'DM Mono',monospace;font-size:11.5px;color:var(--muted)}
+    .seg{display:flex;background:var(--surface2);border:1px solid var(--border2);border-radius:9px;padding:3px;gap:3px}
+    .seg button{background:transparent;border:none;color:var(--muted);font-family:inherit;font-size:11.5px;padding:5px 11px;border-radius:6px;cursor:pointer;transition:all .16s}
+    .seg button.active{background:var(--accent);color:#fff}
+
+    .gt-scroll{overflow-x:auto;overflow-y:visible;padding-bottom:6px}
+    .gt-scroll::-webkit-scrollbar{height:9px}
+    .gt-scroll::-webkit-scrollbar-track{background:var(--surface2);border-radius:5px}
+    .gt-scroll::-webkit-scrollbar-thumb{background:var(--border2);border-radius:5px}
+    .gt-scroll::-webkit-scrollbar-thumb:hover{background:#3a3a3a}
+    .gt{min-width:100%;position:relative}
+
+    .gt-row{display:flex;align-items:stretch;min-height:var(--lane-h)}
+    .gt-label{width:210px;min-width:210px;flex:none;position:sticky;left:0;z-index:5;background:var(--surface);border-right:1px solid var(--border2);padding:0 12px 0 4px;display:flex;align-items:center;gap:7px;font-size:11.5px;overflow:hidden}
+    .gt-label .txt{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .gt-label .key{font-family:'DM Mono',monospace;font-size:10px;color:var(--muted);flex:none}
+    .gt-track{flex:1;position:relative;min-width:0}
+
+    /* column separators + today, painted per track */
+    .gt-lines{position:absolute;inset:0;pointer-events:none;z-index:0}
+    .gt-lines i{position:absolute;top:0;bottom:0;width:1px;background:var(--border);display:block}
+    .gt-lines i.strong{background:var(--border2)}
+    .gt-today{position:absolute;top:0;bottom:0;width:1px;background:rgba(239,68,68,.55);z-index:1;pointer-events:none}
+    .gt-weekend{position:absolute;top:0;bottom:0;background:rgba(255,255,255,.018);pointer-events:none}
+
+    /* header bands */
+    .gt-head{position:sticky;top:0;z-index:6;background:var(--surface)}
+    .gt-band-month{height:24px}
+    .gt-band-month .gt-label{background:var(--surface);font-family:'DM Mono',monospace;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+    .gt-month{position:absolute;top:2px;bottom:2px;display:flex;align-items:center;justify-content:center;font-family:'DM Mono',monospace;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;border-left:1px solid var(--border);overflow:hidden;white-space:nowrap}
+    .gt-band-sprint{height:42px;border-bottom:1px solid var(--border2)}
+    .gt-band-sprint .gt-label{background:var(--surface)}
+    .gt-sprint{position:absolute;top:3px;bottom:5px;border-left:1px solid var(--border2);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;overflow:hidden;background:rgba(255,255,255,.014);border-radius:0 0 5px 5px}
+    .gt-sprint:last-child{border-right:1px solid var(--border2)}
+    .gt-sprint .sn{font-size:11px;font-weight:600;color:var(--accent3);font-family:'DM Mono',monospace}
+    .gt-sprint .sd{font-size:9.5px;color:var(--muted);font-family:'DM Mono',monospace;white-space:nowrap}
+    .gt-sprint.current{background:rgba(59,130,246,.09)}
+
+    /* section separators */
+    .gt-section{display:flex;align-items:stretch;margin-top:12px}
+    .gt-section .gt-label{font-family:'DM Mono',monospace;font-size:9.5px;text-transform:uppercase;letter-spacing:.7px;color:var(--muted);padding-top:8px;padding-bottom:5px;align-items:flex-end}
+    .gt-section .gt-track{position:relative}
+    .gt-section .gt-track::after{content:'';position:absolute;left:0;right:0;bottom:4px;height:1px;background:var(--border)}
+
+    /* bars & markers */
+    .bar{position:absolute;top:4px;height:calc(var(--lane-h) - 8px);border-radius:5px;display:flex;align-items:center;padding:0 7px;font-size:10.5px;font-weight:500;white-space:nowrap;overflow:hidden;z-index:2;cursor:default;box-shadow:inset 0 0 0 1px rgba(255,255,255,.09)}
+    .bar.feature{background:rgba(59,130,246,.24);color:#cfe1ff}
+    .bar.testing{background:rgba(245,158,11,.22);color:#fcd996;box-shadow:inset 0 0 0 1px rgba(245,158,11,.4)}
+    .bar.off{background:repeating-linear-gradient(135deg,rgba(239,68,68,.26) 0 6px,rgba(239,68,68,.12) 6px 12px);color:#fca5a5;box-shadow:inset 0 0 0 1px rgba(239,68,68,.34)}
+    .bar.group{font-family:'DM Mono',monospace}
+    .bar .shift{display:none;position:absolute;top:0;bottom:0;width:15px;align-items:center;justify-content:center;background:rgba(0,0,0,.42);color:#fff;font-size:10px;cursor:pointer;z-index:3}
+    .bar .shift.l{left:0}.bar .shift.r{right:0}
+    .bar:hover .shift{display:flex}
+    .bar .shift:hover{background:var(--accent)}
+
+    .marker{position:absolute;top:0;height:var(--lane-h);display:flex;align-items:center;z-index:3;transform:translateX(-50%)}
+    .marker .dot{width:11px;height:11px;transform:rotate(45deg);border-radius:2px;flex:none;box-shadow:0 0 0 3px var(--surface)}
+    .marker .lbl{position:absolute;left:11px;white-space:nowrap;font-size:10.5px;font-family:'DM Mono',monospace;padding-left:4px}
+    .marker.flip .lbl{left:auto;right:11px;padding-left:0;padding-right:4px}
+    .rel-line{position:absolute;top:0;bottom:0;width:1px;z-index:1;pointer-events:none;opacity:.35}
+
+    .legend{display:flex;flex-wrap:wrap;gap:16px;margin-top:16px;padding-top:14px;border-top:1px solid var(--border);font-size:11px;color:var(--muted)}
+    .legend span{display:inline-flex;align-items:center;gap:6px}
+    .legend .k{width:16px;height:9px;border-radius:3px;display:inline-block}
+    .legend .kd{width:9px;height:9px;transform:rotate(45deg);border-radius:2px;display:inline-block}
+
+    .placeholder{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:56px 24px;text-align:center}
+    .placeholder .ic{font-size:34px;margin-bottom:12px;opacity:.65}
+    .placeholder h3{margin:0 0 6px;font-size:15px}
+    .placeholder p{margin:0;font-size:12.5px;color:var(--muted)}
+
+    /* TOAST */
+    .toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--surface2);border:1px solid var(--border2);border-radius:10px;padding:11px 18px;font-size:12.5px;box-shadow:0 10px 32px rgba(0,0,0,.6);opacity:0;transition:all .28s;z-index:9999}
+    .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+    .toast.ok{border-color:rgba(34,197,94,.4);color:#86efac}
+    .toast.err{border-color:rgba(239,68,68,.4);color:#fca5a5}
+
+    /* FOOTER */
+    .page-footer{padding:22px 48px 30px;display:flex;justify-content:center;border-top:1px solid rgba(255,255,255,.04);position:relative;z-index:1}
+    .footer-pill{display:inline-flex;align-items:center;gap:8px;background:rgba(255,255,255,.03);border:1px solid var(--border2);border-radius:20px;padding:6px 16px;font-size:12px;color:var(--muted)}
+
+    @media (max-width:640px){
+      .header{padding:10px 16px}
+      .logo{font-size:20px}
+      .container{padding:0 14px}
+      .gt-label{width:130px;min-width:130px}
+    }
+
+    /* ══ PRINT / PDF ══ */
+    @page{size:A4 landscape;margin:8mm}
+    .pdf-mode .gt-scroll{overflow:visible !important}
+    @media print{
+      .header,.back-link,.topbar,.panel,.placeholder,.toast,.legend-hint,
+      [class^="sb-"],[class*=" sb-"],#_lazypo_demo_fab,.page-footer{display:none !important}
+      html,body{background:#fff !important;color:#111 !important}
+      .main-bg{display:none !important}
+      .container{margin:0;padding:0;max-width:none}
+      .chart-card{background:#fff;border:none;padding:0}
+      .chart-head h2,.gt-label{color:#111}
+      .gt-scroll{overflow:visible !important}
+      .gt-label,.gt-head,.gt-band-month .gt-label,.gt-band-sprint .gt-label{background:#fff !important}
+      .gt-row,.gt-section{break-inside:avoid}
+      .gt-lines i{background:#e4e4e4}
+      .gt-sprint .sn{color:#1d4ed8}
+      .gt-sprint .sd,.gt-month,.gt-section .gt-label,.gt-label .key{color:#666}
+      .bar{box-shadow:inset 0 0 0 1px rgba(0,0,0,.18)}
+      .bar.feature{background:#dbeafe;color:#1e3a8a}
+      .bar.testing{background:#fef3c7;color:#92400e}
+      .bar.off{background:repeating-linear-gradient(135deg,#fecaca 0 6px,#fee2e2 6px 12px);color:#991b1b}
+      .marker .dot{box-shadow:0 0 0 3px #fff}
+      .legend{color:#555;border-color:#ddd}
+    }
+  </style>
+</head>
+<body>
+
+<div class="main-bg"></div>
+
+<header class="header">
+  <a href="jira.html" class="logo-wrap">
+    <div class="logo">LazyPO <span>✦</span></div>
+    <div class="subtitle">Jira › PI Timeline</div>
+  </a>
+  <div class="spacer"></div>
+  <a href="jira.html" class="back-link">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+    Back to Jira
+  </a>
+</header>
+
+<div class="container">
+
+  <div class="topbar">
+    <div class="topbar-title">
+      <div class="topbar-icon">📅</div>
+      PI Timeline &amp; Gantt
+    </div>
+    <span class="topbar-status">Local · no data sent</span>
+    <div class="topbar-spacer"></div>
+    <span id="topbarFilename" class="topbar-filename"></span>
+    <button class="btn" onclick="exportPDF()" title="Download the timeline as a PDF">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6M12 18v-6M9 15l3 3 3-3"/></svg>
+      Export PDF
+    </button>
+    <div class="dropdown" id="exportHtmlDropdown">
+      <button class="btn btn-primary" onclick="toggleDropdown('exportHtmlDropdown', event)" title="Export the timeline as a standalone HTML file">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+        Export HTML
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="dropdown-menu">
+        <div class="dropdown-item" onclick="exportHTMLDownload()">
+          <span class="dropdown-item-title">Download the file</span>
+          <span class="dropdown-item-desc">pi_timeline.html</span>
+        </div>
+        <div class="dropdown-item" onclick="exportHTMLCopy()">
+          <span class="dropdown-item-title">Copy the code</span>
+          <span class="dropdown-item-desc">instant copy</span>
+        </div>
+        <div class="dropdown-footer">Timeline embedded · opens offline · print-to-PDF inside</div>
+      </div>
+    </div>
+  </div>
+
+  <div id="errorBanner" class="error-banner hidden"></div>
+
+  <!-- ═══ 1. PI WINDOW ═══ -->
+  <div class="panel" id="panelPI">
+    <div class="panel-head" onclick="togglePanel('panelPI')">
+      <span class="step">1</span>
+      <h3>Program Increment window</h3>
+      <span class="sub" id="piSub"></span>
+      <span class="chev"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></span>
+    </div>
+    <div class="panel-body">
+      <div class="inline-row">
+        <div class="field">
+          <label for="piStart">PI start</label>
+          <input type="date" id="piStart" onchange="onPIChange()">
+        </div>
+        <div class="field">
+          <label for="piEnd">PI end</label>
+          <input type="date" id="piEnd" onchange="onPIChange()">
+        </div>
+        <div class="field">
+          <label for="sprintLen">Sprint length</label>
+          <select id="sprintLen" onchange="onPIChange()">
+            <option value="14" selected>2 weeks</option>
+            <option value="7">1 week</option>
+            <option value="21">3 weeks</option>
+          </select>
+        </div>
+        <span class="pill-info" id="sprintCountPill">—</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ 2. JIRA EXTRACT ═══ -->
+  <div class="panel" id="panelFile">
+    <div class="panel-head" onclick="togglePanel('panelFile')">
+      <span class="step">2</span>
+      <h3>Jira extract</h3>
+      <span class="sub" id="fileSub">Description + Fix version</span>
+      <span class="chev"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></span>
+    </div>
+    <div class="panel-body">
+      <div id="dropZone" class="file-card">
+        <div class="file-card-icon">📥</div>
+        <div class="file-card-title">Drop your Jira export here</div>
+        <div class="file-card-meta">CSV or XLSX · parsed locally · never uploaded</div>
+        <button class="btn btn-primary" style="margin-top:14px" onclick="document.getElementById('fileInput').click()">Choose a file</button>
+        <input type="file" id="fileInput" accept=".csv,.xlsx,.xls,text/csv" style="display:none">
+      </div>
+      <div id="fileLoaded" class="file-loaded hidden">
+        <span class="ic">📄</span>
+        <div>
+          <div class="nm" id="loadedName"></div>
+          <div class="mt" id="loadedMeta"></div>
+        </div>
+        <span class="ok">Parsed</span>
+        <button class="btn btn-sm btn-ghost" style="margin-left:10px" onclick="document.getElementById('fileInput').click()">Replace</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ 3. RELEASES ═══ -->
+  <div class="panel" id="panelRel">
+    <div class="panel-head" onclick="togglePanel('panelRel')">
+      <span class="step">3</span>
+      <h3>Releases</h3>
+      <span class="sub" id="relSub">Fix version → release date</span>
+      <span class="chev"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></span>
+    </div>
+    <div class="panel-body">
+      <p class="row-note">Fix versions found in the extract are listed automatically. Give each one its release date — features inherit their position from it. Rows without a date are ignored.</p>
+      <table class="tbl">
+        <thead><tr><th>Fix version</th><th class="col-narrow">Release date</th><th style="width:110px">Features</th><th class="col-act"></th></tr></thead>
+        <tbody id="relBody"></tbody>
+      </table>
+      <button class="btn btn-sm" style="margin-top:12px" onclick="addRelease()">+ Add a release</button>
+    </div>
+  </div>
+
+  <!-- ═══ 4. TESTING SESSIONS ═══ -->
+  <div class="panel collapsed" id="panelTest">
+    <div class="panel-head" onclick="togglePanel('panelTest')">
+      <span class="step">4</span>
+      <h3>Testing sessions</h3>
+      <span class="sub" id="testSub">UAT, regression, dress rehearsal…</span>
+      <span class="chev"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></span>
+    </div>
+    <div class="panel-body">
+      <table class="tbl">
+        <thead><tr><th>Label</th><th class="col-narrow">From</th><th class="col-narrow">To</th><th class="col-act"></th></tr></thead>
+        <tbody id="testBody"></tbody>
+      </table>
+      <button class="btn btn-sm" style="margin-top:12px" onclick="addTesting()">+ Add a session</button>
+    </div>
+  </div>
+
+  <!-- ═══ 5. CONSULTANT UNAVAILABILITY ═══ -->
+  <div class="panel collapsed" id="panelOff">
+    <div class="panel-head" onclick="togglePanel('panelOff')">
+      <span class="step">5</span>
+      <h3>Consultant unavailability</h3>
+      <span class="sub" id="offSub">Who is off, and when</span>
+      <span class="chev"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></span>
+    </div>
+    <div class="panel-body">
+      <p class="row-note">One line per absence. Same name on several lines = several periods on the same row of the chart.</p>
+      <table class="tbl">
+        <thead><tr><th>Consultant</th><th>Reason</th><th class="col-narrow">From</th><th class="col-narrow">To</th><th class="col-act"></th></tr></thead>
+        <tbody id="offBody"></tbody>
+      </table>
+      <button class="btn btn-sm" style="margin-top:12px" onclick="addOff()">+ Add an absence</button>
+    </div>
+  </div>
+
+  <!-- ═══ CHART ═══ -->
+  <div id="placeholder" class="placeholder">
+    <div class="ic">📅</div>
+    <h3>No timeline yet</h3>
+    <p>Set your PI window, then drop a Jira extract or add a release date manually.</p>
+  </div>
+
+  <div id="chartCard" class="chart-card hidden">
+    <div class="chart-head">
+      <h2 id="chartTitle">Program Increment</h2>
+      <span class="rng" id="chartRange"></span>
+      <div class="topbar-spacer"></div>
+      <div class="seg" id="modeSeg">
+        <button id="modeDetailed" class="active" onclick="setMode('detailed')">Detailed</button>
+        <button id="modeGrouped" onclick="setMode('grouped')">Grouped</button>
+      </div>
+    </div>
+    <div class="gt-scroll" id="gtScroll">
+      <div class="gt" id="gt"></div>
+    </div>
+    <div class="legend">
+      <span><i class="k" style="background:rgba(59,130,246,.24);box-shadow:inset 0 0 0 1px rgba(255,255,255,.12)"></i> Feature</span>
+      <span><i class="k" style="background:rgba(245,158,11,.22);box-shadow:inset 0 0 0 1px rgba(245,158,11,.4)"></i> Testing session</span>
+      <span><i class="k" style="background:repeating-linear-gradient(135deg,rgba(239,68,68,.26) 0 6px,rgba(239,68,68,.12) 6px 12px);box-shadow:inset 0 0 0 1px rgba(239,68,68,.34)"></i> Unavailable</span>
+      <span><i class="kd" style="background:var(--accent2)"></i> Release date</span>
+      <span><i style="width:2px;height:11px;background:rgba(239,68,68,.7);display:inline-block"></i> Today</span>
+      <span class="legend-hint" style="margin-left:auto;font-family:'DM Mono',monospace;font-size:10.5px">Hover a feature bar → ‹ › to shift it one sprint</span>
+    </div>
+  </div>
+
+</div>
+
+<footer class="page-footer">
+  <span class="footer-pill">✦ LazyPO — Do less, deliver more.</span>
+</footer>
+
+<div id="toast" class="toast"></div>
+
+<script src="papaparse.min.js"></script>
+<script src="xlsx.min.js"></script>
+<script src="html2pdf.min.js"></script>
+<script>
+/* ═══════════════════════════════════════════════════════════════
+   LazyPO — PI Timeline / Gantt
+   ───────────────────────────────────────────────────────────────
+   Everything runs in the browser. Nothing is uploaded.
+
+   Geometry: the x-axis is the PI window mapped linearly to 0-100%.
+   Sprint columns are drawn from that same mapping, so an item keeps
+   its exact calendar date and simply lands on top of whichever
+   sprint column contains it — nothing is snapped to sprint edges.
+═══════════════════════════════════════════════════════════════ */
+'use strict';
+
+const STORE_KEY = 'lazypo_gantt_v1';
+const DAY = 86400000;
+
+const STATE = {
+  pi:        { start: '', end: '' },
+  sprintLen: 14,
+  fileName:  '',
+  features:  [],   // {id, key, title, fixVersion, offset}
+  releases:  [],   // {id, name, date}
+  testing:   [],   // {id, label, start, end}
+  off:       [],   // {id, name, reason, start, end}
+  mode:      'detailed',
+};
+
+const PALETTE = ['#60a5fa','#22c55e','#f59e0b','#8b5cf6','#ec4899','#14b8a6','#f97316','#a3e635'];
+
+let _uid = 0;
+const uid = () => 'i' + (++_uid) + '_' + (STATE.features.length + STATE.releases.length);
+
+/* ── Date helpers (all dates are plain YYYY-MM-DD, no timezone drift) ── */
+function parseD(s){
+  if (!s) return null;
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(s).trim());
+  if (!m) return null;
+  return new Date(+m[1], +m[2] - 1, +m[3]);
+}
+function isoD(d){
+  const p = n => String(n).padStart(2, '0');
+  return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate());
+}
+function addDays(d, n){ const r = new Date(d); r.setDate(r.getDate() + n); return r; }
+function fmtShort(d){
+  return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+}
+function fmtLong(d){
+  return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+}
+function esc(s){
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+/* ── Sprint grid ──────────────────────────────────────────────
+   Sprints tile the PI window from the start date, one every
+   `sprintLen` days. The last sprint is clipped to the PI end if
+   the window doesn't divide evenly.                            */
+function buildSprints(){
+  const s = parseD(STATE.pi.start), e = parseD(STATE.pi.end);
+  if (!s || !e || e <= s) return [];
+  const len = STATE.sprintLen || 14;
+  const out = [];
+  let cur = s, i = 0;
+  while (cur < e && i < 60) {
+    let end = addDays(cur, len);
+    if (end > e) end = e;
+    out.push({ index: i, name: 'S' + (i + 1), start: cur, end });
+    cur = end; i++;
+  }
+  return out;
+}
+
+/* Position of a date on the 0-100% axis of the PI window. */
+function pct(d){
+  const s = parseD(STATE.pi.start), e = parseD(STATE.pi.end);
+  if (!s || !e || e <= s) return 0;
+  return ((d - s) / (e - s)) * 100;
+}
+const clampPct = v => Math.max(0, Math.min(100, v));
+
+/* Sprint containing a date (clamped into the grid). */
+function sprintIndexOf(sprints, d){
+  if (!sprints.length || !d) return -1;
+  for (let i = 0; i < sprints.length; i++) {
+    if (d >= sprints[i].start && d < sprints[i].end) return i;
+  }
+  return d < sprints[0].start ? 0 : sprints.length - 1;
+}
+
+/* Default sprint for a feature: the one immediately BEFORE the
+   release — that's where the work has to land to make the train. */
+function defaultSprintIndex(sprints, releaseDate){
+  const i = sprintIndexOf(sprints, releaseDate);
+  if (i < 0) return -1;
+  return Math.max(0, i - 1);
+}
+
+/* ══════════ PERSISTENCE ══════════ */
+function save(){
+  try { localStorage.setItem(STORE_KEY, JSON.stringify(STATE)); } catch (e) { /* quota */ }
+}
+function load(){
+  let raw = null;
+  try { raw = JSON.parse(localStorage.getItem(STORE_KEY) || 'null'); } catch (e) { /* corrupt */ }
+  if (raw && raw.pi) Object.assign(STATE, raw);
+  if (!STATE.pi.start || !STATE.pi.end) {
+    // Default: a 3-month PI starting at the beginning of this month.
+    const now = new Date();
+    const s = new Date(now.getFullYear(), now.getMonth(), 1);
+    STATE.pi.start = isoD(s);
+    STATE.pi.end   = isoD(new Date(s.getFullYear(), s.getMonth() + 3, 0));
+  }
+  STATE.sprintLen = STATE.sprintLen || 14;
+}
+
+/* ══════════ FILE IMPORT ══════════ */
+const COL_ALIASES = {
+  key:        ['issue key', 'key', 'issue id', 'id'],
+  summary:    ['summary', 'title', 'name'],
+  description:['description', 'desc'],
+  fixVersion: ['fix version', 'fix version/s', 'fixversion', 'fix versions', 'fix-version', 'fixversions', 'release'],
+};
+function findColumn(headers, aliases){
+  const low = headers.map(h => String(h).trim().toLowerCase());
+  for (const a of aliases) {
+    const i = low.indexOf(a);
+    if (i !== -1) return headers[i];
+  }
+  for (const a of aliases) {
+    const i = low.findIndex(h => h.startsWith(a));
+    if (i !== -1) return headers[i];
+  }
+  return null;
+}
+/* Jira repeats "Fix Version/s" as several identical columns when an
+   issue carries more than one version — collect them all. */
+function findAllColumns(headers, aliases){
+  const out = [];
+  headers.forEach(h => {
+    const low = String(h).trim().toLowerCase();
+    if (aliases.some(a => low === a || low.startsWith(a))) out.push(h);
+  });
+  return out;
+}
+
+function handleFile(file){
+  clearError();
+  STATE.fileName = file.name;
+  const ext = (file.name.split('.').pop() || '').toLowerCase();
+  const reader = new FileReader();
+
+  if (ext === 'csv') {
+    reader.onload = e => {
+      try {
+        const res = Papa.parse(String(e.target.result), { header: true, skipEmptyLines: true });
+        const rows = res.data || [];
+        if (!rows.length) return showError('The CSV file is empty or unreadable.');
+        ingest(rows, res.meta.fields || Object.keys(rows[0]));
+      } catch (err) { showError('CSV parse error: ' + (err.message || err)); }
+    };
+    reader.onerror = () => showError('Unable to read the file.');
+    reader.readAsText(file);
+  } else if (ext === 'xlsx' || ext === 'xls') {
+    reader.onload = e => {
+      try {
+        const wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
+        const sheet = wb.Sheets[wb.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+        if (!rows.length) return showError('The first sheet is empty.');
+        ingest(rows, Object.keys(rows[0]));
+      } catch (err) { showError('XLSX parse error: ' + (err.message || err)); }
+    };
+    reader.onerror = () => showError('Unable to read the file.');
+    reader.readAsArrayBuffer(file);
+  } else {
+    showError('Unsupported file type — use CSV or XLSX.');
+  }
+}
+
+function ingest(rows, headers){
+  const cKey  = findColumn(headers, COL_ALIASES.key);
+  const cSum  = findColumn(headers, COL_ALIASES.summary);
+  const cDesc = findColumn(headers, COL_ALIASES.description);
+  const cFixs = findAllColumns(headers, COL_ALIASES.fixVersion);
+
+  if (!cFixs.length) {
+    return showError('No "Fix Version/s" column found in this extract. The timeline needs it to place features on releases.');
+  }
+  if (!cSum && !cDesc) {
+    return showError('No "Summary" or "Description" column found — nothing to label the features with.');
+  }
+
+  // Keep the manual overrides the user already made, keyed by issue key.
+  const prevOffset = {};
+  STATE.features.forEach(f => { if (f.key && f.offset) prevOffset[f.key] = f.offset; });
+
+  const feats = [];
+  rows.forEach(r => {
+    const fixes = [];
+    cFixs.forEach(c => {
+      String(r[c] == null ? '' : r[c]).split(/[,;]/).forEach(v => {
+        const t = v.trim();
+        if (t && !fixes.includes(t)) fixes.push(t);
+      });
+    });
+    if (!fixes.length) return;                       // no fix version → not on the timeline
+    const key   = cKey ? String(r[cKey] || '').trim() : '';
+    const title = String((cSum ? r[cSum] : '') || (cDesc ? r[cDesc] : '') || '').trim();
+    if (!key && !title) return;
+    // An issue in several fix versions appears once per release.
+    fixes.forEach(fv => {
+      feats.push({
+        id: uid(), key, title: title || key, fixVersion: fv,
+        offset: prevOffset[key] || 0,
+      });
+    });
+  });
+
+  if (!feats.length) {
+    return showError('No row in this file carries a fix version — nothing to place.');
+  }
+
+  STATE.features = feats;
+  syncReleasesFromFeatures();
+  document.getElementById('dropZone').classList.add('hidden');
+  document.getElementById('fileLoaded').classList.remove('hidden');
+  document.getElementById('topbarFilename').textContent = STATE.fileName;
+  document.getElementById('loadedName').textContent = STATE.fileName;
+  const versions = new Set(feats.map(f => f.fixVersion));
+  document.getElementById('loadedMeta').textContent =
+    feats.length + ' features · ' + versions.size + ' fix version' + (versions.size > 1 ? 's' : '');
+  // Releases still need dates — open that panel, close the file one.
+  document.getElementById('panelFile').classList.add('collapsed');
+  document.getElementById('panelRel').classList.remove('collapsed');
+  save(); renderAll();
+  toast(feats.length + ' features loaded', 'ok');
+}
+
+/* Add a placeholder release row for every fix version we discovered. */
+function syncReleasesFromFeatures(){
+  const known = new Set(STATE.releases.map(r => r.name));
+  STATE.features.forEach(f => {
+    if (!known.has(f.fixVersion)) {
+      known.add(f.fixVersion);
+      STATE.releases.push({ id: uid(), name: f.fixVersion, date: '' });
+    }
+  });
+}
+
+/* ══════════ EDITOR TABLES ══════════ */
+function renderReleaseTable(){
+  const body = document.getElementById('relBody');
+  const counts = {};
+  STATE.features.forEach(f => { counts[f.fixVersion] = (counts[f.fixVersion] || 0) + 1; });
+
+  if (!STATE.releases.length) {
+    body.innerHTML = '<tr><td colspan="4" class="empty-line">No release yet — load a Jira extract or add one manually.</td></tr>';
+  } else {
+    body.innerHTML = STATE.releases.map((r, i) => `
+      <tr>
+        <td><span class="swatch" style="background:${PALETTE[i % PALETTE.length]}"></span>
+            <input type="text" value="${esc(r.name)}" oninput="editRelease('${r.id}','name',this.value)" placeholder="Fix version"></td>
+        <td><input type="date" value="${esc(r.date)}" onchange="editRelease('${r.id}','date',this.value)"></td>
+        <td><span class="count-chip">${counts[r.name] || 0} feat.</span></td>
+        <td><button class="btn btn-sm btn-ghost btn-danger" onclick="removeRelease('${r.id}')" title="Remove">✕</button></td>
+      </tr>`).join('');
+  }
+  const dated = STATE.releases.filter(r => r.date).length;
+  document.getElementById('relSub').textContent =
+    STATE.releases.length ? dated + '/' + STATE.releases.length + ' dated' : 'Fix version → release date';
+}
+function addRelease(){ STATE.releases.push({ id: uid(), name: '', date: '' }); save(); renderAll(); }
+function editRelease(id, field, val){
+  const r = STATE.releases.find(x => x.id === id); if (!r) return;
+  if (field === 'name') {
+    // Renaming a release must carry its features along with it.
+    const old = r.name;
+    STATE.features.forEach(f => { if (f.fixVersion === old) f.fixVersion = val; });
+  }
+  r[field] = val; save(); renderChart(); renderReleaseTable();
+}
+function removeRelease(id){
+  const r = STATE.releases.find(x => x.id === id);
+  if (r) STATE.features = STATE.features.filter(f => f.fixVersion !== r.name);
+  STATE.releases = STATE.releases.filter(x => x.id !== id);
+  save(); renderAll();
+}
+
+function renderTestTable(){
+  const body = document.getElementById('testBody');
+  if (!STATE.testing.length) {
+    body.innerHTML = '<tr><td colspan="4" class="empty-line">No testing session yet.</td></tr>';
+  } else {
+    body.innerHTML = STATE.testing.map(t => `
+      <tr>
+        <td><input type="text" value="${esc(t.label)}" oninput="editTest('${t.id}','label',this.value)" placeholder="UAT, regression…"></td>
+        <td><input type="date" value="${esc(t.start)}" onchange="editTest('${t.id}','start',this.value)"></td>
+        <td><input type="date" value="${esc(t.end)}" onchange="editTest('${t.id}','end',this.value)"></td>
+        <td><button class="btn btn-sm btn-ghost btn-danger" onclick="removeTest('${t.id}')" title="Remove">✕</button></td>
+      </tr>`).join('');
+  }
+  document.getElementById('testSub').textContent =
+    STATE.testing.length ? STATE.testing.length + ' session' + (STATE.testing.length > 1 ? 's' : '') : 'UAT, regression, dress rehearsal…';
+}
+function addTesting(){
+  // Pre-fill a one-week session so the row lands somewhere sensible.
+  const s = parseD(STATE.pi.start) || new Date();
+  STATE.testing.push({ id: uid(), label: 'Testing session', start: isoD(s), end: isoD(addDays(s, 5)) });
+  save(); renderAll();
+}
+function editTest(id, field, val){
+  const t = STATE.testing.find(x => x.id === id); if (!t) return;
+  t[field] = val; save(); renderChart(); renderTestTable();
+}
+function removeTest(id){ STATE.testing = STATE.testing.filter(x => x.id !== id); save(); renderAll(); }
+
+function renderOffTable(){
+  const body = document.getElementById('offBody');
+  if (!STATE.off.length) {
+    body.innerHTML = '<tr><td colspan="5" class="empty-line">Nobody is off — lucky PI.</td></tr>';
+  } else {
+    body.innerHTML = STATE.off.map(o => `
+      <tr>
+        <td><input type="text" value="${esc(o.name)}" oninput="editOff('${o.id}','name',this.value)" placeholder="Name"></td>
+        <td><input type="text" value="${esc(o.reason)}" oninput="editOff('${o.id}','reason',this.value)" placeholder="Holiday, training…"></td>
+        <td><input type="date" value="${esc(o.start)}" onchange="editOff('${o.id}','start',this.value)"></td>
+        <td><input type="date" value="${esc(o.end)}" onchange="editOff('${o.id}','end',this.value)"></td>
+        <td><button class="btn btn-sm btn-ghost btn-danger" onclick="removeOff('${o.id}')" title="Remove">✕</button></td>
+      </tr>`).join('');
+  }
+  const people = new Set(STATE.off.map(o => o.name).filter(Boolean));
+  document.getElementById('offSub').textContent =
+    people.size ? people.size + ' consultant' + (people.size > 1 ? 's' : '') + ' · ' + STATE.off.length + ' period' + (STATE.off.length > 1 ? 's' : '') : 'Who is off, and when';
+}
+function addOff(){
+  const s = parseD(STATE.pi.start) || new Date();
+  STATE.off.push({ id: uid(), name: '', reason: '', start: isoD(s), end: isoD(addDays(s, 4)) });
+  save(); renderAll();
+}
+function editOff(id, field, val){
+  const o = STATE.off.find(x => x.id === id); if (!o) return;
+  o[field] = val; save(); renderChart(); renderOffTable();
+}
+function removeOff(id){ STATE.off = STATE.off.filter(x => x.id !== id); save(); renderAll(); }
+
+/* ══════════ PI CONFIG ══════════ */
+function onPIChange(){
+  STATE.pi.start  = document.getElementById('piStart').value;
+  STATE.pi.end    = document.getElementById('piEnd').value;
+  STATE.sprintLen = parseInt(document.getElementById('sprintLen').value, 10) || 14;
+  save(); renderAll();
+}
+function setMode(m){
+  STATE.mode = m;
+  document.getElementById('modeDetailed').classList.toggle('active', m === 'detailed');
+  document.getElementById('modeGrouped').classList.toggle('active', m === 'grouped');
+  save(); renderChart();
+}
+
+/* ══════════ CHART ══════════ */
+function renderAll(){
+  document.getElementById('piStart').value  = STATE.pi.start;
+  document.getElementById('piEnd').value    = STATE.pi.end;
+  document.getElementById('sprintLen').value = String(STATE.sprintLen);
+  document.getElementById('modeDetailed').classList.toggle('active', STATE.mode === 'detailed');
+  document.getElementById('modeGrouped').classList.toggle('active', STATE.mode === 'grouped');
+  renderReleaseTable(); renderTestTable(); renderOffTable();
+  renderChart();
+}
+
+function renderChart(){
+  const sprints = buildSprints();
+  const s = parseD(STATE.pi.start), e = parseD(STATE.pi.end);
+
+  // PI summary chips
+  const pill = document.getElementById('sprintCountPill');
+  const sub  = document.getElementById('piSub');
+  if (sprints.length) {
+    const weeks = Math.round((e - s) / DAY / 7);
+    pill.textContent = sprints.length + ' sprints · ' + weeks + ' weeks';
+    sub.textContent  = fmtShort(s) + ' → ' + fmtLong(e) + ' · ' + sprints.length + ' sprints';
+  } else {
+    pill.textContent = 'Set a valid window';
+    sub.textContent  = '';
+  }
+
+  const dated = STATE.releases.filter(r => r.date && parseD(r.date));
+  const hasContent = sprints.length && (dated.length || STATE.testing.length || STATE.off.length);
+  document.getElementById('placeholder').classList.toggle('hidden', !!hasContent);
+  document.getElementById('chartCard').classList.toggle('hidden', !hasContent);
+  if (!hasContent) return;
+
+  document.getElementById('chartRange').textContent =
+    fmtLong(s) + '  →  ' + fmtLong(e) + '   ·   ' + sprints.length + ' sprints of ' + STATE.sprintLen + ' days';
+
+  /* — shared per-track overlay: sprint separators + today — */
+  let lines = '<div class="gt-lines">';
+  sprints.forEach(sp => { lines += '<i class="strong" style="left:' + pct(sp.start) + '%"></i>'; });
+  lines += '<i class="strong" style="left:100%"></i></div>';
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const todayLine = (today >= s && today <= e)
+    ? '<div class="gt-today" style="left:' + pct(today) + '%"></div>' : '';
+  // Release dates run through the whole chart as faint guides.
+  let relLines = '';
+  dated.forEach((r, i) => {
+    const c = PALETTE[STATE.releases.indexOf(r) % PALETTE.length];
+    relLines += '<div class="rel-line" style="left:' + clampPct(pct(parseD(r.date))) + '%;background:' + c + '"></div>';
+  });
+  const overlay = lines + relLines + todayLine;
+
+  const row = (label, track, extraClass) =>
+    '<div class="gt-row ' + (extraClass || '') + '">' +
+      '<div class="gt-label">' + label + '</div>' +
+      '<div class="gt-track">' + overlay + track + '</div>' +
+    '</div>';
+  const section = title =>
+    '<div class="gt-section"><div class="gt-label">' + esc(title) + '</div><div class="gt-track"></div></div>';
+
+  let html = '';
+
+  /* — header: months + sprint columns — */
+  let months = '';
+  let cur = new Date(s.getFullYear(), s.getMonth(), 1);
+  while (cur <= e) {
+    const mStart = cur < s ? s : cur;
+    const nxt = new Date(cur.getFullYear(), cur.getMonth() + 1, 1);
+    const mEnd = nxt > e ? e : nxt;
+    const l = pct(mStart), w = pct(mEnd) - l;
+    if (w > 0) {
+      months += '<div class="gt-month" style="left:' + l + '%;width:' + w + '%">' +
+                cur.toLocaleDateString('en-GB', { month: 'long', year: '2-digit' }) + '</div>';
+    }
+    cur = nxt;
+  }
+  let cols = '';
+  sprints.forEach(sp => {
+    const l = pct(sp.start), w = pct(sp.end) - l;
+    const isCurrent = today >= sp.start && today < sp.end;
+    cols += '<div class="gt-sprint' + (isCurrent ? ' current' : '') + '" style="left:' + l + '%;width:' + w + '%">' +
+              '<span class="sn">' + sp.name + '</span>' +
+              '<span class="sd">' + fmtShort(sp.start) + ' – ' + fmtShort(addDays(sp.end, -1)) + '</span>' +
+            '</div>';
+  });
+  html += '<div class="gt-head">' +
+            '<div class="gt-row gt-band-month"><div class="gt-label">Program Increment</div><div class="gt-track">' + months + '</div></div>' +
+            '<div class="gt-row gt-band-sprint"><div class="gt-label">Sprints</div><div class="gt-track">' + cols + '</div></div>' +
+          '</div>';
+
+  /* — releases lane — */
+  if (dated.length) {
+    html += section('Releases');
+    let markers = '';
+    dated.forEach(r => {
+      const d = parseD(r.date);
+      const p = clampPct(pct(d));
+      const c = PALETTE[STATE.releases.indexOf(r) % PALETTE.length];
+      // Labels past the two-thirds mark are flipped so they stay inside the chart.
+      const flip = p > 66;
+      markers += '<div class="marker' + (flip ? ' flip' : '') + '" style="left:' + p + '%" title="' +
+                 esc(r.name) + ' — ' + fmtLong(d) + '">' +
+                   '<span class="dot" style="background:' + c + '"></span>' +
+                   '<span class="lbl" style="color:' + c + '">' + esc(r.name) + ' · ' + fmtShort(d) + '</span>' +
+                 '</div>';
+    });
+    html += row('<span class="txt" style="font-weight:600">🚀 Release dates</span>', markers);
+  }
+
+  /* — testing sessions — */
+  const tests = STATE.testing.filter(t => parseD(t.start) && parseD(t.end));
+  if (tests.length) {
+    html += section('Testing');
+    tests.forEach(t => {
+      const a = parseD(t.start), b = parseD(t.end);
+      const l = clampPct(pct(a));
+      const w = Math.max(0.6, clampPct(pct(addDays(b, 1))) - l);
+      const days = Math.round((b - a) / DAY) + 1;
+      const bar = '<div class="bar testing" style="left:' + l + '%;width:' + w + '%" title="' +
+                  esc(t.label) + ' — ' + fmtLong(a) + ' → ' + fmtLong(b) + ' (' + days + 'd)">' +
+                  esc(t.label) + '</div>';
+      html += row('<span class="txt">🧪 ' + esc(t.label || 'Testing') + '</span>', bar);
+    });
+  }
+
+  /* — features, grouped by release — */
+  const relByName = {};
+  STATE.releases.forEach(r => { relByName[r.name] = r; });
+
+  dated.forEach(r => {
+    const feats = STATE.features.filter(f => f.fixVersion === r.name);
+    if (!feats.length) return;
+    const relDate = parseD(r.date);
+    const c = PALETTE[STATE.releases.indexOf(r) % PALETTE.length];
+    const base = defaultSprintIndex(sprints, relDate);
+    if (base < 0) return;
+
+    html += section(r.name + ' · ' + fmtShort(relDate) + ' · ' + feats.length + ' feat.');
+
+    if (STATE.mode === 'grouped') {
+      // One bar per sprint bucket, sized by how many features land there.
+      const buckets = {};
+      feats.forEach(f => {
+        const i = Math.max(0, Math.min(sprints.length - 1, base + (f.offset || 0)));
+        (buckets[i] = buckets[i] || []).push(f);
+      });
+      let bars = '';
+      Object.keys(buckets).sort((a, b) => a - b).forEach(i => {
+        const sp = sprints[i];
+        const l = pct(sp.start), w = pct(sp.end) - l;
+        const list = buckets[i];
+        bars += '<div class="bar feature group" style="left:' + l + '%;width:' + w + '%;background:' + c + '2e;color:' + c + '" title="' +
+                esc(list.map(f => (f.key ? f.key + ' — ' : '') + f.title).slice(0, 12).join('\n')) + '">' +
+                list.length + ' feature' + (list.length > 1 ? 's' : '') + ' · ' + sp.name + '</div>';
+      });
+      html += row('<span class="txt" style="color:' + c + '">▸ ' + esc(r.name) + '</span>', bars);
+    } else {
+      feats.forEach(f => {
+        const i = Math.max(0, Math.min(sprints.length - 1, base + (f.offset || 0)));
+        const sp = sprints[i];
+        const l = pct(sp.start), w = pct(sp.end) - l;
+        const bar =
+          '<div class="bar feature" style="left:' + l + '%;width:' + w + '%;background:' + c + '2e;color:' + c + '" title="' +
+            esc((f.key ? f.key + ' — ' : '') + f.title + '\n' + r.name + ' → ' + fmtLong(relDate) + '\nDelivered in ' + sp.name) + '">' +
+            '<span class="shift l" onclick="shiftFeature(\'' + f.id + '\',-1)" title="One sprint earlier">‹</span>' +
+            esc(f.title) +
+            '<span class="shift r" onclick="shiftFeature(\'' + f.id + '\',1)" title="One sprint later">›</span>' +
+          '</div>';
+        const label = (f.key ? '<span class="key">' + esc(f.key) + '</span>' : '') +
+                      '<span class="txt">' + esc(f.title) + '</span>';
+        html += row(label, bar);
+      });
+    }
+  });
+
+  /* — undated releases warning — */
+  const undated = STATE.releases.filter(r => !r.date && STATE.features.some(f => f.fixVersion === r.name));
+  if (undated.length) {
+    html += section('Not placed — missing release date');
+    undated.forEach(r => {
+      const n = STATE.features.filter(f => f.fixVersion === r.name).length;
+      html += row('<span class="txt" style="color:var(--amber-light)">⚠ ' + esc(r.name) + '</span>',
+        '<div style="position:absolute;left:0;top:5px;font-size:10.5px;color:var(--muted);font-family:DM Mono,monospace">' +
+        n + ' feature' + (n > 1 ? 's' : '') + ' waiting for a release date</div>');
+    });
+  }
+
+  /* — consultant unavailability — */
+  const offs = STATE.off.filter(o => parseD(o.start) && parseD(o.end));
+  if (offs.length) {
+    html += section('Consultant availability');
+    const byName = {};
+    offs.forEach(o => { (byName[o.name || 'Unnamed'] = byName[o.name || 'Unnamed'] || []).push(o); });
+    Object.keys(byName).sort().forEach(name => {
+      let bars = '';
+      byName[name].forEach(o => {
+        const a = parseD(o.start), b = parseD(o.end);
+        const l = clampPct(pct(a));
+        const w = Math.max(0.5, clampPct(pct(addDays(b, 1))) - l);
+        const days = Math.round((b - a) / DAY) + 1;
+        bars += '<div class="bar off" style="left:' + l + '%;width:' + w + '%" title="' +
+                esc(name + (o.reason ? ' — ' + o.reason : '') + '\n' + fmtLong(a) + ' → ' + fmtLong(b) + ' (' + days + 'd)') + '">' +
+                esc(o.reason || 'Off') + '</div>';
+      });
+      html += row('<span class="txt">👤 ' + esc(name) + '</span>', bars);
+    });
+  }
+
+  const gt = document.getElementById('gt');
+  gt.innerHTML = html;
+  // Give every sprint column room to stay readable; below that the
+  // chart scrolls horizontally instead of squashing the columns.
+  gt.style.minWidth = (210 + sprints.length * 132) + 'px';
+}
+
+/* Nudge one feature to an adjacent sprint. The offset is clamped to the
+   grid as it's stored, not just as it's drawn — otherwise pushing a bar
+   against the first sprint would bank invisible offsets, and the user
+   would have to press the other way just as many times to move it. */
+function shiftFeature(id, delta){
+  const f = STATE.features.find(x => x.id === id);
+  if (!f) return;
+  const sprints = buildSprints();
+  const rel = STATE.releases.find(r => r.name === f.fixVersion);
+  const base = rel ? defaultSprintIndex(sprints, parseD(rel.date)) : 0;
+  if (base < 0 || !sprints.length) return;
+  const target = Math.max(0, Math.min(sprints.length - 1, base + (f.offset || 0) + delta));
+  f.offset = target - base;
+  save(); renderChart();
+}
+
+/* ══════════ EXPORTS ══════════ */
+function exportPDF(){
+  if (document.getElementById('chartCard').classList.contains('hidden')) {
+    return toast('Nothing to export yet.', 'err');
+  }
+  if (typeof html2pdf === 'undefined') {
+    // Standalone copies ship without the library — the browser's own
+    // print dialog produces the same page, landscape, via @page.
+    window.print(); return;
+  }
+  const card = document.getElementById('chartCard');
+  const scroll = document.getElementById('gtScroll');
+  // Unclip the horizontal scroller so html2canvas captures the full width.
+  document.body.classList.add('pdf-mode');
+  const prevW = card.style.width;
+  card.style.width = (scroll.scrollWidth + 40) + 'px';
+
+  const now = new Date();
+  const p = n => String(n).padStart(2, '0');
+  const ts = now.getFullYear() + '-' + p(now.getMonth() + 1) + '-' + p(now.getDate()) + '_' + p(now.getHours()) + 'h' + p(now.getMinutes());
+  toast('Generating PDF…');
+
+  html2pdf().set({
+    margin: 6,
+    filename: 'pi_timeline_' + ts + '.pdf',
+    image: { type: 'jpeg', quality: 0.98 },
+    html2canvas: { scale: 2, useCORS: true, backgroundColor: '#0c0c0c', windowWidth: scroll.scrollWidth + 80 },
+    jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' },
+    pagebreak: { mode: ['css', 'legacy'] },
+  }).from(card).save()
+    .then(() => toast('PDF exported', 'ok'))
+    .catch(err => { console.warn('PDF export failed', err); toast('PDF export failed', 'err'); })
+    .then(() => { document.body.classList.remove('pdf-mode'); card.style.width = prevW; });
+}
+
+function exportHTMLDownload(){
+  const html = buildExportHTML();
+  const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'pi_timeline.html';
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 200);
+  document.getElementById('exportHtmlDropdown').classList.remove('open');
+  toast('HTML file downloaded', 'ok');
+}
+function exportHTMLCopy(){
+  const html = buildExportHTML();
+  navigator.clipboard.writeText(html).then(() => {
+    document.getElementById('exportHtmlDropdown').classList.remove('open');
+    toast('✓ HTML code copied', 'ok');
+  }).catch(() => toast('Copy failed', 'err'));
+}
+
+/* Snapshot the page WITH the current timeline embedded, stripped of
+   everything that only exists inside LazyPO. The result opens by
+   double-click from the filesystem: no auth, no sidebar, no network,
+   no vendored libraries — the chart re-renders from embedded JSON,
+   stays editable (dates, absences) and prints to PDF via the browser. */
+function buildExportHTML(){
+  const doc = document.documentElement.cloneNode(true);
+
+  // 1. Every external file goes: vendored libraries, the LazyPO host
+  //    scripts, the webfonts, the favicon. An allowlist beats naming
+  //    them one by one — sidebar.js injects more <script src> nodes at
+  //    runtime (feedback_modal.js, apis.js…) and they'd survive a
+  //    blocklist. Nothing external is left to 404 on file://; the CSS
+  //    font stacks already fall back to system-ui.
+  doc.querySelectorAll('script[src], link').forEach(n => n.remove());
+  // Built at runtime: written contiguously, this string would match the
+  // very script that contains this function, and self-strip the export.
+  const gateMarker = 'LazyAuth.' + 'requireModule(';
+  doc.querySelectorAll('script').forEach(n => {
+    if (n.textContent && n.textContent.includes(gateMarker)) n.remove();
+  });
+
+  // 2. sidebar.js injects .sb-* nodes at runtime — they're in the clone.
+  doc.querySelectorAll('[class^="sb-"], [class*=" sb-"]').forEach(n => n.remove());
+  doc.querySelectorAll('#_lazypo_demo_fab').forEach(n => n.remove());
+
+  // 3. Nothing to navigate back to; the logo becomes a plain heading.
+  doc.querySelectorAll('a.back-link').forEach(n => n.remove());
+  doc.querySelectorAll('a.logo-wrap').forEach(a => {
+    const div = document.createElement('div');   // clone is an element, not a Document
+    div.className = a.className;
+    div.innerHTML = a.innerHTML;
+    div.style.cssText = (a.style.cssText || '') + ';cursor:default;text-decoration:none;color:inherit';
+    a.parentNode.replaceChild(div, a);
+  });
+
+  // 4. File import needs PapaParse/XLSX — drop the whole step offline.
+  doc.querySelectorAll('#panelFile').forEach(n => n.remove());
+  doc.querySelectorAll('.topbar-status').forEach(n => { n.textContent = 'Standalone · offline copy'; });
+
+  // 5. Re-point the exports: no html2pdf offline, and no re-export of
+  //    an export. exportPDF() already falls back to window.print().
+  doc.querySelectorAll('#exportHtmlDropdown').forEach(n => n.remove());
+
+  // 6. Freeze the current timeline into the file and boot from it.
+  //    Every "<" is escaped: a closing script tag sitting in a Jira
+  //    summary would otherwise end the boot block mid-JSON.
+  const json = JSON.stringify(STATE).replace(/</g, '\\u003c');
+  const boot = document.createElement('script');
+  boot.textContent =
+    'document.addEventListener("DOMContentLoaded",function(){' +
+      'Object.assign(STATE,' + json + ');' +
+      // Neutering save() is what keeps the copy read-only on disk. It also
+      // means the copy must never touch localStorage: opened from the same
+      // origin as LazyPO it shares storage with the live app, and clearing
+      // the key here would wipe the user's real PI config.
+      'save=function(){};' +
+      'renderAll();' +
+    '});';
+  doc.querySelector('body').appendChild(boot);
+
+  return '<!DOCTYPE html>\n' + doc.outerHTML;
+}
+
+/* ══════════ UI PLUMBING ══════════ */
+function togglePanel(id){ document.getElementById(id).classList.toggle('collapsed'); }
+function toggleDropdown(id, ev){
+  if (ev) ev.stopPropagation();
+  const d = document.getElementById(id);
+  document.querySelectorAll('.dropdown.open').forEach(o => { if (o !== d) o.classList.remove('open'); });
+  d.classList.toggle('open');
+}
+document.addEventListener('click', () => {
+  document.querySelectorAll('.dropdown.open').forEach(d => d.classList.remove('open'));
+});
+
+function showError(msg){
+  const b = document.getElementById('errorBanner');
+  b.textContent = msg; b.classList.remove('hidden');
+  toast(msg, 'err');
+}
+function clearError(){ document.getElementById('errorBanner').classList.add('hidden'); }
+
+function toast(msg, kind){
+  const t = document.getElementById('toast');
+  t.className = 'toast' + (kind ? ' ' + kind : '');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => t.classList.remove('show'), 2400);
+}
+
+/* Drag & drop + file picker */
+(function wireFileInputs(){
+  const zone = document.getElementById('dropZone');
+  const input = document.getElementById('fileInput');
+  if (input) input.addEventListener('change', e => { if (e.target.files[0]) handleFile(e.target.files[0]); });
+  if (!zone) return;
+  ['dragenter', 'dragover'].forEach(ev => zone.addEventListener(ev, e => {
+    e.preventDefault(); e.stopPropagation(); zone.classList.add('drag');
+  }));
+  ['dragleave', 'drop'].forEach(ev => zone.addEventListener(ev, e => {
+    e.preventDefault(); e.stopPropagation(); zone.classList.remove('drag');
+  }));
+  zone.addEventListener('drop', e => { if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]); });
+})();
+
+/* ══════════ DEMO (admin-only, injected by demo.js) ══════════ */
+window.loadDemoData = function(){
+  const now = new Date();
+  const start = new Date(now.getFullYear(), now.getMonth(), 1);
+  const end   = new Date(start.getFullYear(), start.getMonth() + 3, 0);
+  STATE.pi = { start: isoD(start), end: isoD(end) };
+  STATE.sprintLen = 14;
+  STATE.fileName = 'demo_jira_extract.csv';
+
+  const relDates = [addDays(start, 24), addDays(start, 52), addDays(start, 80)];
+  const names = ['R-' + relDates[0].toLocaleDateString('en-GB',{month:'short'}),
+                 'R-' + relDates[1].toLocaleDateString('en-GB',{month:'short'}),
+                 'R-' + relDates[2].toLocaleDateString('en-GB',{month:'short'})];
+  STATE.releases = names.map((n, i) => ({ id: uid(), name: n, date: isoD(relDates[i]) }));
+
+  const titles = [
+    ['Client onboarding — KYC refresh flow', 'Bulk document upload', 'AML alert triage screen'],
+    ['MiFID suitability questionnaire v2', 'Portfolio rebalancing engine', 'Advisor dashboard widgets', 'Fee schedule migration'],
+    ['Instant payment rails', 'Statement PDF redesign', 'Audit trail export'],
+  ];
+  STATE.features = [];
+  titles.forEach((list, i) => list.forEach((t, j) => {
+    STATE.features.push({ id: uid(), key: 'PI-' + (100 + i * 10 + j), title: t, fixVersion: names[i], offset: 0 });
+  }));
+
+  STATE.testing = [
+    { id: uid(), label: 'UAT round 1', start: isoD(addDays(start, 17)), end: isoD(addDays(start, 22)) },
+    { id: uid(), label: 'Regression',  start: isoD(addDays(start, 45)), end: isoD(addDays(start, 50)) },
+    { id: uid(), label: 'Dress rehearsal', start: isoD(addDays(start, 74)), end: isoD(addDays(start, 78)) },
+  ];
+  STATE.off = [
+    { id: uid(), name: 'Simon',  reason: 'Holiday',  start: isoD(addDays(start, 30)), end: isoD(addDays(start, 41)) },
+    { id: uid(), name: 'Marie',  reason: 'Training', start: isoD(addDays(start, 12)), end: isoD(addDays(start, 14)) },
+    { id: uid(), name: 'Marie',  reason: 'Holiday',  start: isoD(addDays(start, 60)), end: isoD(addDays(start, 67)) },
+    { id: uid(), name: 'Thomas', reason: 'Off-site', start: isoD(addDays(start, 51)), end: isoD(addDays(start, 53)) },
+  ];
+
+  document.getElementById('dropZone').classList.add('hidden');
+  document.getElementById('fileLoaded').classList.remove('hidden');
+  document.getElementById('topbarFilename').textContent = STATE.fileName;
+  document.getElementById('loadedName').textContent = STATE.fileName;
+  document.getElementById('loadedMeta').textContent = STATE.features.length + ' features · 3 fix versions';
+  save(); renderAll();
+  toast('Demo timeline loaded', 'ok');
+};
+
+/* ══════════ BOOT ══════════ */
+load();
+renderAll();
+</script>
+
+<script src="popup.js"></script>
+<script src="sidebar.js"></script>
+<script src="supabase.min.js"></script>
+<script src="auth.js"></script>
+<script>document.addEventListener("DOMContentLoaded", function(){ LazyAuth.requireModule('jira'); });</script>
+<script src="demo.js"></script>
+<script src="focusfm.js"></script>
+</body>
+</html>
