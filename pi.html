@@ -1,0 +1,1656 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<script>if(location.protocol==="http:"&&location.hostname!=="localhost"&&location.hostname!=="127.0.0.1")location.replace("https:"+location.href.slice(5));</script>
+<script src="auth-gate.js"></script>
+<meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests">
+  <meta charset="UTF-8">
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <title>LazyPO — PI Settings</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="fonts.css">
+  <style>
+    :root{
+      --navy:#002060; --navy-border:#0a3575;
+      --bg:#0c0c0c; --surface:#161616; --surface2:#1c1c1c;
+      --border:#222; --border2:#2a2a2a;
+      --accent:#3b82f6; --accent2:#60a5fa; --accent3:#93c5fd;
+      --text:#f0f0f0; --muted:#6b6b6b; --faint:#2e2e2e;
+      --amber:#f59e0b; --amber-light:#fbbf24;
+      --green:#22c55e; --red:#ef4444; --violet:#8b5cf6; --pink:#ec4899;
+    }
+
+    *{box-sizing:border-box}
+    html,body{margin:0;padding:0;min-height:100vh;font-family:'DM Sans',system-ui,sans-serif;background:var(--bg);color:var(--text)}
+    body{display:flex;flex-direction:column;position:relative;overflow-x:hidden}
+    .hidden{display:none !important}
+
+    .main-bg{position:fixed;inset:0;z-index:0;pointer-events:none;background:radial-gradient(ellipse 60% 50% at 50% 20%,rgba(20,40,80,.5) 0%,transparent 70%),radial-gradient(ellipse 40% 40% at 85% 80%,rgba(30,58,110,.15) 0%,transparent 60%)}
+
+    /* HEADER */
+    .header{display:flex;align-items:center;gap:20px;position:sticky;top:0;z-index:100;background:var(--navy);border-bottom:3px solid var(--navy-border);padding:14px 28px;color:#fff}
+    .logo-wrap{display:flex;flex-direction:column;text-decoration:none}
+    .logo{font-family:'Permanent Marker',cursive;font-size:26px;color:#fff;transform:rotate(-1.5deg);letter-spacing:1px;line-height:1;text-shadow:3px 3px 0 rgba(59,130,246,.4),-1px -1px 0 rgba(255,255,255,.1);text-decoration:none;display:inline-block}
+    .logo span{color:var(--accent2)}
+    .subtitle{font-size:12px;color:var(--accent3);margin-top:4px}
+    .spacer{flex:1}
+    .back-link{display:inline-flex;align-items:center;gap:6px;color:#fff;text-decoration:none;font-size:13px;padding:8px 14px;border-radius:8px;border:1px solid rgba(255,255,255,.2);transition:background .2s,border-color .2s}
+    .back-link:hover{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.4)}
+    .back-link svg{width:14px;height:14px}
+
+    /* PAGE */
+    .container{max-width:1480px;width:100%;margin:28px auto 40px;padding:0 28px;position:relative;z-index:1;flex:1}
+
+    /* TOPBAR */
+    .topbar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:12px 16px;margin-bottom:18px}
+    .topbar-title{display:flex;align-items:center;gap:10px;font-size:15px;font-weight:600}
+    .topbar-icon{width:32px;height:32px;border-radius:9px;background:rgba(59,130,246,.15);border:1px solid rgba(96,165,250,.25);display:flex;align-items:center;justify-content:center;font-size:16px}
+    .topbar-status{font-family:'DM Mono',monospace;font-size:11px;color:var(--muted);border:1px solid var(--border2);border-radius:100px;padding:3px 10px;transition:color .2s,border-color .2s}
+    .topbar-status.ok{color:var(--green);border-color:rgba(34,197,94,.3)}
+    .topbar-status.warn{color:var(--amber-light);border-color:rgba(245,158,11,.35)}
+    .topbar-spacer{flex:1}
+
+    /* BUTTONS */
+    .btn{display:inline-flex;align-items:center;gap:7px;background:var(--surface2);border:1px solid var(--border2);color:var(--text);border-radius:9px;padding:8px 13px;font-size:12.5px;font-family:inherit;font-weight:500;cursor:pointer;transition:border-color .18s,background .18s,transform .18s;text-decoration:none}
+    .btn:hover{border-color:var(--accent);background:rgba(59,130,246,.08)}
+    .btn:active{transform:translateY(1px)}
+    .btn svg{width:14px;height:14px}
+    .btn-primary{background:var(--accent);border-color:var(--accent);color:#fff}
+    .btn-primary:hover{background:#2563eb;border-color:#2563eb}
+    .btn-sm{padding:5px 9px;font-size:11.5px;border-radius:7px}
+    .btn-ghost{background:transparent;border-color:var(--border2);color:var(--muted)}
+    .btn-ghost:hover{color:var(--text)}
+    .btn-danger:hover{border-color:var(--red);background:rgba(239,68,68,.1);color:#fca5a5}
+
+    /* COCKPIT */
+    .cockpit{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:18px}
+    @media (max-width:900px){.cockpit{grid-template-columns:1fr}}
+    .ck-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px 18px;position:relative;overflow:hidden}
+    .ck-card::after{content:'';position:absolute;inset:0 auto 0 0;width:3px;background:var(--accent)}
+    .ck-card.sprint::after{background:var(--violet)}
+    .ck-card.release::after{background:var(--amber)}
+    .ck-label{font-family:'DM Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);display:flex;align-items:center;gap:6px}
+    .ck-value{font-size:30px;font-weight:700;line-height:1.1;margin:8px 0 2px;letter-spacing:-.5px}
+    .ck-value small{font-size:14px;font-weight:500;color:var(--muted);letter-spacing:0}
+    .ck-sub{font-size:12px;color:var(--muted);line-height:1.5}
+    .ck-sub b{color:var(--accent3);font-weight:600}
+    .ck-bar{height:4px;background:var(--faint);border-radius:100px;margin-top:12px;overflow:hidden}
+    .ck-bar i{display:block;height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));border-radius:100px}
+    .ck-card.sprint .ck-bar i{background:linear-gradient(90deg,var(--violet),#a78bfa)}
+    .ck-card.release .ck-bar i{background:linear-gradient(90deg,var(--amber),var(--amber-light))}
+    .ck-empty{font-size:12.5px;color:var(--muted);font-style:italic;padding:6px 0 2px}
+
+    /* PANELS */
+    .panel{background:var(--surface);border:1px solid var(--border);border-radius:14px;margin-bottom:16px;overflow:hidden}
+    .panel-head{display:flex;align-items:center;gap:10px;padding:14px 18px;cursor:pointer;user-select:none}
+    .panel-head:hover{background:rgba(255,255,255,.02)}
+    .panel-head h3{margin:0;font-size:13.5px;font-weight:600}
+    .panel-head .step{width:22px;height:22px;border-radius:50%;background:rgba(59,130,246,.15);border:1px solid rgba(96,165,250,.3);color:var(--accent2);display:flex;align-items:center;justify-content:center;font-size:11px;font-family:'DM Mono',monospace;flex:none}
+    .panel-head .sub{font-size:11.5px;color:var(--muted);font-weight:400}
+    .panel-head .chev{margin-left:auto;transition:transform .2s;color:var(--muted)}
+    .panel-head .chev svg{width:15px;height:15px;display:block}
+    .panel.collapsed .chev{transform:rotate(-90deg)}
+    .panel.collapsed .panel-body{display:none}
+    .panel-body{padding:2px 18px 18px;border-top:1px solid var(--border)}
+    .row-note{font-size:11.5px;color:var(--muted);margin:12px 0 14px;line-height:1.55}
+
+    /* FORM */
+    .field{display:flex;flex-direction:column;gap:5px}
+    .field label{font-family:'DM Mono',monospace;font-size:10.5px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted)}
+    input[type=date],input[type=text],input[type=number],select,textarea{background:var(--surface2);border:1px solid var(--border2);color:var(--text);border-radius:8px;padding:7px 10px;font-family:inherit;font-size:12.5px;outline:none;transition:border-color .18s}
+    input:focus,select:focus,textarea:focus{border-color:var(--accent)}
+    input[type=date]{color-scheme:dark}
+    textarea{resize:vertical;line-height:1.5;min-height:34px}
+    .inline-row{display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;margin-top:14px}
+    .pill-info{display:inline-flex;align-items:center;gap:7px;background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.25);color:var(--accent3);border-radius:100px;padding:6px 13px;font-family:'DM Mono',monospace;font-size:11.5px}
+    .pill-info.warn{background:rgba(245,158,11,.1);border-color:rgba(245,158,11,.3);color:var(--amber-light)}
+    .pill-info.ok{background:rgba(34,197,94,.1);border-color:rgba(34,197,94,.3);color:#86efac}
+
+    /* SPRINT STRIP */
+    .strip-wrap{margin-top:16px}
+    .strip{display:flex;gap:4px;align-items:stretch}
+    .sp{flex:1;min-width:0;background:var(--surface2);border:1px solid var(--border2);border-radius:8px;padding:8px 6px;text-align:center;position:relative;transition:border-color .2s}
+    .sp.now{border-color:var(--violet);background:rgba(139,92,246,.1)}
+    .sp.past{opacity:.45}
+    .sp.partial{border-style:dashed;border-color:rgba(245,158,11,.5)}
+    .sp-name{font-family:'DM Mono',monospace;font-size:11px;font-weight:500;color:var(--accent3)}
+    .sp.now .sp-name{color:#c4b5fd}
+    .sp-dates{font-size:9.5px;color:var(--muted);margin-top:3px;font-family:'DM Mono',monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .sp-rel{position:absolute;top:-7px;left:50%;transform:translateX(-50%);font-size:10px;line-height:1}
+    .strip-axis{position:relative;height:22px;margin-top:8px}
+    .strip-axis .mk{position:absolute;top:0;transform:translateX(-50%);font-family:'DM Mono',monospace;font-size:9.5px;color:var(--amber-light);white-space:nowrap}
+    .strip-axis .mk::before{content:'';position:absolute;top:-9px;left:50%;width:1px;height:8px;background:var(--amber);transform:translateX(-50%)}
+
+    /* TABLES */
+    .tbl{width:100%;border-collapse:collapse;margin-top:12px}
+    .tbl th{text-align:left;font-family:'DM Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);font-weight:500;padding:6px 8px;border-bottom:1px solid var(--border2)}
+    .tbl td{padding:6px 8px;border-bottom:1px solid var(--border);font-size:12.5px;vertical-align:top}
+    .tbl tr:last-child td{border-bottom:none}
+    .tbl input[type=date],.tbl input[type=text],.tbl textarea{width:100%}
+    .tbl .col-narrow{width:150px}
+    .tbl .col-act{width:38px}
+    .swatch{width:9px;height:9px;border-radius:3px;display:inline-block;margin-right:8px;vertical-align:middle}
+    .count-chip{font-family:'DM Mono',monospace;font-size:10.5px;color:var(--muted);background:var(--surface2);border:1px solid var(--border2);border-radius:100px;padding:2px 8px;white-space:nowrap}
+    .empty-line{font-size:12px;color:var(--muted);padding:14px 4px;font-style:italic}
+
+    /* FEATURES */
+    .feat-tbl td{vertical-align:top}
+    .feat-row.dragging{opacity:.4}
+    .feat-row.drop-target td{box-shadow:inset 0 2px 0 var(--accent)}
+    .feat-row.dup td{background:rgba(245,158,11,.05)}
+    .drag-dots{cursor:grab;color:var(--faint);font-size:14px;user-select:none;line-height:1.8}
+    .drag-dots:hover{color:var(--muted)}
+    .feat-num{font-family:'DM Mono',monospace;font-size:10.5px;color:var(--muted);line-height:2.2}
+    .src-tag{font-family:'DM Mono',monospace;font-size:9px;text-transform:uppercase;letter-spacing:.4px;border-radius:100px;padding:2px 7px;white-space:nowrap}
+    .src-jira{background:rgba(59,130,246,.12);border:1px solid rgba(59,130,246,.3);color:var(--accent3)}
+    .src-manual{background:rgba(139,92,246,.12);border:1px solid rgba(139,92,246,.3);color:#c4b5fd}
+    .rel-chip{display:inline-flex;align-items:center;gap:5px;font-family:'DM Mono',monospace;font-size:10px;border-radius:100px;padding:2px 8px;margin-top:5px;white-space:nowrap}
+    .rel-ok{background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.3);color:#86efac}
+    .rel-nodate{background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);color:var(--amber-light)}
+    .rel-none{background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.28);color:#fca5a5}
+    .link-btn{background:none;border:none;color:var(--accent2);font-family:'DM Mono',monospace;font-size:10px;cursor:pointer;padding:0;text-decoration:underline;margin-left:6px}
+    .link-btn:hover{color:var(--accent3)}
+    .feat-toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:14px}
+    .feat-search{flex:1;min-width:180px;max-width:280px}
+
+    /* DROP ZONE */
+    .file-card{background:var(--surface2);border:1.5px dashed var(--border2);border-radius:12px;padding:26px 18px;text-align:center;transition:border-color .2s,background .2s;margin-top:12px}
+    .file-card.drag{border-color:var(--accent);background:rgba(59,130,246,.06)}
+    .file-card-icon{font-size:26px;margin-bottom:8px}
+    .file-card-title{font-size:14px;font-weight:600;margin-bottom:4px}
+    .file-card-meta{font-size:11.5px;color:var(--muted);font-family:'DM Mono',monospace}
+    .opt-row{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted);margin-top:12px}
+    .opt-row input{accent-color:var(--accent);width:14px;height:14px}
+
+    /* BANNERS */
+    .banner{border-radius:11px;padding:12px 15px;font-size:12.5px;line-height:1.6;margin-top:14px}
+    .banner.info{background:rgba(59,130,246,.08);border:1px solid rgba(59,130,246,.25);color:var(--accent3)}
+    .banner.warn{background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.28);color:var(--amber-light)}
+    .banner.err{background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.28);color:#fca5a5}
+    .banner b{font-weight:600}
+    .banner ul{margin:8px 0 0;padding-left:18px}
+    .banner li{margin:3px 0}
+    .error-banner{background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.3);color:#fca5a5;border-radius:11px;padding:12px 15px;font-size:12.5px;margin-bottom:16px}
+
+    /* CONSUMERS */
+    .consumers{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:12px}
+    @media (max-width:900px){.consumers{grid-template-columns:1fr 1fr}}
+    @media (max-width:560px){.consumers{grid-template-columns:1fr}}
+    .cons{display:flex;flex-direction:column;gap:6px;background:var(--surface2);border:1px solid var(--border2);border-radius:11px;padding:14px;text-decoration:none;color:inherit;transition:border-color .2s,transform .2s}
+    .cons:hover{border-color:var(--accent);transform:translateY(-2px)}
+    .cons-ic{font-size:20px}
+    .cons-nm{font-size:13px;font-weight:600}
+    .cons-ds{font-size:11px;color:var(--muted);line-height:1.5}
+
+    /* TOAST */
+    .toast{position:fixed;bottom:26px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--surface2);border:1px solid var(--border2);border-radius:10px;padding:11px 18px;font-size:12.5px;opacity:0;pointer-events:none;transition:all .25s;z-index:400;box-shadow:0 10px 30px rgba(0,0,0,.5)}
+    .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+    .toast.ok{border-color:rgba(34,197,94,.4);color:#86efac}
+    .toast.err{border-color:rgba(239,68,68,.4);color:#fca5a5}
+
+    /* FOOTER */
+    .page-footer{padding:24px 48px 32px;display:flex;justify-content:center;border-top:1px solid rgba(255,255,255,.04);position:relative;z-index:1}
+    .footer-pill{display:inline-flex;align-items:center;gap:8px;background:rgba(255,255,255,.03);border:1px solid var(--border2);border-radius:20px;padding:6px 16px;font-size:12px;color:var(--muted)}
+
+    @media (max-width:640px){
+      .header{padding:10px 16px}
+      .logo{font-size:20px}
+      .container{padding:0 14px;margin:18px auto 30px}
+      .strip{flex-wrap:wrap}
+      .sp{min-width:72px}
+    }
+  </style>
+</head>
+<body>
+
+<div class="main-bg"></div>
+
+<header class="header">
+  <a href="index.html" class="logo-wrap">
+    <div class="logo">LazyPO <span>✦</span></div>
+    <div class="subtitle">PI Settings</div>
+  </a>
+  <div class="spacer"></div>
+  <a href="index.html" class="back-link">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+    All features
+  </a>
+</header>
+
+<div class="container">
+
+  <div class="topbar">
+    <div class="topbar-title">
+      <div class="topbar-icon">🎯</div>
+      Program Increment — single source of truth
+    </div>
+    <span class="topbar-status" id="syncStatus">Local</span>
+    <div class="topbar-spacer"></div>
+    <button class="btn" onclick="exportExcel()" title="Export the whole PI to Excel">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+      Export Excel
+    </button>
+    <button class="btn" onclick="document.getElementById('xlsInput').click()" title="Re-import a PI Excel file">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
+      Import Excel
+    </button>
+    <input type="file" id="xlsInput" accept=".xlsx,.xls" style="display:none">
+    <a class="btn btn-primary" href="gantt.html" title="Open the roadmap Gantt built from this PI">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+      Open the Gantt
+    </a>
+  </div>
+
+  <div id="errorBanner" class="error-banner hidden"></div>
+
+  <!-- ═══ COCKPIT (spec §7) ═══ -->
+  <div class="cockpit" id="cockpit"></div>
+
+  <!-- ═══ 1. PI WINDOW ═══ -->
+  <div class="panel" id="panelPI">
+    <div class="panel-head" onclick="togglePanel('panelPI')">
+      <span class="step">1</span>
+      <h3>PI window</h3>
+      <span class="sub" id="piSub"></span>
+      <span class="chev"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></span>
+    </div>
+    <div class="panel-body">
+      <p class="row-note">
+        The dates below define everything else. Sprints are <b>derived</b> from them — a plain,
+        even grid — and every other LazyPO view reads this one definition.
+      </p>
+      <div class="inline-row">
+        <div class="field" style="min-width:190px">
+          <label for="piName">PI name</label>
+          <input type="text" id="piName" placeholder="PI 2026.Q2" oninput="onPIChange()">
+        </div>
+        <div class="field">
+          <label for="piStart">Start date</label>
+          <input type="date" id="piStart" onchange="onPIChange()">
+        </div>
+        <div class="field">
+          <label for="piEnd">End date <span style="text-transform:none;letter-spacing:0">(last day)</span></label>
+          <input type="date" id="piEnd" onchange="onPIChange()">
+        </div>
+        <div class="field">
+          <label for="sprintLen">Sprint length</label>
+          <select id="sprintLen" onchange="onPIChange()">
+            <option value="14">14 days (2 weeks)</option>
+            <option value="7">7 days (1 week)</option>
+            <option value="21">21 days (3 weeks)</option>
+            <option value="28">28 days (4 weeks)</option>
+          </select>
+        </div>
+        <span class="pill-info" id="fitPill">—</span>
+      </div>
+      <div id="fitWarn" class="banner warn hidden"></div>
+      <div class="strip-wrap" id="stripWrap"></div>
+    </div>
+  </div>
+
+  <!-- ═══ 2. RELEASES ═══ -->
+  <div class="panel" id="panelRel">
+    <div class="panel-head" onclick="togglePanel('panelRel')">
+      <span class="step">2</span>
+      <h3>Releases</h3>
+      <span class="sub" id="relSub">Fix version → release date</span>
+      <span class="chev"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></span>
+    </div>
+    <div class="panel-body">
+      <p class="row-note">
+        Releases float on their own dates — a release can land in the middle of a sprint, and on
+        the timeline it shows up as a milestone marker wherever its date falls. The name is what a
+        feature's <b>fix version</b> is matched against.
+      </p>
+      <table class="tbl">
+        <thead><tr><th>Release name</th><th class="col-narrow">Date</th><th style="width:110px">Sprint</th><th style="width:96px">Features</th><th class="col-act"></th></tr></thead>
+        <tbody id="relBody"></tbody>
+      </table>
+      <button class="btn btn-sm" style="margin-top:12px" onclick="addRelease()">+ Add a release</button>
+    </div>
+  </div>
+
+  <!-- ═══ 3. JIRA IMPORT ═══ -->
+  <div class="panel" id="panelImport">
+    <div class="panel-head" onclick="togglePanel('panelImport')">
+      <span class="step">3</span>
+      <h3>Jira backlog import</h3>
+      <span class="sub" id="importSub">CSV or XLSX export</span>
+      <span class="chev"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></span>
+    </div>
+    <div class="panel-body">
+      <p class="row-note">
+        Export your backlog from the Jira issue navigator and drop the file here. The PI is a living
+        object: <b>re-import at any time during the increment</b> — the newest export wins for
+        Jira-sourced features, and anything you added by hand survives untouched.
+      </p>
+      <div id="dropZone" class="file-card">
+        <div class="file-card-icon">📥</div>
+        <div class="file-card-title">Drop your Jira export here</div>
+        <div class="file-card-meta">CSV or XLSX · parsed in your browser · never uploaded</div>
+        <button class="btn btn-primary" style="margin-top:14px" onclick="document.getElementById('fileInput').click()">Choose a file</button>
+        <input type="file" id="fileInput" accept=".csv,.xlsx,.xls,text/csv" style="display:none">
+      </div>
+      <label class="opt-row">
+        <input type="checkbox" id="optKeepEdits" checked>
+        Keep my hand-fixed descriptions and benefits when re-importing
+      </label>
+      <label class="opt-row">
+        <input type="checkbox" id="optAutoRelease" checked>
+        Create a release for any fix version that doesn't have one yet
+      </label>
+      <div id="importReport"></div>
+    </div>
+  </div>
+
+  <!-- ═══ 4. FEATURES ═══ -->
+  <div class="panel" id="panelFeat">
+    <div class="panel-head" onclick="togglePanel('panelFeat')">
+      <span class="step">4</span>
+      <h3>Features</h3>
+      <span class="sub" id="featSub">Jira + manual, one list</span>
+      <span class="chev"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></span>
+    </div>
+    <div class="panel-body">
+      <p class="row-note">
+        One unified list — every field is editable, whatever the feature came from. Drag the
+        <span style="color:var(--muted)">⠿</span> handle to reorder. Jira bundles the description
+        and the benefit into a single field, so the split won't always be clean: <b>this is where
+        you fix it</b>.
+      </p>
+      <div id="dupBanner"></div>
+      <div style="overflow-x:auto">
+        <table class="tbl feat-tbl">
+          <thead><tr>
+            <th style="width:22px"></th>
+            <th style="width:30px">#</th>
+            <th style="width:15%">Name</th>
+            <th style="width:24%">Description</th>
+            <th style="width:19%">Benefit</th>
+            <th style="width:15%">Fix version</th>
+            <th style="width:12%">Epic</th>
+            <th style="width:56px">Source</th>
+            <th class="col-act"></th>
+          </tr></thead>
+          <tbody id="featBody"></tbody>
+        </table>
+      </div>
+      <div class="feat-toolbar">
+        <button class="btn btn-sm" onclick="addFeature()">+ Add a feature</button>
+        <input class="feat-search" type="text" id="featSearch" placeholder="Filter by name, epic or fix version…" oninput="renderFeatures()">
+        <span class="topbar-spacer"></span>
+        <span class="count-chip" id="featCount">0</span>
+        <button class="btn btn-sm btn-ghost btn-danger" onclick="clearJiraFeatures()" title="Remove every Jira-sourced feature — manual ones are kept">Clear Jira features</button>
+      </div>
+      <datalist id="relNames"></datalist>
+    </div>
+  </div>
+
+  <!-- ═══ 5. WHAT READS THIS ═══ -->
+  <div class="panel collapsed" id="panelUse">
+    <div class="panel-head" onclick="togglePanel('panelUse')">
+      <span class="step">5</span>
+      <h3>What reads this PI</h3>
+      <span class="sub">Change it here, it changes everywhere</span>
+      <span class="chev"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></span>
+    </div>
+    <div class="panel-body">
+      <p class="row-note">Each of these reads the definition above — none of them keeps its own copy.</p>
+      <div class="consumers">
+        <a class="cons" href="gantt.html">
+          <span class="cons-ic">📅</span>
+          <span class="cons-nm">PI Timeline</span>
+          <span class="cons-ds">Sprint grid, release milestones, a bar per feature coloured by epic.</span>
+        </a>
+        <a class="cons" href="sprintplanner.html">
+          <span class="cons-ic">📋</span>
+          <span class="cons-nm">Sprint Planning</span>
+          <span class="cons-ds">Features laid out across the derived sprints.</span>
+        </a>
+        <a class="cons" href="lazypo_generator.html">
+          <span class="cons-ic">✉️</span>
+          <span class="cons-nm">Scope of Work</span>
+          <span class="cons-ds">The email reads the same features, benefits and releases.</span>
+        </a>
+        <a class="cons" href="index.html">
+          <span class="cons-ic">🏠</span>
+          <span class="cons-nm">Home cockpit</span>
+          <span class="cons-ds">Days left, current sprint and next release on the hub.</span>
+        </a>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<footer class="page-footer">
+  <span class="footer-pill">✦ LazyPO — Do less, deliver more.</span>
+</footer>
+
+<div id="toast" class="toast"></div>
+
+<script src="papaparse.min.js"></script>
+<script src="xlsx.min.js"></script>
+<script src="pi.js"></script>
+<script>
+/* ═══════════════════════════════════════════════════════════════
+   PI SETTINGS — the one place the Program Increment is defined.
+
+   This page owns nothing: LazyPI (pi.js) holds the object and its
+   persistence. Everything here is UI over LazyPI.get().
+═══════════════════════════════════════════════════════════════ */
+'use strict';
+
+const PALETTE = ['#60a5fa','#22c55e','#f59e0b','#8b5cf6','#ec4899','#14b8a6','#f97316','#a3e635'];
+
+const $  = id => document.getElementById(id);
+const PI = () => LazyPI.get();
+
+function esc(s){
+  return String(s == null ? '' : s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+function fmtShort(d){ return d ? d.toLocaleDateString('en-GB',{day:'2-digit',month:'short'}) : ''; }
+function fmtLong(d){ return d ? d.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}) : ''; }
+function dstr(iso, fn){ const d = LazyPI.parseD(iso); return d ? (fn || fmtShort)(d) : '—'; }
+
+function toast(msg, kind){
+  const t = $('toast');
+  t.className = 'toast' + (kind ? ' ' + kind : '');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => t.classList.remove('show'), 2600);
+}
+function showError(msg){ const b = $('errorBanner'); b.textContent = msg; b.classList.remove('hidden'); toast(msg,'err'); }
+function clearError(){ $('errorBanner').classList.add('hidden'); }
+function togglePanel(id){ $(id).classList.toggle('collapsed'); }
+
+/* Persist + repaint. Everything that mutates the PI ends here. */
+function commit(opts){
+  LazyPI.save({}, opts);
+  renderAll();
+}
+
+/* ═══════════════════════════════════════════════════
+   COCKPIT (spec §7)
+═══════════════════════════════════════════════════ */
+function renderCockpit(){
+  const c = LazyPI.cockpit();
+  const box = $('cockpit');
+
+  if (!c.hasPI) {
+    box.innerHTML = `
+      <div class="ck-card" style="grid-column:1/-1">
+        <div class="ck-label">🎯 No PI yet</div>
+        <div class="ck-sub" style="margin-top:8px">
+          Set a start and an end date below and everything else — sprints, the Gantt, sprint
+          planning, the Scope of Work email — follows from it.
+        </div>
+      </div>`;
+    return;
+  }
+
+  const daysCard = (() => {
+    if (c.status === 'before') {
+      const s = LazyPI.parseD(PI().start);
+      const away = LazyPI.daysBetween(new Date(new Date().setHours(0,0,0,0)), s);
+      return `<div class="ck-label">⏳ PI not started</div>
+        <div class="ck-value">${away}<small> days to go</small></div>
+        <div class="ck-sub">${esc(c.name || 'The PI')} starts on <b>${dstr(PI().start, fmtLong)}</b></div>`;
+    }
+    if (c.status === 'after') {
+      return `<div class="ck-label">🏁 PI closed</div>
+        <div class="ck-value">Done</div>
+        <div class="ck-sub">${esc(c.name || 'The PI')} ended on <b>${dstr(PI().end, fmtLong)}</b></div>`;
+    }
+    return `<div class="ck-label">⏳ Days remaining</div>
+      <div class="ck-value">${c.daysRemaining}<small> / ${c.totalDays}</small></div>
+      <div class="ck-sub">${esc(c.name || 'Current PI')} · day <b>${c.daysElapsed}</b>, ends ${dstr(PI().end, fmtLong)}</div>
+      <div class="ck-bar"><i style="width:${c.pctThrough.toFixed(1)}%"></i></div>`;
+  })();
+
+  const sp = c.currentSprint;
+  const sprintCard = sp
+    ? `<div class="ck-label">🌀 Current sprint</div>
+       <div class="ck-value">${esc(sp.name)}<small> of ${sp.of}</small></div>
+       <div class="ck-sub">Day <b>${sp.dayInSprint}</b> of ${sp.totalDays} · <b>${sp.daysLeft}</b> day${sp.daysLeft === 1 ? '' : 's'} left · ends ${dstr(sp.end)}</div>
+       <div class="ck-bar"><i style="width:${((sp.dayInSprint / sp.totalDays) * 100).toFixed(1)}%"></i></div>`
+    : `<div class="ck-label">🌀 Current sprint</div>
+       <div class="ck-empty">${c.sprintCount ? c.sprintCount + ' sprints derived — none is running today.' : 'No sprint grid yet.'}</div>`;
+
+  const nr = c.nextRelease;
+  const relCard = nr
+    ? `<div class="ck-label">🚀 Next release</div>
+       <div class="ck-value">${nr.daysAway === 0 ? 'Today' : nr.daysAway}<small>${nr.daysAway === 0 ? '' : ' day' + (nr.daysAway === 1 ? '' : 's') + ' away'}</small></div>
+       <div class="ck-sub"><b>${esc(nr.name || 'Unnamed release')}</b> · ${dstr(nr.date, fmtLong)} · ${nr.features} feature${nr.features === 1 ? '' : 's'}</div>`
+    : `<div class="ck-label">🚀 Next release</div>
+       <div class="ck-empty">${(PI().releases || []).length ? 'Every release is behind us — add the next one.' : 'No dated release yet.'}</div>`;
+
+  box.innerHTML =
+    `<div class="ck-card">${daysCard}</div>` +
+    `<div class="ck-card sprint">${sprintCard}</div>` +
+    `<div class="ck-card release">${relCard}</div>`;
+}
+
+/* ═══════════════════════════════════════════════════
+   1. PI WINDOW + DERIVED SPRINT GRID
+═══════════════════════════════════════════════════ */
+function renderPIWindow(){
+  const pi = PI();
+  if ($('piName')  !== document.activeElement) $('piName').value  = pi.name || '';
+  $('piStart').value  = pi.start || '';
+  $('piEnd').value    = pi.end || '';
+  $('sprintLen').value = String(pi.sprintLen || 14);
+
+  const fit = LazyPI.sprintFit(pi);
+  const pill = $('fitPill'), warn = $('fitWarn');
+
+  if (!fit.valid) {
+    pill.className = 'pill-info';
+    pill.textContent = 'Set both dates';
+    warn.classList.add('hidden');
+    $('piSub').textContent = 'Not configured';
+  } else if (fit.whole) {
+    pill.className = 'pill-info ok';
+    pill.textContent = `${fit.sprintCount} sprints · ${fit.totalDays} days`;
+    warn.classList.add('hidden');
+    $('piSub').textContent = `${dstr(pi.start)} → ${dstr(pi.end)} · ${fit.sprintCount} sprints`;
+  } else {
+    // Spec §3.2 — a PI is normally a whole number of sprints. Flag, never round.
+    pill.className = 'pill-info warn';
+    pill.textContent = `${fit.fullSprints} sprints + ${fit.remainderDays}d`;
+    warn.classList.remove('hidden');
+    warn.innerHTML =
+      `<b>These dates don't divide into whole sprints.</b> ${fit.totalDays} days is
+       ${fit.fullSprints} full sprint${fit.fullSprints === 1 ? '' : 's'} of ${fit.len} plus
+       ${fit.remainderDays} day${fit.remainderDays === 1 ? '' : 's'}. A PI is normally a whole
+       number of sprints — the last one is shown clipped below.
+       <button class="btn btn-sm" style="margin-top:10px" onclick="snapToWholeSprints()">
+         Move the end date to ${esc(dstr(fit.suggestedEnd, fmtLong))}
+       </button>`;
+    $('piSub').textContent = `${dstr(pi.start)} → ${dstr(pi.end)} · ${fit.fullSprints} sprints + ${fit.remainderDays}d`;
+  }
+  renderStrip();
+}
+
+function snapToWholeSprints(){
+  const fit = LazyPI.sprintFit(PI());
+  if (!fit.valid) return;
+  PI().end = fit.suggestedEnd;
+  commit();
+  toast('PI end moved to a whole sprint boundary', 'ok');
+}
+
+function renderStrip(){
+  const pi = PI();
+  const sprints = LazyPI.buildSprints(pi);
+  const wrap = $('stripWrap');
+  if (!sprints.length) { wrap.innerHTML = ''; return; }
+
+  const now = new Date(); now.setHours(0,0,0,0);
+  const start = LazyPI.parseD(pi.start), endEx = LazyPI.endExclusive(pi);
+  const span = endEx - start;
+
+  const cells = sprints.map(sp => {
+    const isNow  = now >= sp.start && now < sp.end;
+    const isPast = now >= sp.end;
+    // A release landing inside this sprint gets a marker on the cell.
+    const rel = (pi.releases || []).filter(r => {
+      const d = LazyPI.parseD(r.date);
+      return d && d >= sp.start && d < sp.end;
+    });
+    return `<div class="sp${isNow ? ' now' : ''}${isPast ? ' past' : ''}${sp.partial ? ' partial' : ''}"
+                 title="${esc(sp.name)} · ${esc(fmtLong(sp.start))} → ${esc(fmtLong(sp.endInclusive))}${sp.partial ? ' (clipped to the PI end)' : ''}">
+      ${rel.length ? `<span class="sp-rel" title="${esc(rel.map(r => r.name).join(', '))}">🚀</span>` : ''}
+      <div class="sp-name">${esc(sp.name)}</div>
+      <div class="sp-dates">${esc(fmtShort(sp.start))} → ${esc(fmtShort(sp.endInclusive))}</div>
+    </div>`;
+  }).join('');
+
+  // Release milestones float on their own dates, independent of sprint edges.
+  const marks = (pi.releases || []).filter(r => {
+    const d = LazyPI.parseD(r.date);
+    return d && d >= start && d < endEx;
+  }).map(r => {
+    const d = LazyPI.parseD(r.date);
+    const left = Math.max(0, Math.min(100, ((d - start) / span) * 100));
+    return `<span class="mk" style="left:${left.toFixed(2)}%" title="${esc(r.name)} · ${esc(fmtLong(d))}">${esc(fmtShort(d))}</span>`;
+  }).join('');
+
+  wrap.innerHTML = `<div class="strip">${cells}</div><div class="strip-axis">${marks}</div>`;
+}
+
+function onPIChange(){
+  const pi = PI();
+  pi.name      = $('piName').value;
+  pi.start     = $('piStart').value;
+  pi.end       = $('piEnd').value;
+  pi.sprintLen = Number($('sprintLen').value) || 14;
+  LazyPI.save({});
+  renderCockpit(); renderPIWindow(); renderReleases();
+}
+
+/* ═══════════════════════════════════════════════════
+   2. RELEASES
+═══════════════════════════════════════════════════ */
+function renderReleases(){
+  const pi = PI();
+  const body = $('relBody');
+  const sprints = LazyPI.buildSprints(pi);
+
+  // How many features resolve to each release, through the same ladder the
+  // rest of the tool uses — not a raw string equality.
+  const counts = {};
+  (pi.features || []).forEach(f => {
+    const r = LazyPI.matchRelease(f.fixVersion, pi);
+    if (r) counts[r.id] = (counts[r.id] || 0) + 1;
+  });
+
+  if (!(pi.releases || []).length) {
+    body.innerHTML = '<tr><td colspan="5" class="empty-line">No release yet — import a Jira backlog or add one by hand.</td></tr>';
+  } else {
+    body.innerHTML = pi.releases.map((r, i) => {
+      const d = LazyPI.parseD(r.date);
+      let sprintCell = '<span class="count-chip">—</span>';
+      if (d && sprints.length) {
+        const inWindow = d >= sprints[0].start && d < sprints[sprints.length - 1].end;
+        sprintCell = inWindow
+          ? `<span class="count-chip">${esc(sprints[LazyPI.sprintIndexOf(r.date, sprints)].name)}</span>`
+          : '<span class="count-chip" style="color:var(--amber-light)">outside PI</span>';
+      }
+      return `<tr>
+        <td><span class="swatch" style="background:${PALETTE[i % PALETTE.length]}"></span>
+            <input type="text" value="${esc(r.name)}" placeholder="Release name"
+                   data-rel="${esc(r.id)}" data-relfield="name"></td>
+        <td><input type="date" value="${esc(r.date)}" data-rel="${esc(r.id)}" data-relfield="date"></td>
+        <td>${sprintCell}</td>
+        <td><span class="count-chip">${counts[r.id] || 0} feat.</span></td>
+        <td><button class="btn btn-sm btn-ghost btn-danger" onclick="removeRelease('${esc(r.id)}')" title="Remove this release">✕</button></td>
+      </tr>`;
+    }).join('');
+  }
+
+  const dated = (pi.releases || []).filter(r => r.date).length;
+  $('relSub').textContent = (pi.releases || []).length
+    ? `${dated}/${pi.releases.length} dated`
+    : 'Fix version → release date';
+
+  $('relNames').innerHTML = (pi.releases || [])
+    .map(r => `<option value="${esc(r.name)}">`).join('');
+}
+
+function addRelease(){
+  PI().releases.push({ id: LazyPI.uid(), name: '', date: '' });
+  commit();
+}
+
+function removeRelease(id){
+  const pi = PI();
+  const r = pi.releases.find(x => x.id === id);
+  if (!r) return;
+  const orphans = pi.features.filter(f => {
+    const m = LazyPI.matchRelease(f.fixVersion, pi);
+    return m && m.id === id;
+  }).length;
+  if (orphans && !confirm(
+      `${orphans} feature${orphans === 1 ? '' : 's'} point${orphans === 1 ? 's' : ''} at "${r.name || 'this release'}".\n\n` +
+      `The features are kept — they just lose their date until you map them to another release. Remove it?`)) return;
+  pi.releases = pi.releases.filter(x => x.id !== id);
+  commit();
+  if (orphans) toast(`${orphans} feature${orphans === 1 ? '' : 's'} now unmapped`, 'err');
+}
+
+/* Release-table edits: delegated so a re-render never steals focus mid-typing. */
+$('relBody').addEventListener('input', e => {
+  const id = e.target.dataset.rel, field = e.target.dataset.relfield;
+  if (!id || !field) return;
+  const pi = PI();
+  const r = pi.releases.find(x => x.id === id);
+  if (!r) return;
+  if (field === 'name') {
+    // Renaming a release carries its features with it — otherwise every one of
+    // them would silently go unmapped on the next keystroke.
+    const old = r.name;
+    if (old) pi.features.forEach(f => { if (f.fixVersion === old) f.fixVersion = e.target.value; });
+  }
+  r[field] = e.target.value;
+  LazyPI.save({});
+  renderCockpit(); renderStrip(); renderFeatures();
+  $('relNames').innerHTML = pi.releases.map(x => `<option value="${esc(x.name)}">`).join('');
+});
+$('relBody').addEventListener('change', e => {
+  if (e.target.dataset.relfield === 'date') renderReleases();
+});
+
+/* ═══════════════════════════════════════════════════
+   4. FEATURES — the unified editable list (spec §6.3)
+═══════════════════════════════════════════════════ */
+function renderFeatures(){
+  const pi = PI();
+  const body = $('featBody');
+  const q = LazyPI.canon($('featSearch').value || '');
+  const all = LazyPI.featuresSorted(pi);
+  const list = q
+    ? all.filter(f => LazyPI.canon(f.name + ' ' + f.epic + ' ' + f.fixVersion + ' ' + f.key).indexOf(q) !== -1)
+    : all;
+
+  const dupIds = duplicateIds(pi);
+
+  if (!list.length) {
+    body.innerHTML = `<tr><td colspan="9" class="empty-line">${
+      all.length ? 'No feature matches that filter.' : 'No feature yet — import a Jira backlog above, or add one by hand.'
+    }</td></tr>`;
+  } else {
+    body.innerHTML = list.map((f, i) => {
+      const rel = LazyPI.matchRelease(f.fixVersion, pi);
+      let chip;
+      if (!f.fixVersion) {
+        chip = '<span class="rel-chip rel-none">no fix version</span>';
+      } else if (!rel) {
+        chip = `<span class="rel-chip rel-none">unmapped</span>` +
+               `<button class="link-btn" onclick="createReleaseFrom('${esc(f.id)}')">create release</button>`;
+      } else if (!rel.date) {
+        chip = `<span class="rel-chip rel-nodate">${esc(rel.name)} · no date</span>`;
+      } else {
+        chip = `<span class="rel-chip rel-ok">→ ${esc(dstr(rel.date))}</span>`;
+      }
+      const isDup = dupIds.has(f.id);
+      return `<tr class="feat-row${isDup ? ' dup' : ''}" data-id="${esc(f.id)}" data-idx="${i}" draggable="false">
+        <td><span class="drag-dots" draggable="true" title="Drag to reorder">⠿</span></td>
+        <td><span class="feat-num">${f.order + 1}</span></td>
+        <td>
+          <input type="text" value="${esc(f.name)}" placeholder="Feature name" data-f="${esc(f.id)}" data-field="name">
+          ${f.key ? `<div class="count-chip" style="margin-top:5px">${esc(f.key)}</div>` : ''}
+        </td>
+        <td><textarea rows="2" placeholder="What it is" data-f="${esc(f.id)}" data-field="description">${esc(f.description)}</textarea></td>
+        <td><textarea rows="2" placeholder="Why it matters" data-f="${esc(f.id)}" data-field="benefits">${esc((f.benefits || []).join('\n'))}</textarea></td>
+        <td>
+          <input type="text" list="relNames" value="${esc(f.fixVersion)}" placeholder="Fix version" data-f="${esc(f.id)}" data-field="fixVersion">
+          <div>${chip}</div>
+        </td>
+        <td><input type="text" value="${esc(f.epic)}" placeholder="Epic" data-f="${esc(f.id)}" data-field="epic"></td>
+        <td><span class="src-tag ${f.source === 'jira' ? 'src-jira' : 'src-manual'}">${f.source === 'jira' ? 'Jira' : 'Manual'}</span></td>
+        <td><button class="btn btn-sm btn-ghost btn-danger" onclick="removeFeature('${esc(f.id)}')" title="Delete this feature">✕</button></td>
+      </tr>`;
+    }).join('');
+  }
+
+  const jira = all.filter(f => f.source === 'jira').length;
+  const manual = all.length - jira;
+  $('featCount').textContent = q && list.length !== all.length
+    ? `${list.length} / ${all.length}`
+    : `${all.length} feature${all.length === 1 ? '' : 's'}`;
+  $('featSub').textContent = all.length
+    ? `${jira} from Jira · ${manual} manual`
+    : 'Jira + manual, one list';
+
+  renderDupBanner(pi, dupIds);
+}
+
+/**
+ * A manually-added feature that now also exists in the Jira import.
+ * Spec §6.2 keeps both; we only flag the collision so the user decides
+ * (the answer to the §10 open item was "flag it, let me decide").
+ */
+function duplicateIds(pi){
+  const out = new Set();
+  const jiraByName = new Map();
+  pi.features.forEach(f => {
+    if (f.source === 'jira' && f.name) jiraByName.set(LazyPI.canon(f.name), f);
+  });
+  if (!jiraByName.size) return out;
+  pi.features.forEach(f => {
+    if (f.source !== 'manual' || !f.name) return;
+    const hit = jiraByName.get(LazyPI.canon(f.name));
+    if (hit) { out.add(f.id); out.add(hit.id); }
+  });
+  return out;
+}
+
+function renderDupBanner(pi, dupIds){
+  const box = $('dupBanner');
+  if (!dupIds.size) { box.innerHTML = ''; return; }
+  const pairs = [];
+  pi.features.forEach(f => {
+    if (f.source !== 'manual' || !dupIds.has(f.id)) return;
+    const twin = pi.features.find(x => x.source === 'jira' && LazyPI.canon(x.name) === LazyPI.canon(f.name));
+    if (twin) pairs.push({ manual: f, jira: twin });
+  });
+  if (!pairs.length) { box.innerHTML = ''; return; }
+  box.innerHTML = `<div class="banner warn">
+    <b>Possible duplicate${pairs.length === 1 ? '' : 's'}.</b> ${pairs.length} feature${pairs.length === 1 ? '' : 's'}
+    you added by hand now also come${pairs.length === 1 ? 's' : ''} from Jira. Nothing was removed —
+    both rows are highlighted below.
+    <ul>${pairs.map(p => `<li>${esc(p.manual.name)}
+      <button class="link-btn" onclick="mergeDuplicate('${esc(p.manual.id)}','${esc(p.jira.id)}')">merge into the Jira one</button>
+      <button class="link-btn" onclick="keepBoth('${esc(p.manual.id)}')">keep both</button>
+    </li>`).join('')}</ul>
+  </div>`;
+}
+
+/** Keep the Jira row, but carry over anything the manual row said better. */
+function mergeDuplicate(manualId, jiraId){
+  const pi = PI();
+  const m = pi.features.find(f => f.id === manualId);
+  const j = pi.features.find(f => f.id === jiraId);
+  if (!m || !j) return;
+  if (!j.description && m.description) j.description = m.description;
+  if (!(j.benefits || []).length && (m.benefits || []).length) j.benefits = m.benefits.slice();
+  if (!j.epic && m.epic) j.epic = m.epic;
+  if (!j.fixVersion && m.fixVersion) j.fixVersion = m.fixVersion;
+  j.order = Math.min(j.order, m.order);
+  pi.features = pi.features.filter(f => f.id !== manualId);
+  reindex(pi);
+  commit();
+  toast('Merged into the Jira feature', 'ok');
+}
+
+/** Rename the manual one just enough to stop it matching. */
+function keepBoth(manualId){
+  const pi = PI();
+  const m = pi.features.find(f => f.id === manualId);
+  if (!m) return;
+  m.name = m.name + ' (manual)';
+  commit();
+}
+
+function reindex(pi){
+  LazyPI.featuresSorted(pi).forEach((f, i) => { f.order = i; });
+}
+
+function addFeature(){
+  const pi = PI();
+  pi.features.push({
+    id: LazyPI.uid(), key: '', name: '', description: '', benefits: [],
+    fixVersion: (pi.releases[0] || {}).name || '', epic: '', epicKey: '',
+    order: pi.features.length, source: 'manual', offset: 0
+  });
+  reindex(pi);
+  commit();
+  // Focus the row we just created so the user can type straight away.
+  const rows = $('featBody').querySelectorAll('.feat-row');
+  const last = rows[rows.length - 1];
+  if (last) { const i = last.querySelector('input[data-field="name"]'); if (i) i.focus(); }
+}
+
+function removeFeature(id){
+  const pi = PI();
+  pi.features = pi.features.filter(f => f.id !== id);
+  reindex(pi);
+  commit();
+}
+
+function clearJiraFeatures(){
+  const pi = PI();
+  const n = pi.features.filter(f => f.source === 'jira').length;
+  if (!n) return toast('No Jira-sourced feature to clear');
+  if (!confirm(`Remove ${n} Jira-sourced feature${n === 1 ? '' : 's'}?\n\nFeatures you added by hand are kept.`)) return;
+  pi.features = pi.features.filter(f => f.source !== 'jira');
+  reindex(pi);
+  commit();
+  toast(`${n} Jira feature${n === 1 ? '' : 's'} removed`, 'ok');
+}
+
+/** Turn an unmapped fix version into a real release row. */
+function createReleaseFrom(featId){
+  const pi = PI();
+  const f = pi.features.find(x => x.id === featId);
+  if (!f || !f.fixVersion) return;
+  pi.releases.push({ id: LazyPI.uid(), name: f.fixVersion, date: guessReleaseDate(f.fixVersion, pi) });
+  commit();
+  toast(`Release "${f.fixVersion}" created — give it a date`, 'ok');
+  $('panelRel').classList.remove('collapsed');
+}
+
+/** Best guess at a date from the fix version's own month/year tokens. */
+function guessReleaseDate(fixVersion, pi){
+  const fm = LazyPI.parseFixMonth(fixVersion);
+  if (!fm) return '';
+  const start = LazyPI.parseD(pi.start);
+  const year = fm.year != null ? fm.year : (start ? start.getFullYear() : new Date().getFullYear());
+  // Mid-month is a neutral placeholder; the user sets the real date.
+  return LazyPI.isoD(new Date(year, fm.month, 15));
+}
+
+/* Feature edits — delegated, no re-render on keystroke. */
+$('featBody').addEventListener('input', e => {
+  const id = e.target.dataset.f, field = e.target.dataset.field;
+  if (!id || !field) return;
+  const f = PI().features.find(x => x.id === id);
+  if (!f) return;
+
+  if (field === 'benefits') {
+    f.benefits = LazyPI.splitBenefits(e.target.value);
+  } else {
+    f[field] = e.target.value;
+  }
+  // A hand-edited split must survive the next Jira import (spec §6.4 tells the
+  // user to fix bad splits here — wiping them would make that pointless).
+  if (field === 'description' || field === 'benefits') {
+    f.edited = f.edited || {};
+    f.edited[field] = true;
+  }
+  LazyPI.save({});
+
+  if (field === 'fixVersion') {
+    // Only repaint this row's release chip, so the caret stays put.
+    const row = e.target.closest('.feat-row');
+    const cell = row && row.querySelector('td:nth-child(6) > div');
+    if (cell) {
+      const rel = LazyPI.matchRelease(f.fixVersion, PI());
+      cell.innerHTML = !f.fixVersion
+        ? '<span class="rel-chip rel-none">no fix version</span>'
+        : !rel ? `<span class="rel-chip rel-none">unmapped</span><button class="link-btn" onclick="createReleaseFrom('${esc(f.id)}')">create release</button>`
+        : !rel.date ? `<span class="rel-chip rel-nodate">${esc(rel.name)} · no date</span>`
+        : `<span class="rel-chip rel-ok">→ ${esc(dstr(rel.date))}</span>`;
+    }
+    renderReleases();
+  }
+  renderCockpit();
+});
+
+/* Drag to reorder (spec §4 — order is user-controlled). */
+let dragId = null;
+$('featBody').addEventListener('dragstart', e => {
+  const handle = e.target.closest('.drag-dots');
+  if (!handle) { e.preventDefault(); return; }
+  const row = handle.closest('.feat-row');
+  dragId = row.dataset.id;
+  row.classList.add('dragging');
+  e.dataTransfer.effectAllowed = 'move';
+  try { e.dataTransfer.setData('text/plain', dragId); } catch (err) { /* Safari */ }
+});
+$('featBody').addEventListener('dragover', e => {
+  if (!dragId) return;
+  e.preventDefault();
+  const row = e.target.closest('.feat-row');
+  $('featBody').querySelectorAll('.drop-target').forEach(r => r.classList.remove('drop-target'));
+  if (row && row.dataset.id !== dragId) row.classList.add('drop-target');
+});
+$('featBody').addEventListener('drop', e => {
+  if (!dragId) return;
+  e.preventDefault();
+  const row = e.target.closest('.feat-row');
+  if (!row || row.dataset.id === dragId) return;
+  const pi = PI();
+  const ordered = LazyPI.featuresSorted(pi);
+  const from = ordered.findIndex(f => f.id === dragId);
+  const to   = ordered.findIndex(f => f.id === row.dataset.id);
+  if (from < 0 || to < 0) return;
+  ordered.splice(to, 0, ordered.splice(from, 1)[0]);
+  ordered.forEach((f, i) => { f.order = i; });
+  dragId = null;
+  commit();
+});
+$('featBody').addEventListener('dragend', () => {
+  dragId = null;
+  $('featBody').querySelectorAll('.dragging,.drop-target')
+    .forEach(r => r.classList.remove('dragging', 'drop-target'));
+});
+
+/* ═══════════════════════════════════════════════════
+   3. JIRA IMPORT
+
+   Same machinery as the Scope of Work importer: the HTML-disguised-XLS
+   probe, the fuzzy column map, and the month/quarter release matching —
+   widened with the repeated-column handling Jira needs for Fix Version/s.
+═══════════════════════════════════════════════════ */
+const COL_ALIASES = {
+  key:        ['issue key','key','issue id','id'],
+  summary:    ['summary','title','name'],
+  description:['description','desc'],
+  benefits:   ['benefit','benefits','business value','value','label','labels'],
+  fixVersion: ['fix version/s','fix version','fixversion','fix versions','fix-version','fixversions','release'],
+  epic:       ['epic name','epic link','custom field (epic link)','custom field (epic name)','epic'],
+  type:       ['issue type','type','issuetype'],
+};
+
+function normHeader(h){
+  return String(h == null ? '' : h)
+    .replace(/^﻿/, '')      // Jira ships a BOM on the first column
+    .replace(/[;\s]+$/, '')      // …and a trailing ';' on the last one
+    .replace(/^\s+/, '')
+    .toLowerCase();
+}
+
+/** Single-value column: exact, then prefix, then substring. */
+function findColumn(headers, aliases){
+  const low = headers.map(normHeader);
+  let i;
+  for (const a of aliases) { i = low.indexOf(a);                       if (i !== -1) return headers[i]; }
+  for (const a of aliases) { i = low.findIndex(h => h.startsWith(a));  if (i !== -1) return headers[i]; }
+  for (const a of aliases) { i = low.findIndex(h => h.includes(a));    if (i !== -1) return headers[i]; }
+  return null;
+}
+
+/**
+ * Jira emits a multi-value field either as N repeated headers
+ * ("Fix Version/s", "Fix Version/s_1", …) or as one comma-joined cell,
+ * depending on the export path. Both shapes have to work.
+ */
+function findAllColumns(headers, aliases){
+  return headers.filter(h => {
+    const low = normHeader(h);
+    return aliases.some(a => low === a || low.startsWith(a));
+  });
+}
+function multiValue(row, cols){
+  const out = [];
+  cols.forEach(c => {
+    String(row[c] == null ? '' : row[c]).split(/[,;]/).forEach(v => {
+      const t = v.trim();
+      if (t && out.indexOf(t) === -1) out.push(t);
+    });
+  });
+  return out;
+}
+
+/* ── Jira wiki markup → readable plain text ───────────────────── */
+function cleanJira(raw){
+  let s = String(raw == null ? '' : raw);
+  s = s.replace(/\r\n?/g, '\n');
+  s = s.replace(/\{code(:[^}]*)?\}/gi, '').replace(/\{noformat\}/gi, '');
+  s = s.replace(/\{quote\}/gi, '').replace(/\{color[^}]*\}/gi, '').replace(/\{\/?color\}/gi, '');
+  s = s.replace(/\{panel[^}]*\}/gi, '');
+  s = s.replace(/^h[1-6]\.\s*/gim, '');            // headings
+  s = s.replace(/\[([^\]|]+)\|[^\]]+\]/g, '$1');   // [text|url] → text
+  s = s.replace(/^[*#]+\s+/gm, '• ');              // list bullets
+  s = s.replace(/(^|\s)[*_]([^*_\n]{1,120})[*_](?=\s|$)/g, '$1$2'); // *bold* / _italic_
+  s = s.replace(/\n{3,}/g, '\n\n');
+  return s.trim();
+}
+
+/**
+ * Jira bundles the description and the benefit into one field (spec §6.4).
+ * Split on an explicit marker when there is one, then on a user-story
+ * "so that" clause; otherwise everything stays in the description and the
+ * user fixes it in the list.
+ */
+const BENEFIT_MARKER = /^[\s>*_•-]*(?:h[1-6]\.\s*)?[*_]{0,2}\s*(benefits?|b[ée]n[ée]fices?|business\s+value|value|valeur|gains?|why|pourquoi|outcomes?)\s*[*_]{0,2}\s*[:：-]?\s*$/i;
+const BENEFIT_INLINE = /(?:^|\n)[\s>*_•-]*(?:h[1-6]\.\s*)?[*_]{0,2}\s*(?:benefits?|b[ée]n[ée]fices?|business\s+value|value|valeur|gains?)\s*[*_]{0,2}\s*[:：]\s*/i;
+/* "Description" / "Contexte" as a heading of its own says nothing — once the
+   h2. prefix is stripped it would otherwise survive as the first line. */
+const DESC_LABEL = /^[\s>*_•-]*[*_]{0,2}\s*(description|desc|summary|r[ée]sum[ée]|context|contexte|what|quoi)\s*[*_]{0,2}\s*[:：-]?\s*$/i;
+/* Only treat "so that" as a benefit connector inside an actual user story —
+   in ordinary prose it is just a conjunction. */
+const STORY_OPENER  = /\b(as an?|en tant que|i want|i need|je (?:veux|souhaite|dois))\b/i;
+const STORY_CLAUSE  = /\s+(?:so that|in order to|afin de|afin que|pour que|dans le but de)\s+/i;
+
+function stripDescLabel(text){
+  const lines = String(text || '').split('\n');
+  while (lines.length && (!lines[0].trim() || DESC_LABEL.test(lines[0]))) lines.shift();
+  return lines.join('\n').trim();
+}
+
+function splitDescriptionBenefit(raw){
+  const text = cleanJira(raw);
+  if (!text) return { description: '', benefits: [] };
+
+  // 1. A line that IS the marker ("Benefit:", "h2. Business value")
+  const lines = text.split('\n');
+  for (let i = 0; i < lines.length; i++) {
+    if (BENEFIT_MARKER.test(lines[i])) {
+      return {
+        description: stripDescLabel(lines.slice(0, i).join('\n')),
+        benefits: bulletsOf(lines.slice(i + 1).join('\n'))
+      };
+    }
+  }
+  // 2. An inline marker ("Benefit: faster onboarding")
+  const inline = BENEFIT_INLINE.exec(text);
+  if (inline) {
+    return {
+      description: stripDescLabel(text.slice(0, inline.index)),
+      benefits: bulletsOf(text.slice(inline.index + inline[0].length))
+    };
+  }
+  // 3. A user story — the "so that" clause is the benefit.
+  const story = STORY_OPENER.test(text) ? STORY_CLAUSE.exec(text) : null;
+  if (story) {
+    return {
+      description: stripDescLabel(text.slice(0, story.index)),
+      benefits: bulletsOf(text.slice(story.index + story[0].length))
+    };
+  }
+  // 4. No signal — keep it all as description (spec: the user fixes it here).
+  return { description: stripDescLabel(text), benefits: [] };
+}
+
+/** Turn a block into benefit bullets: real bullets first, else lines, else one. */
+function bulletsOf(block){
+  const t = String(block || '').trim();
+  if (!t) return [];
+  const lines = t.split('\n').map(l => l.replace(/^[\s>*#•-]+/, '').trim()).filter(Boolean);
+  if (lines.length > 1) return lines;
+  return LazyPI.splitBenefits(lines[0] || t);
+}
+
+/* ── File reading ─────────────────────────────────────────────── */
+function handleFile(file){
+  clearError();
+  const ext = (file.name.split('.').pop() || '').toLowerCase();
+  const reader = new FileReader();
+  reader.onerror = () => showError('Unable to read the file.');
+
+  if (ext === 'csv') {
+    reader.onload = e => {
+      try {
+        const res = Papa.parse(String(e.target.result), { header: true, skipEmptyLines: true });
+        const rows = res.data || [];
+        if (!rows.length) return showError('The CSV file is empty or unreadable.');
+        ingest(rows, res.meta.fields || Object.keys(rows[0]), file.name);
+      } catch (err) { showError('CSV parse error: ' + (err.message || err)); }
+    };
+    reader.readAsText(file);
+  } else if (ext === 'xlsx' || ext === 'xls') {
+    reader.onload = e => {
+      const buf = e.target.result;
+      // Jira's "Excel" export is often an HTML table with an .xls name.
+      // Detect it the same way the Scope of Work importer does: a leading
+      // '<', with or without a UTF-8 BOM in front.
+      const probe = new Uint8Array(buf, 0, 4);
+      const isHtml = probe[0] === 0x3C ||
+                     (probe[0] === 0xEF && probe[1] === 0xBB && probe[2] === 0xBF && probe[3] === 0x3C);
+      try {
+        if (isHtml) {
+          const rows = parseHtmlTable(new TextDecoder('utf-8').decode(buf));
+          if (!rows.length) return showError('No table found in this file.');
+          ingest(rows, Object.keys(rows[0]), file.name);
+        } else {
+          const wb = XLSX.read(new Uint8Array(buf), { type: 'array' });
+          const sheet = wb.Sheets[wb.SheetNames[0]];
+          const rows = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+          if (!rows.length) return showError('The first sheet is empty.');
+          ingest(rows, Object.keys(rows[0]), file.name);
+        }
+      } catch (err) { showError('Parse error: ' + (err.message || err)); }
+    };
+    reader.readAsArrayBuffer(file);
+  } else {
+    showError('Unsupported file type — use CSV or XLSX.');
+  }
+}
+
+/** Jira's HTML export puts a metadata table before the data one: take the biggest. */
+function parseHtmlTable(html){
+  const doc = new DOMParser().parseFromString(html, 'text/html');
+  const tables = Array.from(doc.querySelectorAll('table'));
+  const table = tables.reduce((best, t) => (t.rows.length > (best ? best.rows.length : 0) ? t : best), null);
+  if (!table) return [];
+  const rows = Array.from(table.querySelectorAll('tr'));
+  if (rows.length < 2) return [];
+  const headers = Array.from(rows[0].querySelectorAll('th,td')).map(c => c.textContent.trim());
+  return rows.slice(1).map(row => {
+    const cells = Array.from(row.querySelectorAll('td')).map(c => c.textContent.trim());
+    const obj = {};
+    headers.forEach((h, i) => { obj[h] = cells[i] !== undefined ? cells[i] : ''; });
+    return obj;
+  }).filter(r => Object.values(r).some(v => v));
+}
+
+/* ── Reconciliation (spec §6.1 / §6.2) ────────────────────────── */
+function ingest(rows, headers, fileName){
+  const pi = PI();
+  const cKey   = findColumn(headers, COL_ALIASES.key);
+  const cSum   = findColumn(headers, COL_ALIASES.summary);
+  const cDesc  = findColumn(headers, COL_ALIASES.description);
+  const cBen   = findColumn(headers, COL_ALIASES.benefits);
+  const cEpic  = findColumn(headers, COL_ALIASES.epic);
+  const cType  = findColumn(headers, COL_ALIASES.type);
+  const cFixs  = findAllColumns(headers, COL_ALIASES.fixVersion);
+
+  if (!cSum && !cDesc) {
+    return showError('No "Summary" or "Description" column found — nothing to name the features with. Columns seen: ' + headers.join(', '));
+  }
+
+  // Epics are the grouping, not the features. Map key → name so a child
+  // carrying only an Epic Link still gets a readable epic name.
+  const epicNames = {};
+  if (cType && cKey) {
+    rows.forEach(r => {
+      if (String(r[cType] || '').trim().toLowerCase() === 'epic') {
+        const k = String(r[cKey] || '').trim();
+        const n = String((cSum ? r[cSum] : '') || '').trim();
+        if (k && n) epicNames[k] = n;
+      }
+    });
+  }
+
+  const seenKeys = {};
+  const imported = [];
+  rows.forEach(r => {
+    if (cType && String(r[cType] || '').trim().toLowerCase() === 'epic') return;
+
+    const key   = cKey ? String(r[cKey] || '').trim() : '';
+    const name  = String((cSum ? r[cSum] : '') || '').trim();
+    const blob  = cDesc ? String(r[cDesc] || '') : '';
+    if (!name && !key && !blob) return;
+
+    // Benefits: from their own column when the export has one — the Scope of
+    // Work convention (a `benefit`/`label` column, split on , ; |). Only when
+    // there isn't one do we split the description blob (spec §6.4).
+    let description, benefits;
+    const fromCol = cBen ? LazyPI.splitBenefits(r[cBen]) : [];
+    if (fromCol.length) {
+      description = cleanJira(blob);
+      benefits = fromCol;
+    } else {
+      const split = splitDescriptionBenefit(blob);
+      description = split.description;
+      benefits = split.benefits;
+    }
+
+    let epic = cEpic ? String(r[cEpic] || '').trim() : '';
+    const epicKey = epic && epicNames[epic] ? epic : '';
+    if (epicKey) epic = epicNames[epicKey];
+
+    const fixes = multiValue(r, cFixs);
+    // An issue in several fix versions rides several release trains, so it
+    // appears once per release — the same rule the timeline already uses.
+    const versions = fixes.length ? fixes : [''];
+    versions.forEach((fv, n) => {
+      const dedupKey = (key || name) + '::' + fv;
+      if (seenKeys[dedupKey]) return;
+      seenKeys[dedupKey] = 1;
+      imported.push({
+        id: LazyPI.uid(), key: key, name: name || key || 'Untitled',
+        description: description, benefits: benefits.slice(),
+        fixVersion: fv, epic: epic, epicKey: epicKey,
+        order: 0, source: 'jira', offset: 0
+      });
+    });
+  });
+
+  if (!imported.length) {
+    return showError('No importable row found in this file.');
+  }
+
+  // The newest export is the source of truth for Jira-sourced features;
+  // manual ones survive untouched.
+  const previous = pi.features.filter(f => f.source === 'jira');
+  const manual   = pi.features.filter(f => f.source !== 'jira');
+  const prevBy   = new Map();
+  previous.forEach(f => prevBy.set((f.key || f.name) + '::' + f.fixVersion, f));
+
+  const keepEdits = $('optKeepEdits').checked;
+  let added = 0, kept = 0, movedVersion = 0, editsKept = 0;
+
+  imported.forEach((f, i) => {
+    const old = prevBy.get((f.key || f.name) + '::' + f.fixVersion);
+    if (old) {
+      kept++;
+      f.id = old.id;
+      f.offset = old.offset || 0;
+      f.order = Number.isFinite(old.order) ? old.order : i;
+      if (keepEdits && old.edited) {
+        f.edited = old.edited;
+        if (old.edited.description && old.description) { f.description = old.description; editsKept++; }
+        if (old.edited.benefits && (old.benefits || []).length) { f.benefits = old.benefits.slice(); editsKept++; }
+      }
+    } else {
+      // Same issue, different fix version → it moved release, not new work.
+      const moved = previous.find(p => p.key && f.key && p.key === f.key);
+      if (moved) {
+        movedVersion++;
+        f.offset = moved.offset || 0;
+        if (keepEdits && moved.edited) {
+          f.edited = moved.edited;
+          if (moved.edited.description && moved.description) { f.description = moved.description; editsKept++; }
+          if (moved.edited.benefits && (moved.benefits || []).length) { f.benefits = moved.benefits.slice(); editsKept++; }
+        }
+      } else {
+        added++;
+      }
+      f.order = manual.length + previous.length + i;
+    }
+  });
+
+  const removed = previous.filter(p =>
+    !imported.some(f => (f.key || f.name) === (p.key || p.name))).length;
+
+  pi.features = manual.concat(imported);
+  reindex(pi);
+  pi.fileName = fileName || '';
+
+  // Any fix version with no release yet becomes one, undated.
+  let newReleases = 0;
+  if ($('optAutoRelease').checked) {
+    imported.forEach(f => {
+      if (!f.fixVersion) return;
+      if (LazyPI.matchRelease(f.fixVersion, pi)) return;
+      pi.releases.push({ id: LazyPI.uid(), name: f.fixVersion, date: guessReleaseDate(f.fixVersion, pi) });
+      newReleases++;
+    });
+  }
+
+  commit();
+  renderImportReport({
+    fileName, total: imported.length, added, kept, movedVersion, removed,
+    manual: manual.length, newReleases, editsKept,
+    noFix: imported.filter(f => !f.fixVersion).length,
+    unmapped: imported.filter(f => f.fixVersion && !LazyPI.matchRelease(f.fixVersion, pi)).length,
+    undated: pi.releases.filter(r => !r.date).length,
+    columns: {
+      key: cKey, summary: cSum, description: cDesc, benefits: cBen,
+      epic: cEpic, type: cType, fixVersion: cFixs.join(', ')
+    }
+  });
+  toast(`${imported.length} feature${imported.length === 1 ? '' : 's'} imported`, 'ok');
+  $('panelFeat').classList.remove('collapsed');
+}
+
+function renderImportReport(r){
+  const bits = [];
+  bits.push(`<b>${r.total}</b> Jira feature${r.total === 1 ? '' : 's'} in this import`);
+  if (r.added)        bits.push(`<b>${r.added}</b> new`);
+  if (r.kept)         bits.push(`<b>${r.kept}</b> unchanged`);
+  if (r.movedVersion) bits.push(`<b>${r.movedVersion}</b> changed fix version`);
+  if (r.removed)      bits.push(`<b>${r.removed}</b> no longer in Jira, dropped`);
+  if (r.manual)       bits.push(`<b>${r.manual}</b> manual feature${r.manual === 1 ? '' : 's'} kept`);
+  if (r.editsKept)    bits.push(`<b>${r.editsKept}</b> hand-edited field${r.editsKept === 1 ? '' : 's'} preserved`);
+  if (r.newReleases)  bits.push(`<b>${r.newReleases}</b> release${r.newReleases === 1 ? '' : 's'} created`);
+
+  const warns = [];
+  if (r.noFix)    warns.push(`${r.noFix} feature${r.noFix === 1 ? ' has' : 's have'} no fix version — give them one to place them on the timeline.`);
+  if (r.unmapped) warns.push(`${r.unmapped} feature${r.unmapped === 1 ? "'s fix version doesn't" : "s' fix versions don't"} match any release.`);
+  if (r.undated)  warns.push(`${r.undated} release${r.undated === 1 ? ' has' : 's have'} no date yet — features can't be positioned without one.`);
+
+  const cols = Object.keys(r.columns)
+    .filter(k => r.columns[k])
+    .map(k => `${k} ← <code>${esc(r.columns[k])}</code>`).join(' · ');
+
+  $('importReport').innerHTML =
+    `<div class="banner info">${esc(r.fileName || 'File')} — ${bits.join(' · ')}.
+       <div style="margin-top:8px;font-size:11px;color:var(--muted)">Columns matched: ${cols || 'none'}</div>
+     </div>` +
+    (warns.length ? `<div class="banner warn"><b>Worth a look.</b><ul>${warns.map(w => `<li>${esc(w)}</li>`).join('')}</ul></div>` : '');
+  $('importSub').textContent = r.fileName || 'CSV or XLSX export';
+}
+
+/* Drag & drop + file picker */
+(function wireFileInputs(){
+  const zone = $('dropZone'), input = $('fileInput');
+  input.addEventListener('change', e => { if (e.target.files[0]) handleFile(e.target.files[0]); e.target.value = ''; });
+  ['dragenter','dragover'].forEach(ev => zone.addEventListener(ev, e => {
+    e.preventDefault(); e.stopPropagation(); zone.classList.add('drag');
+  }));
+  ['dragleave','drop'].forEach(ev => zone.addEventListener(ev, e => {
+    e.preventDefault(); e.stopPropagation(); zone.classList.remove('drag');
+  }));
+  zone.addEventListener('drop', e => { if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]); });
+})();
+
+/* ═══════════════════════════════════════════════════
+   EXCEL ROUND-TRIP (spec §8)
+   Export every part of the PI and read it straight back.
+═══════════════════════════════════════════════════ */
+const XLS_SHEETS = { pi: 'PI', releases: 'Releases', features: 'Features', testing: 'Testing', off: 'Time off' };
+
+function exportExcel(){
+  const pi = PI();
+  const fit = LazyPI.sprintFit(pi);
+  const wb = XLSX.utils.book_new();
+
+  const meta = [
+    ['Field', 'Value'],
+    ['PI name', pi.name || ''],
+    ['Start date', pi.start || ''],
+    ['End date (last day)', pi.end || ''],
+    ['Sprint length (days)', pi.sprintLen || 14],
+    ['Total days', fit.valid ? fit.totalDays : ''],
+    ['Sprints', fit.valid ? fit.sprintCount : ''],
+    ['Whole sprints', fit.valid ? (fit.whole ? 'yes' : 'no — ' + fit.remainderDays + ' day(s) over') : ''],
+    ['Exported', new Date().toISOString().slice(0, 10)],
+  ];
+  const wsPI = XLSX.utils.aoa_to_sheet(meta);
+  wsPI['!cols'] = [{ wch: 22 }, { wch: 40 }];
+  XLSX.utils.book_append_sheet(wb, wsPI, XLS_SHEETS.pi);
+
+  const rel = [['Release name', 'Date']].concat(
+    (pi.releases || []).map(r => [r.name || '', r.date || '']));
+  const wsRel = XLSX.utils.aoa_to_sheet(rel);
+  wsRel['!cols'] = [{ wch: 34 }, { wch: 14 }];
+  XLSX.utils.book_append_sheet(wb, wsRel, XLS_SHEETS.releases);
+
+  const feat = [['Order', 'Key', 'Name', 'Description', 'Benefit', 'Fix version', 'Epic', 'Epic key', 'Source', 'Release date']].concat(
+    LazyPI.featuresSorted(pi).map(f => {
+      const r = LazyPI.matchRelease(f.fixVersion, pi);
+      return [
+        f.order + 1, f.key || '', f.name || '', f.description || '',
+        (f.benefits || []).join('\n'), f.fixVersion || '', f.epic || '',
+        f.epicKey || '', f.source || 'manual', (r && r.date) || ''
+      ];
+    }));
+  const wsFeat = XLSX.utils.aoa_to_sheet(feat);
+  wsFeat['!cols'] = [{ wch: 6 },{ wch: 12 },{ wch: 34 },{ wch: 52 },{ wch: 34 },{ wch: 24 },{ wch: 22 },{ wch: 12 },{ wch: 9 },{ wch: 13 }];
+  XLSX.utils.book_append_sheet(wb, wsFeat, XLS_SHEETS.features);
+
+  const test = [['Label', 'Start', 'End']].concat(
+    (pi.testing || []).map(t => [t.label || '', t.start || '', t.end || '']));
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(test), XLS_SHEETS.testing);
+
+  const off = [['Who', 'Reason', 'Start', 'End']].concat(
+    (pi.off || []).map(o => [o.name || '', o.reason || '', o.start || '', o.end || '']));
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(off), XLS_SHEETS.off);
+
+  const slug = (pi.name || 'pi').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'pi';
+  XLSX.writeFile(wb, `lazypo_${slug}_${(pi.start || 'draft')}.xlsx`);
+  toast('PI exported to Excel', 'ok');
+}
+
+/** Read a sheet back as objects, tolerating renamed/reordered columns. */
+function sheetRows(wb, name){
+  const ws = wb.Sheets[name];
+  if (!ws) return [];
+  return XLSX.utils.sheet_to_json(ws, { defval: '' });
+}
+/** Excel gives dates back as serial numbers when the cell was formatted. */
+function cellDate(v){
+  if (v == null || v === '') return '';
+  if (typeof v === 'number' && isFinite(v)) {
+    const d = XLSX.SSF ? XLSX.SSF.parse_date_code(v) : null;
+    if (d && d.y) return LazyPI.isoD(new Date(d.y, d.m - 1, d.d));
+  }
+  const s = String(v).trim();
+  const iso = /^(\d{4})-(\d{2})-(\d{2})/.exec(s);
+  if (iso) return iso[0];
+  const d = new Date(s);
+  return isNaN(d) ? '' : LazyPI.isoD(d);
+}
+function pick(row, names){
+  const keys = Object.keys(row);
+  for (const n of names) {
+    const k = keys.find(k2 => LazyPI.canon(k2) === LazyPI.canon(n));
+    if (k) return row[k];
+  }
+  for (const n of names) {
+    const k = keys.find(k2 => LazyPI.canon(k2).indexOf(LazyPI.canon(n)) !== -1);
+    if (k) return row[k];
+  }
+  return '';
+}
+
+function importExcel(file){
+  clearError();
+  const reader = new FileReader();
+  reader.onerror = () => showError('Unable to read the file.');
+  reader.onload = e => {
+    let wb;
+    try { wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array' }); }
+    catch (err) { return showError('Not a readable Excel file: ' + (err.message || err)); }
+
+    const names = wb.SheetNames.map(n => LazyPI.canon(n));
+    if (names.indexOf(LazyPI.canon(XLS_SHEETS.pi)) === -1 &&
+        names.indexOf(LazyPI.canon(XLS_SHEETS.features)) === -1) {
+      return showError('This workbook has no "PI" or "Features" sheet — is it a LazyPO PI export?');
+    }
+    const sheetNamed = want => wb.SheetNames.find(n => LazyPI.canon(n) === LazyPI.canon(want));
+
+    const next = LazyPI.DEFAULT();
+
+    // PI sheet is a Field/Value pair list.
+    const metaRows = sheetRows(wb, sheetNamed(XLS_SHEETS.pi));
+    metaRows.forEach(row => {
+      const f = LazyPI.canon(pick(row, ['Field']));
+      const v = pick(row, ['Value']);
+      if (f.indexOf('pi name') !== -1)          next.name = String(v || '');
+      else if (f.indexOf('start') !== -1)       next.start = cellDate(v);
+      else if (f.indexOf('end date') !== -1)    next.end = cellDate(v);
+      else if (f.indexOf('sprint length') !== -1) next.sprintLen = Number(v) || 14;
+    });
+
+    sheetRows(wb, sheetNamed(XLS_SHEETS.releases)).forEach(row => {
+      const name = String(pick(row, ['Release name', 'Name', 'Release']) || '').trim();
+      const date = cellDate(pick(row, ['Date', 'Release date']));
+      if (name || date) next.releases.push({ id: LazyPI.uid(), name: name, date: date });
+    });
+
+    sheetRows(wb, sheetNamed(XLS_SHEETS.features)).forEach((row, i) => {
+      const name = String(pick(row, ['Name', 'Feature', 'Summary']) || '').trim();
+      const key  = String(pick(row, ['Key', 'Issue key']) || '').trim();
+      if (!name && !key) return;
+      const src = LazyPI.canon(pick(row, ['Source']));
+      next.features.push({
+        id: LazyPI.uid(), key: key, name: name || key,
+        description: String(pick(row, ['Description']) || ''),
+        benefits: LazyPI.splitBenefits(pick(row, ['Benefit', 'Benefits'])),
+        fixVersion: String(pick(row, ['Fix version', 'Fixversion', 'Release']) || '').trim(),
+        epic: String(pick(row, ['Epic']) || '').trim(),
+        epicKey: String(pick(row, ['Epic key']) || '').trim(),
+        order: Number(pick(row, ['Order'])) - 1 >= 0 ? Number(pick(row, ['Order'])) - 1 : i,
+        source: src === 'jira' ? 'jira' : 'manual',
+        offset: 0
+      });
+    });
+
+    sheetRows(wb, sheetNamed(XLS_SHEETS.testing)).forEach(row => {
+      const label = String(pick(row, ['Label']) || '').trim();
+      const start = cellDate(pick(row, ['Start']));
+      if (label || start) next.testing.push({ id: LazyPI.uid(), label: label, start: start, end: cellDate(pick(row, ['End'])) });
+    });
+
+    sheetRows(wb, sheetNamed(XLS_SHEETS.off)).forEach(row => {
+      const who = String(pick(row, ['Who', 'Name']) || '').trim();
+      const start = cellDate(pick(row, ['Start']));
+      if (who || start) next.off.push({
+        id: LazyPI.uid(), name: who, reason: String(pick(row, ['Reason']) || '').trim(),
+        start: start, end: cellDate(pick(row, ['End']))
+      });
+    });
+
+    if (!confirm(
+        `Replace the current PI with this file?\n\n` +
+        `${next.name || 'Unnamed PI'} · ${next.start || '?'} → ${next.end || '?'}\n` +
+        `${next.releases.length} release(s) · ${next.features.length} feature(s)\n\n` +
+        `Your current PI will be overwritten.`)) return;
+
+    LazyPI.replace(next);
+    renderAll();
+    toast(`PI imported — ${next.features.length} feature${next.features.length === 1 ? '' : 's'}`, 'ok');
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+$('xlsInput').addEventListener('change', e => {
+  if (e.target.files[0]) importExcel(e.target.files[0]);
+  e.target.value = '';
+});
+
+/* ═══════════════════════════════════════════════════
+   SYNC STATUS
+═══════════════════════════════════════════════════ */
+function setSync(text, kind){
+  const el = $('syncStatus');
+  el.textContent = text;
+  el.className = 'topbar-status' + (kind ? ' ' + kind : '');
+}
+
+LazyPI.onChange((pi, detail) => {
+  if (detail.source === 'remote') { setSync('Synced', 'ok'); renderAll(); }
+  else if (detail.source === 'synced') setSync('Synced', 'ok');
+  else if (detail.source === 'error')  setSync(detail.message || 'This device only', 'warn');
+  else if (detail.source === 'local')  setSync('This device only', 'warn');
+  else setSync('Saving…');
+});
+
+/* ═══════════════════════════════════════════════════
+   RENDER + BOOT
+═══════════════════════════════════════════════════ */
+function renderAll(){
+  renderCockpit();
+  renderPIWindow();
+  renderReleases();
+  renderFeatures();
+}
+
+renderAll();
+
+/* Refresh the cockpit if the page is left open across midnight. */
+setInterval(renderCockpit, 60000);
+
+/* ═══════════ DEMO (admin-only, injected by demo.js) ═══════════
+   Declared in this same scope so it can call the const-bound helpers
+   above — a separate <script> block would see none of them. */
+window.loadDemoData = function(){
+  const now = new Date();
+  const start = new Date(now.getFullYear(), now.getMonth(), 1);
+  const startIso = LazyPI.isoD(start);
+  const endIso   = LazyPI.isoD(LazyPI.addDays(start, 84 - 1));   // 6 whole sprints
+
+  const relDates = [24, 52, 80].map(n => LazyPI.isoD(LazyPI.addDays(start, n)));
+  const relNames = relDates.map(d =>
+    'Monthly Release ' + new Date(d + 'T00:00:00').toLocaleDateString('en-GB', { month: 'long', year: 'numeric' }));
+
+  const demo = LazyPI.DEFAULT();
+  demo.name = 'PI ' + start.getFullYear() + '.' + (Math.floor(start.getMonth() / 3) + 1);
+  demo.start = startIso;
+  demo.end = endIso;
+  demo.sprintLen = 14;
+  demo.fileName = 'demo_jira_extract.xlsx';
+  demo.releases = relNames.map((n, i) => ({ id: LazyPI.uid(), name: n, date: relDates[i] }));
+
+  const rows = [
+    ['CRM-1201','Digital signature on the mandate','The client signs the mandate in-session instead of printing, scanning and mailing it back.','↗ Onboarding completed in one sitting|↘ 4 days of round-trip removed','Onboarding revamp',0],
+    ['CRM-1202','Bulk document upload','Drag a folder of KYC documents in one go rather than one file at a time.','↗ 6× faster file intake|↘ Support tickets on uploads','Onboarding revamp',0],
+    ['CRM-1210','AML alert triage screen','A single queue for compliance officers, sorted by risk score.','↗ Alerts cleared same-day|↘ Manual spreadsheet triage','Compliance',0],
+    ['CRM-1303','MiFID suitability questionnaire v2','Rewritten questionnaire with conditional branching and a saved draft.','↗ Completion rate|↘ Advisor call-backs','Compliance',1],
+    ['CRM-1310','Portfolio rebalancing engine','Automatic drift detection against the model portfolio, with a one-click rebalance proposal.','↗ Portfolios kept in band|↘ Time spent on manual reviews','Advisory tooling',1],
+    ['CRM-1315','Advisor dashboard widgets','Configurable tiles: AUM, pipeline, upcoming reviews.','↗ Advisor self-service','Advisory tooling',1],
+    ['CRM-1402','Instant payment rails','SEPA Instant on outgoing transfers under €15k.','↗ Payments land in seconds|↘ Treasury float','Payments',2],
+    ['CRM-1408','Statement PDF redesign','A statement clients can actually read, with the fee breakdown up front.','↗ Fee transparency|↘ Statement queries','Payments',2],
+    ['CRM-1412','Audit trail export','One-click export of the full audit trail for a client file.','↗ Audit readiness','Compliance',2],
+  ];
+  demo.features = rows.map((r, i) => ({
+    id: LazyPI.uid(), key: r[0], name: r[1], description: r[2],
+    benefits: String(r[3]).split('|'), fixVersion: relNames[r[5]],
+    epic: r[4], epicKey: '', order: i, source: i % 4 === 3 ? 'manual' : 'jira', offset: 0
+  }));
+
+  demo.testing = [
+    { id: LazyPI.uid(), label: 'UAT round 1',     start: LazyPI.isoD(LazyPI.addDays(start,17)), end: LazyPI.isoD(LazyPI.addDays(start,22)) },
+    { id: LazyPI.uid(), label: 'Regression',      start: LazyPI.isoD(LazyPI.addDays(start,45)), end: LazyPI.isoD(LazyPI.addDays(start,50)) },
+    { id: LazyPI.uid(), label: 'Dress rehearsal', start: LazyPI.isoD(LazyPI.addDays(start,74)), end: LazyPI.isoD(LazyPI.addDays(start,78)) },
+  ];
+  demo.off = [
+    { id: LazyPI.uid(), name: 'Simon',  reason: 'Holiday',  start: LazyPI.isoD(LazyPI.addDays(start,30)), end: LazyPI.isoD(LazyPI.addDays(start,41)) },
+    { id: LazyPI.uid(), name: 'Marie',  reason: 'Training', start: LazyPI.isoD(LazyPI.addDays(start,12)), end: LazyPI.isoD(LazyPI.addDays(start,14)) },
+    { id: LazyPI.uid(), name: 'Thomas', reason: 'Off-site', start: LazyPI.isoD(LazyPI.addDays(start,51)), end: LazyPI.isoD(LazyPI.addDays(start,53)) },
+  ];
+
+  LazyPI.replace(demo);
+  renderAll();
+  toast('Demo PI loaded', 'ok');
+};
+</script>
+
+<script src="popup.js"></script>
+<script src="sidebar.js"></script>
+<script src="supabase.min.js"></script>
+<script src="auth.js"></script>
+<script>document.addEventListener("DOMContentLoaded", function(){ LazyAuth.requireAuth(); });</script>
+<script src="demo.js"></script>
+<script src="focusfm.js"></script>
+</body>
+</html>

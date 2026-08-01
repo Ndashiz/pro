@@ -22,6 +22,13 @@
     },
     { divider: true },
     {
+      id: 'pi',
+      icon: '🎯',
+      label: 'PI Settings',
+      url: 'pi.html',
+      desc: 'Dates, sprints, releases and features — the definition every other tool reads.'
+    },
+    {
       id: 'scope',
       icon: '✉️',
       label: 'Scope of Work',
@@ -555,7 +562,7 @@
   // Scripts that must NOT be re-executed on navigation (already live in memory)
   const SPA_SKIP = [
     'sidebar.js','auth.js','focusfm.js','session.js',
-    'countdown.js','popup.js','demo.js','apis.js','feedback_modal.js',
+    'countdown.js','popup.js','demo.js','apis.js','feedback_modal.js','pi.js',
     'supabase-js','three.r134','vanta.net',
   ];
 

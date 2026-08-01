@@ -265,6 +265,10 @@
     <span class="topbar-status">Local · no data sent</span>
     <div class="topbar-spacer"></div>
     <span id="topbarFilename" class="topbar-filename"></span>
+    <a class="btn" href="pi.html" title="The PI is defined once, in PI Settings — this timeline reads it">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r="1"/></svg>
+      PI Settings
+    </a>
     <button class="btn" onclick="exportPDF()" title="Download the timeline as a PDF">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6M12 18v-6M9 15l3 3 3-3"/></svg>
       Export PDF
@@ -444,6 +448,7 @@
 <script src="papaparse.min.js"></script>
 <script src="xlsx.min.js"></script>
 <script src="html2pdf.min.js"></script>
+<script src="pi.js"></script>
 <script>
 /* ═══════════════════════════════════════════════════════════════
    LazyPO — PI Timeline / Gantt
@@ -460,6 +465,12 @@
 const STORE_KEY = 'lazypo_gantt_v1';
 const DAY = 86400000;
 
+/* The PI now lives in one place (pi.js / LazyPI) and this page is one of its
+   readers. The standalone export strips every <script src>, so LazyPI is
+   simply absent there — every use below is guarded and the export keeps
+   working exactly as it did, off the STATE frozen into the file. */
+const HAS_PI = typeof LazyPI !== 'undefined';
+
 const STATE = {
   pi:        { start: '', end: '' },
   sprintLen: 14,
@@ -472,6 +483,27 @@ const STATE = {
 };
 
 const PALETTE = ['#60a5fa','#22c55e','#f59e0b','#8b5cf6','#ec4899','#14b8a6','#f97316','#a3e635'];
+
+/* Colour features by epic when the PI carries epics, so a bar's colour says
+   what body of work it belongs to rather than which release it rides. Falls
+   back to the release colour — which is all this page had before, and all an
+   extract without an Epic column can give us. */
+function epicList(){
+  const seen = [], out = [];
+  STATE.features.forEach(f => {
+    const e = (f.epic || '').trim();
+    if (!e) return;
+    const k = e.toLowerCase();
+    if (seen.indexOf(k) === -1) { seen.push(k); out.push(e); }
+  });
+  return out;
+}
+function featureColor(f, releaseColor){
+  const e = (f.epic || '').trim();
+  if (!e) return releaseColor;
+  const i = epicList().findIndex(x => x.toLowerCase() === e.toLowerCase());
+  return i < 0 ? releaseColor : PALETTE[i % PALETTE.length];
+}
 
 let _uid = 0;
 const uid = () => 'i' + (++_uid) + '_' + (STATE.features.length + STATE.releases.length);
@@ -504,8 +536,16 @@ function esc(s){
    Sprints tile the PI window from the start date, one every
    `sprintLen` days. The last sprint is clipped to the PI end if
    the window doesn't divide evenly.                            */
+/* `pi.end` is the LAST DAY of the increment, inclusive — the exclusive bound
+   used for tiling and for the axis is the day after it. Sharing that
+   convention with pi.js is what keeps the two views on the same grid. */
+function piEndBound(){
+  const e = parseD(STATE.pi.end);
+  return e ? addDays(e, 1) : null;
+}
+
 function buildSprints(){
-  const s = parseD(STATE.pi.start), e = parseD(STATE.pi.end);
+  const s = parseD(STATE.pi.start), e = piEndBound();
   if (!s || !e || e <= s) return [];
   const len = STATE.sprintLen || 14;
   const out = [];
@@ -521,7 +561,7 @@ function buildSprints(){
 
 /* Position of a date on the 0-100% axis of the PI window. */
 function pct(d){
-  const s = parseD(STATE.pi.start), e = parseD(STATE.pi.end);
+  const s = parseD(STATE.pi.start), e = piEndBound();
   if (!s || !e || e <= s) return 0;
   return ((d - s) / (e - s)) * 100;
 }
@@ -547,11 +587,63 @@ function defaultSprintIndex(sprints, releaseDate){
 /* ══════════ PERSISTENCE ══════════ */
 function save(){
   try { localStorage.setItem(STORE_KEY, JSON.stringify(STATE)); } catch (e) { /* quota */ }
+  pushToPI();
 }
+
+/* STATE → the shared PI. Only the fields this page actually owns are written
+   back; description, benefits and order belong to pi.html and must survive a
+   round-trip through here untouched. */
+function pushToPI(){
+  if (!HAS_PI || LazyPI.isReadOnly()) return;
+  const pi = LazyPI.get();
+  pi.start     = STATE.pi.start;
+  pi.end       = STATE.pi.end;
+  pi.sprintLen = STATE.sprintLen;
+  pi.releases  = STATE.releases.map(r => ({ id: r.id, name: r.name, date: r.date }));
+  pi.testing   = STATE.testing;
+  pi.off       = STATE.off;
+  // Match on id first (a rename keeps the id), then on issue key + fix version.
+  const byId = {};
+  pi.features.forEach(f => { byId[f.id] = f; });
+  STATE.features.forEach(f => {
+    const t = byId[f.id];
+    if (!t) return;
+    t.name       = f.title;
+    t.fixVersion = f.fixVersion;
+    t.offset     = f.offset || 0;
+  });
+  LazyPI.save({});
+}
+
+/* The shared PI → STATE. gantt calls a feature's label `title`; the PI calls
+   it `name`. Everything else lines up field for field. */
+function pullFromPI(){
+  if (!HAS_PI) return false;
+  const pi = LazyPI.get();
+  if (!pi.start && !pi.end && !pi.features.length && !pi.releases.length) return false;
+  STATE.pi        = { start: pi.start, end: pi.end };
+  STATE.sprintLen = pi.sprintLen || 14;
+  STATE.fileName  = pi.fileName || STATE.fileName;
+  STATE.releases  = pi.releases.map(r => ({ id: r.id, name: r.name, date: r.date }));
+  STATE.features  = LazyPI.featuresSorted(pi)
+    .filter(f => f.fixVersion)               // no fix version → nothing to place it against
+    .map(f => ({
+      id: f.id, key: f.key, title: f.name,
+      fixVersion: f.fixVersion, epic: f.epic || '', offset: f.offset || 0
+    }));
+  STATE.testing = pi.testing || [];
+  STATE.off     = pi.off || [];
+  return true;
+}
+
 function load(){
   let raw = null;
   try { raw = JSON.parse(localStorage.getItem(STORE_KEY) || 'null'); } catch (e) { /* corrupt */ }
   if (raw && raw.pi) Object.assign(STATE, raw);
+
+  // The shared PI wins over this page's own cache — it is the source of truth.
+  const fromPI = pullFromPI();
+
   if (!STATE.pi.start || !STATE.pi.end) {
     // Default: a 3-month PI starting at the beginning of this month.
     const now = new Date();
@@ -560,6 +652,10 @@ function load(){
     STATE.pi.end   = isoD(new Date(s.getFullYear(), s.getMonth() + 3, 0));
   }
   STATE.sprintLen = STATE.sprintLen || 14;
+
+  // Nothing in the PI yet but plenty here? Seed it, so the first visit to
+  // pi.html shows this page's data instead of an empty form.
+  if (HAS_PI && !fromPI && (STATE.features.length || STATE.releases.length)) pushToPI();
 }
 
 /* ══════════ FILE IMPORT ══════════ */
@@ -966,9 +1062,10 @@ function renderChart(){
         const i = Math.max(0, Math.min(sprints.length - 1, base + (f.offset || 0)));
         const sp = sprints[i];
         const l = pct(sp.start), w = pct(sp.end) - l;
+        const fc = featureColor(f, c);
         const bar =
-          '<div class="bar feature" style="left:' + l + '%;width:' + w + '%;background:' + c + '2e;color:' + c + '" title="' +
-            esc((f.key ? f.key + ' — ' : '') + f.title + '\n' + r.name + ' → ' + fmtLong(relDate) + '\nDelivered in ' + sp.name) + '">' +
+          '<div class="bar feature" style="left:' + l + '%;width:' + w + '%;background:' + fc + '2e;color:' + fc + '" title="' +
+            esc((f.key ? f.key + ' — ' : '') + f.title + (f.epic ? '\nEpic: ' + f.epic : '') + '\n' + r.name + ' → ' + fmtLong(relDate) + '\nDelivered in ' + sp.name) + '">' +
             '<span class="shift l" onclick="shiftFeature(\'' + f.id + '\',-1)" title="One sprint earlier">‹</span>' +
             esc(f.title) +
             '<span class="shift r" onclick="shiftFeature(\'' + f.id + '\',1)" title="One sprint later">›</span>' +
@@ -1116,8 +1213,9 @@ function buildExportHTML(){
   doc.querySelectorAll('[class^="sb-"], [class*=" sb-"]').forEach(n => n.remove());
   doc.querySelectorAll('#_lazypo_demo_fab').forEach(n => n.remove());
 
-  // 3. Nothing to navigate back to; the logo becomes a plain heading.
-  doc.querySelectorAll('a.back-link').forEach(n => n.remove());
+  // 3. Nothing to navigate back to; the logo becomes a plain heading. The
+  //    PI Settings link goes with them — offline there is no LazyPO to open.
+  doc.querySelectorAll('a.back-link, a[href="pi.html"]').forEach(n => n.remove());
   doc.querySelectorAll('a.logo-wrap').forEach(a => {
     const div = document.createElement('div');   // clone is an element, not a Document
     div.className = a.className;
@@ -1142,6 +1240,11 @@ function buildExportHTML(){
   boot.textContent =
     'document.addEventListener("DOMContentLoaded",function(){' +
       'Object.assign(STATE,' + json + ');' +
+      // Belt and braces: pi.js is stripped with the other <script src> nodes,
+      // so LazyPI is normally absent here. If a future change ever inlines it,
+      // an offline copy opened from the LazyPO origin must still never write
+      // back to the real PI — in localStorage or in Supabase.
+      'if(typeof LazyPI!=="undefined"){LazyPI.setReadOnly(true);}' +
       // Neutering save() is what keeps the copy read-only on disk. It also
       // means the copy must never touch localStorage: opened from the same
       // origin as LazyPO it shares storage with the live app, and clearing
@@ -1246,6 +1349,22 @@ window.loadDemoData = function(){
 /* ══════════ BOOT ══════════ */
 load();
 renderAll();
+
+/* The PI can change under us — edited on pi.html in another tab, or arriving
+   from Supabase once auth settles. Only react to changes we did not cause:
+   our own save() → pushToPI() → LazyPI.save() emits 'edit', and re-rendering
+   on that would be a loop. Registered here rather than in an inline handler
+   so SPA navigation cannot register it twice. */
+if (HAS_PI) {
+  LazyPI.onChange((pi, detail) => {
+    if (detail.source !== 'remote') return;
+    if (pullFromPI()) {
+      try { localStorage.setItem(STORE_KEY, JSON.stringify(STATE)); } catch (e) { /* quota */ }
+      renderAll();
+      toast('Timeline updated from the PI settings', 'ok');
+    }
+  });
+}
 </script>
 
 <script src="popup.js"></script>

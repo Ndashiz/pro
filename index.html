@@ -174,9 +174,50 @@ body {
 }
 .widget-area { width: 100%; }
 .widget-area.hidden { display: none; }
-#widget-deadline:not(.hidden) + #widget-todo:not(.hidden) {
+/* A separator above every visible widget except the first one. The old
+   adjacent-sibling pair only worked while there were exactly two widgets —
+   inserting a third between them silently dropped the rule. */
+.widget-area:not(.hidden) ~ .widget-area:not(.hidden) {
   margin-top: 36px; padding-top: 32px; border-top: 1px solid var(--border);
 }
+
+/* ── PI cockpit widget ────────────────── */
+.pi-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+@media (max-width: 860px) { .pi-grid { grid-template-columns: 1fr; } }
+.pi-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 14px; padding: 16px 18px; position: relative; overflow: hidden;
+}
+.pi-card::after { content: ''; position: absolute; inset: 0 auto 0 0; width: 3px; background: var(--accent); }
+.pi-card.sprint::after { background: #8b5cf6; }
+.pi-card.release::after { background: #f59e0b; }
+.pi-card-label {
+  font-family: 'DM Mono', monospace; font-size: 10px; text-transform: uppercase;
+  letter-spacing: .12em; color: var(--muted);
+}
+.pi-card-value { font-size: 28px; font-weight: 700; line-height: 1.1; margin: 8px 0 2px; letter-spacing: -.5px; }
+.pi-card-value small { font-size: 13px; font-weight: 500; color: var(--muted); letter-spacing: 0; }
+.pi-card-sub { font-size: 12px; color: var(--muted); line-height: 1.5; }
+.pi-card-sub b { color: var(--accent2); font-weight: 600; }
+.pi-bar { height: 4px; background: var(--faint, #2e2e2e); border-radius: 100px; margin-top: 12px; overflow: hidden; }
+.pi-bar i { display: block; height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent2)); border-radius: 100px; }
+.pi-card.sprint .pi-bar i { background: linear-gradient(90deg, #8b5cf6, #a78bfa); }
+.pi-empty {
+  background: var(--surface); border: 1px dashed var(--border2);
+  border-radius: 14px; padding: 20px; text-align: center; font-size: 13px; color: var(--muted);
+}
+.pi-empty a { color: var(--accent2); }
+.pi-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; gap: 12px; }
+.pi-head-title {
+  font-family: 'DM Mono', monospace; font-size: 11px; font-weight: 500;
+  letter-spacing: .12em; text-transform: uppercase; color: var(--muted);
+}
+.pi-head-link {
+  background: rgba(59,130,246,.1); border: 1px solid rgba(96,165,250,.25);
+  color: var(--accent2); border-radius: 8px; padding: 6px 14px;
+  font-size: 11px; font-weight: 600; text-decoration: none; white-space: nowrap;
+}
+.pi-head-link:hover { background: rgba(59,130,246,.18); }
 
 /* ── Todo widget ──────────────────────── */
 .todo-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
@@ -364,6 +405,9 @@ body {
 .product-card:nth-child(3) { animation-delay: 0.20s; }
 .product-card:nth-child(4) { animation-delay: 0.26s; }
 .product-card:nth-child(5) { animation-delay: 0.32s; }
+.product-card:nth-child(6) { animation-delay: 0.38s; }
+.product-card:nth-child(7) { animation-delay: 0.44s; }
+.product-card:nth-child(8) { animation-delay: 0.50s; }
 
 /* ── Admin-only card ── */
 .product-card.admin-only { display: none; }
@@ -500,9 +544,19 @@ body {
     <div class="overview-header">
       <div class="section-label">Project preview</div>
       <div class="widget-toggles">
+        <button class="widget-toggle active" id="toggle-pi"       aria-pressed="true">🎯 PI</button>
         <button class="widget-toggle active" id="toggle-deadline" aria-pressed="true">📅 Deadline</button>
         <button class="widget-toggle active" id="toggle-todo"     aria-pressed="true">✅ To-do</button>
       </div>
+    </div>
+
+    <!-- Widget: PI cockpit — reads the shared PI (pi.js), never its own copy -->
+    <div class="widget-area" id="widget-pi">
+      <div class="pi-head">
+        <span class="pi-head-title">Program Increment</span>
+        <a class="pi-head-link" href="pi.html">PI Settings →</a>
+      </div>
+      <div id="piCockpit"></div>
     </div>
 
     <!-- Widget: Deadline -->
@@ -533,6 +587,12 @@ body {
   <section class="products-section">
     <div class="section-label">Your tools</div>
     <div class="products-grid">
+
+      <a href="pi.html" class="product-card">
+        <div class="product-icon">🎯</div>
+        <div class="product-name">PI Settings</div>
+        <div class="product-desc">Dates, sprints, releases and features — the definition every other tool reads.</div>
+      </a>
 
       <a href="lazypo_generator.html" class="product-card">
         <div class="product-icon">✉️</div>
@@ -598,6 +658,7 @@ body {
 <script src="sidebar.js"></script>
 <script src="auth.js"></script>
 <script src="countdown.js"></script>
+<script src="pi.js"></script>
 <script src="apis.js"></script>
 <script>
   (function () {
@@ -626,7 +687,7 @@ body {
 (function () {
   var TABLE = 'profiles';
   var currentUser = null;
-  var widgets = { deadline: true, todo: true };
+  var widgets = { pi: true, deadline: true, todo: true };
   var tasks = [];
   var dragSrcId = null;
   var editingId = null;
@@ -674,9 +735,75 @@ body {
     }).eq('id', currentUser.id);
   }
 
+  /* ── PI cockpit ─────────────────────────────
+     Reads the shared PI. LazyPI.get() is synchronous and never null, so this
+     paints immediately; the Supabase copy arrives later and re-broadcasts. */
+  function renderPICockpit() {
+    var box = document.getElementById('piCockpit');
+    if (!box || typeof LazyPI === 'undefined') return;
+    var c = LazyPI.get && LazyPI.cockpit();
+    if (!c || !c.hasPI) {
+      box.innerHTML = '<div class="pi-empty">No Program Increment defined yet — ' +
+        '<a href="pi.html">set your PI dates</a> and every LazyPO view follows from it.</div>';
+      return;
+    }
+    var esc = function (s) {
+      return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;')
+        .replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+    };
+    var fmt = function (iso) {
+      var d = LazyPI.parseD(iso);
+      return d ? d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) : '—';
+    };
+    var days;
+    if (c.status === 'before') {
+      days = '<div class="pi-card-label">⏳ Not started</div>' +
+             '<div class="pi-card-value">' + fmt(LazyPI.get().start) + '</div>' +
+             '<div class="pi-card-sub">' + esc(c.name || 'The PI') + ' starts then</div>';
+    } else if (c.status === 'after') {
+      days = '<div class="pi-card-label">🏁 Closed</div>' +
+             '<div class="pi-card-value">Done</div>' +
+             '<div class="pi-card-sub">' + esc(c.name || 'The PI') + ' ended ' + fmt(LazyPI.get().end) + '</div>';
+    } else {
+      days = '<div class="pi-card-label">⏳ Days remaining</div>' +
+             '<div class="pi-card-value">' + c.daysRemaining + '<small> / ' + c.totalDays + '</small></div>' +
+             '<div class="pi-card-sub">' + esc(c.name || 'Current PI') + ' · ends ' + fmt(LazyPI.get().end) + '</div>' +
+             '<div class="pi-bar"><i style="width:' + c.pctThrough.toFixed(1) + '%"></i></div>';
+    }
+
+    var sp = c.currentSprint;
+    var sprint = sp
+      ? '<div class="pi-card-label">🌀 Current sprint</div>' +
+        '<div class="pi-card-value">' + esc(sp.name) + '<small> of ' + sp.of + '</small></div>' +
+        '<div class="pi-card-sub">Day <b>' + sp.dayInSprint + '</b> of ' + sp.totalDays +
+          ' · <b>' + sp.daysLeft + '</b> day' + (sp.daysLeft === 1 ? '' : 's') + ' left</div>' +
+        '<div class="pi-bar"><i style="width:' + ((sp.dayInSprint / sp.totalDays) * 100).toFixed(1) + '%"></i></div>'
+      : '<div class="pi-card-label">🌀 Current sprint</div>' +
+        '<div class="pi-card-value"><small>' +
+          (c.sprintCount ? c.sprintCount + ' sprints derived' : 'No sprint grid') + '</small></div>' +
+        '<div class="pi-card-sub">None is running today.</div>';
+
+    var nr = c.nextRelease;
+    var rel = nr
+      ? '<div class="pi-card-label">🚀 Next release</div>' +
+        '<div class="pi-card-value">' + (nr.daysAway === 0 ? 'Today' : nr.daysAway) +
+          (nr.daysAway === 0 ? '' : '<small> day' + (nr.daysAway === 1 ? '' : 's') + ' away</small>') + '</div>' +
+        '<div class="pi-card-sub"><b>' + esc(nr.name || 'Unnamed') + '</b> · ' + fmt(nr.date) +
+          ' · ' + nr.features + ' feature' + (nr.features === 1 ? '' : 's') + '</div>'
+      : '<div class="pi-card-label">🚀 Next release</div>' +
+        '<div class="pi-card-value"><small>None ahead</small></div>' +
+        '<div class="pi-card-sub">Add a dated release in PI Settings.</div>';
+
+    box.innerHTML = '<div class="pi-grid">' +
+      '<div class="pi-card">' + days + '</div>' +
+      '<div class="pi-card sprint">' + sprint + '</div>' +
+      '<div class="pi-card release">' + rel + '</div>' +
+    '</div>';
+  }
+
   /* ── widget toggle ──────────────────────── */
   function applyWidgetState() {
-    ['deadline', 'todo'].forEach(function (k) {
+    ['pi', 'deadline', 'todo'].forEach(function (k) {
       var el = document.getElementById('widget-' + k);
       var btn = document.getElementById('toggle-' + k);
       if (!el || !btn) return;
@@ -692,7 +819,7 @@ body {
     });
   }
 
-  ['deadline', 'todo'].forEach(function (k) {
+  ['pi', 'deadline', 'todo'].forEach(function (k) {
     var btn = document.getElementById('toggle-' + k);
     if (!btn) return;
     btn.addEventListener('click', function () {
@@ -701,6 +828,12 @@ body {
       persist();
     });
   });
+
+  renderPICockpit();
+  // The PI changes when it is edited on pi.html or when the Supabase copy
+  // lands. Registered once here; sidebar.js re-broadcasts on SPA navigation,
+  // so the handler only ever repaints and is safe to run again.
+  if (typeof LazyPI !== 'undefined') LazyPI.onChange(renderPICockpit);
 
   /* ── task render ────────────────────────── */
   function renderTasks() {
@@ -832,7 +965,12 @@ body {
     try {
       var r = await window.sb.from(TABLE).select('overview_widgets,todo_tasks').eq('id', user.id).single();
       if (r.data) {
-        if (r.data.overview_widgets) widgets = r.data.overview_widgets;
+        // Merge over the defaults rather than replacing: a stored object
+        // written before a widget existed has no key for it, and a bare
+        // assignment would hide that widget from every returning user.
+        if (r.data.overview_widgets) {
+          widgets = Object.assign({ pi: true, deadline: true, todo: true }, r.data.overview_widgets);
+        }
         if (Array.isArray(r.data.todo_tasks)) tasks = r.data.todo_tasks;
       }
     } catch(e) {}

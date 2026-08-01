@@ -10,6 +10,7 @@
 <title>LazyPO — SoW Email Generator</title>
 <link rel="stylesheet" href="fonts.css">
 <script src="xlsx.min.js"></script>
+<script src="pi.js"></script>
 <style>
 :root {
   --navy: #002060; --navy-mid: #0a3575; --blue: #1e3a6e;
@@ -244,6 +245,10 @@ input[type="text"]:focus, select:focus, textarea:focus {
   </div>
   <div class="spacer"></div>
   <div class="header-actions">
+    <a class="btn btn-ghost" href="pi.html" title="Le PI est défini à un seul endroit — cette page le lit">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r="1"/></svg>
+      Réglages PI
+    </a>
     <div class="status-pill" id="status-pill">
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
       Email généré !
@@ -312,6 +317,13 @@ input[type="text"]:focus, select:focus, textarea:focus {
         <p><strong>Glisse ton fichier Excel ici</strong> ou clique pour parcourir</p>
         <p class="drop-hint">.xlsx · .xls · .csv</p>
         <div class="drop-status" id="drop-status"></div>
+      </div>
+      <button class="btn btn-ghost" id="pi-load-btn" style="margin-top:10px;width:100%;justify-content:center" onclick="loadFromPI(true)">
+        🎯 Charger depuis le PI
+      </button>
+      <div style="font-size:10.5px;color:var(--text-faint);margin-top:6px;line-height:1.5">
+        Les features définies dans <a href="pi.html" style="color:var(--accent)">Réglages PI</a>
+        remplacent la liste ci-dessous — description, bénéfices et release compris.
       </div>
     </div>
 
@@ -437,13 +449,45 @@ function relClass(r) {
   return 'rel-other';
 }
 function relLabel(r) {
+  // Quand le PI connaît la release, on affiche sa vraie date plutôt qu'une
+  // correspondance devinée sur le nom du mois.
+  if (HAS_PI && r) {
+    const hit = LazyPI.matchRelease(r);
+    if (hit && hit.date) {
+      const d = LazyPI.parseD(hit.date);
+      if (d) return '📅 ' + d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+    }
+  }
   const l = r.toLowerCase();
   if (l.includes('1/04') || l.includes('apr')) return '📅 16 Apr';
   if (l.includes('21/05') || l.includes('may')) return '📅 21 May';
   return '📅 ' + r;
 }
+const HAS_PI = typeof LazyPI !== 'undefined';
+
+function esc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+/* Les releases du PI d'abord ; la liste en dur ne sert plus que de secours
+   quand aucun PI n'est défini. */
+function releaseOptions() {
+  if (HAS_PI) {
+    const rels = LazyPI.get().releases || [];
+    if (rels.length) return rels.filter(r => r.name).map(r => r.name);
+  }
+  return RELEASE_OPTIONS;
+}
+
 function matchRelease(raw) {
   if (!raw) return 'TBD';
+  // Le PI est la référence : s'il connaît cette fix version, on prend son nom.
+  if (HAS_PI) {
+    const hit = LazyPI.matchRelease(raw);
+    if (hit && hit.name) return hit.name;
+  }
   const s = String(raw).toLowerCase().trim();
   if (s.includes('apr') || s.includes('04/')) return '1/04/26 (16 Apr)';
   if (s.includes('may') || s.includes('05/')) return 'May (21 May)';
@@ -543,6 +587,41 @@ function processRows(rows) {
   }
 }
 
+/**
+ * Charge les features du PI dans la liste d'epics.
+ *
+ * Doit vivre dans CE scope : `epics` est un `let` local et une réassignation
+ * faite ailleurs créerait un window.epics fantôme (voir la note en bas de
+ * fichier). On termine donc comme processRows : `epics = ...; renderEpics();`
+ */
+function loadFromPI(manual) {
+  if (!HAS_PI) { if (manual) showDropStatus('❌ Module PI indisponible', true); return false; }
+  const pi = LazyPI.get();
+  const feats = LazyPI.featuresSorted(pi);
+  if (!feats.length) {
+    if (manual) showDropStatus('❌ Aucune feature dans le PI — importe ton backlog dans Réglages PI', true);
+    return false;
+  }
+  const imported = feats.map(f => {
+    const rel = LazyPI.matchRelease(f.fixVersion, pi);
+    return {
+      name:     f.name || '',
+      ticket:   f.key || '',
+      desc:     f.description || '',
+      // Déjà un tableau côté PI — surtout ne pas re-splitter.
+      benefits: (f.benefits || []).slice(),
+      release:  (rel && rel.name) || f.fixVersion || 'TBD'
+    };
+  });
+  epics = imported; renderEpics();
+
+  const piC = document.getElementById('pi-current');
+  if (piC && !piC.value.trim() && pi.name) piC.value = pi.name;
+
+  showDropStatus(`✓ ${imported.length} feature${imported.length > 1 ? 's' : ''} chargée${imported.length > 1 ? 's' : ''} depuis le PI`);
+  return true;
+}
+
 function showDropStatus(msg, isError) {
   const st = document.getElementById('drop-status');
   st.style.display = 'block';
@@ -568,18 +647,18 @@ function renderEpics() {
     const card = document.createElement('div');
     card.className = 'epic-card'; card.draggable = true; card.dataset.idx = i;
     const datalistId = `rl-${i}`;
-    const datalistHtml = RELEASE_OPTIONS.map(o => `<option value="${o}">`).join('');
+    const datalistHtml = releaseOptions().map(o => `<option value="${esc(o)}">`).join('');
     card.innerHTML = `
       <div class="epic-head">
         <span class="drag-dots">⠿</span>
         <div class="epic-idx">${i+1}</div>
-        <input type="text" class="epic-name-input" value="${(ep.name||'').replace(/"/g,'&quot;')}" />
+        <input type="text" class="epic-name-input" value="${esc(ep.name)}" />
         <button class="del-btn">×</button>
       </div>
       <div class="epic-body">
         <div class="epic-row">
-          <div class="epic-field" style="max-width:110px;"><label>Ticket</label><input type="text" class="epic-ticket" value="${ep.ticket||''}" /></div>
-          <div class="epic-field"><label>Description <span style="font-weight:400;color:var(--text-faint)">(sépare les points par " ; ")</span></label><textarea class="epic-desc">${(ep.desc||'').replace(/</g,'&lt;')}</textarea></div>
+          <div class="epic-field" style="max-width:110px;"><label>Ticket</label><input type="text" class="epic-ticket" value="${esc(ep.ticket)}" /></div>
+          <div class="epic-field"><label>Description <span style="font-weight:400;color:var(--text-faint)">(sépare les points par " ; ")</span></label><textarea class="epic-desc">${esc(ep.desc)}</textarea></div>
         </div>
         <div class="epic-row" style="align-items:flex-end;">
           <div class="epic-field">
@@ -588,7 +667,7 @@ function renderEpics() {
               ${ep.benefits.map((b,bi)=>{
                 const arrow = b.startsWith('↗ ')?'↗':b.startsWith('↘ ')?'↘':'';
                 const txt = arrow ? b.slice(2) : b;
-                return `<span class="tag" data-arrow="${arrow}"><span class="tag-arrow${arrow?' active':''}" data-i="${i}" data-bi="${bi}">${arrow||'↕'}</span><span class="tag-text">${txt}</span><span class="tag-x" data-i="${i}" data-bi="${bi}">×</span></span>`;
+                return `<span class="tag" data-arrow="${arrow}"><span class="tag-arrow${arrow?' active':''}" data-i="${i}" data-bi="${bi}">${arrow||'↕'}</span><span class="tag-text">${esc(txt)}</span><span class="tag-x" data-i="${i}" data-bi="${bi}">×</span></span>`;
               }).join('')}
               <input class="tag-input" placeholder="Ajouter..." data-idx="${i}" />
             </div>
@@ -596,8 +675,8 @@ function renderEpics() {
           <div class="epic-field" style="max-width:155px;">
             <label>Release</label>
             <datalist id="${datalistId}">${datalistHtml}</datalist>
-            <input type="text" class="epic-release" list="${datalistId}" value="${(ep.release||'').replace(/"/g,'&quot;')}" placeholder="ex: Q3 26'" />
-            <span class="release-preview ${relClass(ep.release)}">${relLabel(ep.release)}</span>
+            <input type="text" class="epic-release" list="${datalistId}" value="${esc(ep.release)}" placeholder="ex: Q3 26'" />
+            <span class="release-preview ${relClass(ep.release)}">${esc(relLabel(ep.release))}</span>
           </div>
         </div>
       </div>`;
@@ -1073,6 +1152,10 @@ function downloadEml() {
 }
 
 renderThemeSwatches();
+// Le PI alimente la liste au démarrage — mais seulement si elle est vide, pour
+// ne jamais écraser un travail en cours. Sinon le bouton « Charger depuis le
+// PI » le fait à la demande.
+if (!epics.length) loadFromPI(false);
 renderEpics();
 attachLiveListeners();
 
