@@ -54,10 +54,18 @@
     }
   } catch (_) {}
 
-  if (!probablyAuthed) {
+  // Where to bounce. `next` carries the page we're leaving so login.html can
+  // send the user back there. The target is always the bare `login.html`, so
+  // the separator is always `?` — it used to be picked from the CURRENT url
+  // instead, which turned into `login.html&next=…` as soon as this page had
+  // a query string: a literal file name, answered by the GitHub Pages 404.
+  function loginUrl() {
     var here = location.pathname + location.search;
-    var sep = here.indexOf('?') >= 0 ? '&' : '?';
-    location.replace('login.html' + sep + 'next=' + encodeURIComponent(here));
+    return 'login.html?next=' + encodeURIComponent(here);
+  }
+
+  if (!probablyAuthed) {
+    location.replace(loginUrl());
     return;
   }
 
@@ -88,8 +96,6 @@
   // where auth.js itself failed to load or run.
   setTimeout(function () {
     if (revealed) return;
-    var here = location.pathname + location.search;
-    var sep = here.indexOf('?') >= 0 ? '&' : '?';
-    location.replace('login.html' + sep + 'next=' + encodeURIComponent(here));
+    location.replace(loginUrl());
   }, 5000);
 })();

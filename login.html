@@ -410,6 +410,9 @@ function _postLoginTarget(){
     // (defence against open-redirect via a crafted param).
     if (!qp.startsWith('/pro/')) return REDIRECT_AFTER_LOGIN;
     if (qp.startsWith('//')) return REDIRECT_AFTER_LOGIN;
+    // Never bounce back onto the login page itself — a `next` that points
+    // here (a gate that fired on a login URL) would just loop.
+    if (/^\/pro\/login\.html(?:[?#]|$)/.test(qp)) return REDIRECT_AFTER_LOGIN;
     return qp;
   } catch(_) { return REDIRECT_AFTER_LOGIN; }
 }

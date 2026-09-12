@@ -2389,6 +2389,17 @@ graph TB
 
     <p>Changements significatifs des dernières releases — pour le détail complet voir <code>git log</code> ou les PR mergées sur <code>main</code>.</p>
 
+    <h3>Septembre 2026 — 🔐 Login : fin du 404 <code>login.html&amp;next=…</code></h3>
+    <ul style="padding-left: 24px; margin-bottom: 18px;">
+      <li><code>auth-gate.js</code> choisissait le séparateur de <code>?next=</code> d'après l'URL de la
+          page <em>quittée</em> : dès qu'elle portait une query string, la redirection devenait
+          <code>login.html&amp;next=…</code> — un nom de fichier littéral, que GitHub Pages renvoie en
+          « File not found ». Le séparateur est maintenant toujours <code>?</code> (la cible
+          <code>login.html</code> n'a pas de query).</li>
+      <li><code>login.html</code> refuse un <code>next</code> qui pointe sur lui-même et retombe sur
+          <code>index.html</code> — plus de boucle possible si la garde se déclenche sur une URL de login.</li>
+    </ul>
+
     <h3>Août 2026 — 🖨️ Quiz : mode impression / étude du vocabulaire</h3>
     <ul style="padding-left: 24px; margin-bottom: 18px;">
       <li>Le bouton <strong>Imprimer</strong> sortait un tableau brut de tout ce que la liste affichait.
