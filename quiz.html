@@ -2431,6 +2431,17 @@ tr.row-selected { background: rgba(59,130,246,.05); }
           </div>
         </div>
 
+        <!-- Mots flaggés : mélangés aux autres par défaut, en tête seulement si on
+             le demande. Masqué tant qu'aucun mot n'est flaggé. -->
+        <div class="qz-option-group" id="flag-priority-group" style="display:none;">
+          <div class="qz-option-label">Mots à étudier 🚩</div>
+          <div class="qz-pill-group" id="flag-priority-pills" role="group" aria-label="Priorité des mots flaggés">
+            <button class="qz-pill active" data-flag-priority="mixed">🔀 Mélangés aux autres</button>
+            <button class="qz-pill"        data-flag-priority="first">⏫ En premier</button>
+          </div>
+          <p class="qz-avail-note" id="flag-priority-note" style="margin-top:6px;"></p>
+        </div>
+
         <!-- System words -->
         <div class="qz-option-group">
           <div class="qz-option-label">Mots système</div>
@@ -4516,6 +4527,7 @@ function attachEditListeners() {
 let selectedIds = new Set();
 
 let quizFilter  = 'all';
+let flaggedFirst = false;  // mots flaggés en tête de file — uniquement si l'utilisateur le choisit
 let rangeFrom   = null;   // n° de début, null = pas de borne
 let rangeTo     = null;   // n° de fin,   null = pas de borne
 
@@ -4590,6 +4602,16 @@ document.querySelectorAll('#cloze-pills .qz-pill').forEach(btn => {
   });
 });
 
+/* Priorité des mots flaggés — désactivée par défaut */
+document.querySelectorAll('#flag-priority-pills .qz-pill').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('#flag-priority-pills .qz-pill').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    flaggedFirst = btn.dataset.flagPriority === 'first';
+    updateAvailNote();
+  });
+});
+
 /* Filter pills */
 document.querySelectorAll('#filter-pills .qz-pill').forEach(btn => {
   btn.addEventListener('click', () => {
@@ -4649,15 +4671,34 @@ function updateAvailNote() {
   }
   if (startBtn) startBtn.disabled = avail === 0;
 
-  // Bannière : mots flaggés d'abord, puis révisions dues
+  // Option « Mots à étudier » : visible dès qu'un mot est flaggé quelque part
+  // (sur tout le vocabulaire, pour qu'elle n'apparaisse pas et ne disparaisse pas
+  // au gré des filtres), avec le décompte de la sélection courante.
+  const prioGroup = document.getElementById('flag-priority-group');
+  if (prioGroup) {
+    prioGroup.style.display = vocab.some(w => w.flagged_at) ? 'block' : 'none';
+    const prioNote = document.getElementById('flag-priority-note');
+    const nMots = `${flaggedCount} mot${flaggedCount > 1 ? 's' : ''} flaggé${flaggedCount > 1 ? 's' : ''}`;
+    prioNote.textContent =
+        quizFilter === 'flagged' ? 'Sans effet ici : avec le filtre 🚩 À étudier, toute la session est déjà faite de mots flaggés.'
+      : flaggedCount === 0       ? 'Aucun mot flaggé dans ta sélection.'
+      : flaggedFirst             ? `${nMots} dans ta sélection — ${flaggedCount > 1 ? 'ils passeront' : 'il passera'} avant tous les autres.`
+      :                            `${nMots} dans ta sélection — ${flaggedCount > 1 ? 'traités' : 'traité'} comme les autres, selon la répétition espacée.`;
+  }
+
+  // Bannière : mots flaggés d'abord (si l'option est active), puis révisions dues
   const banner = document.getElementById('due-banner');
   if (banner) {
     const msgs = [];
-    if (flaggedCount > 0 && quizFilter !== 'flagged') {
+    if (flaggedFirst && flaggedCount > 0 && quizFilter !== 'flagged') {
       msgs.push(`🚩 ${flaggedCount} mot${flaggedCount > 1 ? 's' : ''} à étudier — ${flaggedCount > 1 ? 'ils passeront' : 'il passera'} en premier.`);
     }
     if (dueCount > 0) {
-      msgs.push(`🔔 ${dueCount} mot${dueCount > 1 ? 's' : ''} à réviser aujourd'hui — ${dueCount > 1 ? 'priorisés' : 'prioritaire'} ensuite.`);
+      // « ensuite » n'a de sens que si les flaggés passent devant
+      const suite = msgs.length
+        ? `${dueCount > 1 ? 'priorisés' : 'prioritaire'} ensuite.`
+        : `${dueCount > 1 ? 'ils seront priorisés' : 'il sera prioritaire'} dans ta session.`;
+      msgs.push(`🔔 ${dueCount} mot${dueCount > 1 ? 's' : ''} à réviser aujourd'hui — ${suite}`);
     }
     banner.style.display = msgs.length ? 'block' : 'none';
     banner.textContent   = msgs.join(' ');
@@ -4704,13 +4745,15 @@ function buildQuizQueue(filter, count, mode) {
   // 1. dus (last_tested + interval dépassé) — le moment optimal de révision
   // 2. nouveaux (jamais testés), plafonnés à NEW_WORDS_PER_DAY
   // 3. déjà vus mais pas encore dus, en remplissage
-  // 0. flaggés — passent avant tout le reste : on flagge un mot précisément
-  //    parce qu'on veut le travailler, il doit ressortir dès la session suivante.
-  //    Ils échappent volontairement au plafond de nouveaux mots du jour : c'est
-  //    un choix explicite de l'utilisateur, pas une découverte subie.
+  // 0. flaggés — SEULEMENT si l'option « En premier » est choisie (flaggedFirst).
+  //    Par défaut un mot flaggé est un mot comme les autres et suit les buckets
+  //    ci-dessus : imposer 31 mots flaggés en tête de chaque session, c'était
+  //    décider à la place de l'utilisateur. Quand l'option est active, ils
+  //    échappent au plafond de nouveaux mots du jour — c'est alors un choix
+  //    explicite, pas une découverte subie.
   const flagged = [], due = [], fresh = [], notDue = [];
   list.forEach(w => {
-    if (w.flagged_at) { flagged.push(w); return; }
+    if (flaggedFirst && w.flagged_at) { flagged.push(w); return; }
     const p = progress[w.id];
     if (!p || !p.attempts)      fresh.push(w);
     else if (isDueWord(p, now)) due.push(w);

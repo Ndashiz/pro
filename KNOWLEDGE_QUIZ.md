@@ -331,21 +331,32 @@ jamais revu.
 Re-cliquer sur **🚩 Flagged** rouvre le panneau prérempli avec `Update flag` et `Remove flag` —
 confirmation par second clic, jamais de `confirm()` (on est en iframe).
 
-### Le flag fait ressortir le mot
+### Travailler les mots flaggés — deux options, aucune imposée
 
 Flagger ne sert pas qu'à signaler une question douteuse : le cas d'usage principal est
-**« ce mot, je dois l'étudier »**. Deux conséquences dans le moteur :
+**« ce mot, je dois l'étudier »**. Mais c'est l'utilisateur qui décide quand ça pèse sur une
+session — **par défaut, un mot flaggé est un mot comme les autres** et suit la répétition espacée.
 
-- `buildQuizQueue()` place les mots flaggés dans un bucket **prioritaire, avant les mots dus** :
-  flaggé → dû → nouveau (plafonné) → déjà vu. Ils échappent volontairement au plafond
-  `NEW_WORDS_PER_DAY` : c'est un choix explicite de l'utilisateur, pas une découverte subie.
-  Tri par flag le plus récent d'abord, pour survivre au `slice(0, n)`.
+- Option **Mots à étudier 🚩** dans le setup : `🔀 Mélangés aux autres` (défaut) ou `⏫ En premier`
+  (`flaggedFirst`). Avec « En premier », `buildQuizQueue()` place les flaggés dans un bucket
+  prioritaire, avant les mots dus : flaggé → dû → nouveau (plafonné) → déjà vu. Ils échappent
+  alors au plafond `NEW_WORDS_PER_DAY` — c'est un choix explicite, pas une découverte subie. Tri
+  par flag le plus récent d'abord, pour survivre au `slice(0, n)`.
 - Filtre **🚩 À étudier** dans « Words to include » (`filter === 'flagged'`) pour une session
-  composée uniquement de mots flaggés.
+  composée uniquement de mots flaggés. L'option de priorité y est sans effet, et sa note le dit.
 
-La bannière du setup annonce les deux priorités (`🚩 N mots à étudier`, `🔔 N mots à réviser`).
-Le flag n'est **jamais retiré automatiquement** après une bonne réponse — c'est à l'utilisateur de
-décider qu'un mot est acquis.
+L'option n'apparaît que si **au moins un mot est flaggé** dans tout le vocabulaire (pas seulement
+dans la sélection, pour qu'elle ne clignote pas au gré des filtres). Comme les autres options du
+setup, elle n'est pas mémorisée : elle revient sur « Mélangés » à chaque chargement.
+
+> Historique : jusqu'à mi-septembre 2026 les flaggés passaient **toujours** en premier. Avec 31
+> mots flaggés, chaque session de 10 questions n'était plus faite que de mots flaggés — l'option a
+> remplacé ce comportement imposé.
+
+La bannière du setup n'annonce `🚩 N mots à étudier — ils passeront en premier` que si l'option est
+active ; la ligne `🔔 N mots à réviser` ne dit « ensuite » que dans ce cas. Le flag n'est
+**jamais retiré automatiquement** après une bonne réponse — c'est à l'utilisateur de décider qu'un
+mot est acquis.
 
 ### Flagger depuis la liste de vocabulaire
 
