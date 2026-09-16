@@ -1113,6 +1113,27 @@ body { padding-left: 64px; }
 .review-panel-actions {
   display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 4px;
 }
+/* Suppression du mot : à l'écart de Save, et confirmée en ligne */
+.review-panel-actions .review-delete-btn { margin-left: auto; }
+.review-delete-confirm {
+  margin-top: 12px; padding: 12px 14px;
+  background: rgba(239,68,68,.07); border: 1px solid rgba(239,68,68,.3); border-radius: 10px;
+  font-size: 13px; line-height: 1.45; color: var(--text);
+}
+.review-delete-confirm .review-panel-actions { margin-top: 10px; }
+.review-delete-yes {
+  padding: 8px 16px; border: none; border-radius: var(--r);
+  background: var(--danger); color: #fff;
+  font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 600;
+  cursor: pointer; white-space: nowrap; transition: background .15s;
+}
+.review-delete-yes:hover    { background: #dc2626; }
+.review-delete-yes:disabled { opacity: .6; cursor: wait; }
+.review-deleted-note {
+  margin-bottom: 14px; padding: 10px 12px; border-radius: 10px;
+  background: rgba(239,68,68,.06); border: 1px dashed rgba(239,68,68,.35);
+  color: #fca5a5; font-size: 13px;
+}
 .review-panel-hint {
   margin-top: 10px; font-size: 11.5px; line-height: 1.5; color: var(--muted);
 }
@@ -1390,6 +1411,18 @@ body { padding-left: 64px; }
   pointer-events: none;
 }
 #qz-toast.show { transform: translateX(-50%) translateY(0); }
+/* Les messages longs (« Mot supprimé — le score de cette session… ») dépassaient
+   d'un écran de 375 px en nowrap et étaient coupés des deux côtés. Un simple
+   white-space:normal ne suffit pas : positionné à left:50%, le toast ne dispose
+   que de la moitié de l'écran et se replierait à ~180 px. max-content garde la
+   largeur naturelle, max-width la borne à l'écran. */
+@media (max-width: 520px) {
+  #qz-toast {
+    white-space: normal; text-align: center;
+    width: max-content; max-width: calc(100vw - 32px);
+    border-radius: 14px;
+  }
+}
 
 /* ── Bulk action bar ── */
 .bulk-bar {
@@ -2520,6 +2553,9 @@ tr.row-selected { background: rgba(59,130,246,.05); }
           <button class="btn-ghost" id="review-btn-edit">✏️ Fix this word</button>
           <button class="btn-ghost" id="review-btn-flag">🚩 Flag</button>
         </div>
+        <div class="review-deleted-note" id="review-deleted-note" style="display:none;">
+          🗑️ Deleted from your vocabulary — it won't come back in future quizzes.
+        </div>
 
         <div class="review-panel" id="review-edit-panel" style="display:none;">
           <div class="review-panel-label">Word</div>
@@ -2533,6 +2569,15 @@ tr.row-selected { background: rgba(59,130,246,.05); }
           <div class="review-panel-actions">
             <button class="btn-primary"   id="review-edit-save"   style="padding:8px 16px;font-size:13px;">Save</button>
             <button class="btn-secondary" id="review-edit-cancel" style="padding:8px 14px;font-size:13px;">Cancel</button>
+            <button class="btn-ghost danger review-delete-btn" id="review-edit-delete">🗑️ Delete word</button>
+          </div>
+          <!-- Confirmation en ligne, pas de confirm() : la page tourne en iframe chez Jarvis -->
+          <div class="review-delete-confirm" id="review-delete-confirm" style="display:none;" role="alertdialog" aria-labelledby="review-delete-msg">
+            <div id="review-delete-msg">Delete this word from your vocabulary? Its review progress goes with it.</div>
+            <div class="review-panel-actions">
+              <button class="review-delete-yes" id="review-delete-yes">Delete for good</button>
+              <button class="btn-secondary" id="review-delete-no" style="padding:8px 14px;font-size:13px;">Keep it</button>
+            </div>
           </div>
           <div class="review-panel-hint">Updates your vocabulary for next time — this session's score stays as it is.</div>
         </div>
@@ -5230,6 +5275,11 @@ function showReviewItem() {
 
 let reviewFlagReason = 'wrong_translation';
 
+/* Mots supprimés pendant la review. Un Set d'ids plutôt qu'un marqueur posé sur
+   l'objet mot : les lignes Supabase restent des lignes, et un id supprimé ne
+   revient jamais — le Set n'a pas besoin d'être vidé entre deux sessions. */
+const reviewDeletedIds = new Set();
+
 function reviewCurrentWord() {
   const a = reviewQueue[reviewIndex];
   return a ? a.word : null;
@@ -5238,14 +5288,18 @@ function reviewCurrentWord() {
 function reviewClosePanels() {
   document.getElementById('review-edit-panel').style.display = 'none';
   document.getElementById('review-flag-panel').style.display = 'none';
+  reviewHideDeleteConfirm();
 }
 
 function reviewSyncTools() {
-  const word    = reviewCurrentWord();
-  const tools   = document.getElementById('review-tools');
-  const flagBtn = document.getElementById('review-btn-flag');
-  // Mots de Challenge Back : snapshot cross-user sans id, rien à mettre à jour
-  if (!word || !word.id) { tools.style.display = 'none'; return; }
+  const word      = reviewCurrentWord();
+  const tools     = document.getElementById('review-tools');
+  const flagBtn   = document.getElementById('review-btn-flag');
+  const isDeleted = !!(word && word.id && reviewDeletedIds.has(word.id));
+  document.getElementById('review-deleted-note').style.display = isDeleted ? 'block' : 'none';
+  // Challenge Back (snapshot cross-user sans id) ou mot déjà supprimé :
+  // plus rien à corriger ni à flagger
+  if (!word || !word.id || isDeleted) { tools.style.display = 'none'; return; }
   tools.style.display = 'flex';
   const flagged = !!word.flagged_at;
   flagBtn.textContent = flagged ? '🚩 Flagged' : '🚩 Flag';
@@ -5258,6 +5312,7 @@ document.getElementById('review-btn-edit').addEventListener('click', () => {
   const panel = document.getElementById('review-edit-panel');
   const open  = panel.style.display === 'none';
   document.getElementById('review-flag-panel').style.display = 'none'; // jamais les deux
+  reviewHideDeleteConfirm();
   panel.style.display = open ? 'block' : 'none';
   if (!open) return;
   document.getElementById('review-edit-source').value  = word.source_word || '';
@@ -5298,6 +5353,79 @@ async function reviewCommitEdit() {
 
 document.getElementById('review-edit-save').addEventListener('click', reviewCommitEdit);
 document.getElementById('review-edit-cancel').addEventListener('click', reviewClosePanels);
+
+/* ── Supprimer le mot depuis la correction ─────────────────────────
+   Confirmation en ligne (pas de confirm(), on est en iframe). Le mot reste
+   affiché dans la review — il fait partie de la session, le score n'est pas
+   recalculé — mais marqué supprimé, et ne ressortira plus jamais. */
+function reviewHideDeleteConfirm() {
+  document.getElementById('review-delete-confirm').style.display = 'none';
+  document.getElementById('review-edit-delete').style.display    = '';
+  const yes = document.getElementById('review-delete-yes');
+  yes.disabled    = false;
+  yes.textContent = 'Delete for good';
+}
+
+document.getElementById('review-edit-delete').addEventListener('click', () => {
+  const word = reviewCurrentWord();
+  if (!word || !word.id) return;
+  document.getElementById('review-delete-msg').textContent =
+    `Delete “${word.source_word}” from your vocabulary? Its review progress goes with it.`;
+  document.getElementById('review-delete-confirm').style.display = 'block';
+  document.getElementById('review-edit-delete').style.display    = 'none';
+  // Focus sur l'option sûre : un Entrée réflexe garde le mot au lieu de l'effacer
+  document.getElementById('review-delete-no').focus();
+});
+
+async function reviewCommitDelete() {
+  const word = reviewCurrentWord();
+  if (!word || !word.id || reviewDeletedIds.has(word.id)) return;
+  const id  = word.id;
+  const yes = document.getElementById('review-delete-yes');
+  yes.disabled    = true;          // un double clic enverrait deux DELETE
+  yes.textContent = 'Deleting…';
+
+  const { data, error } = await window.sb
+    .from('vocabulary')
+    .delete()
+    .eq('id', id)
+    .eq('user_id', currentUser.id)
+    .select('id');
+  // Sans .select(), un refus RLS ressemble à un succès (0 ligne, 0 erreur)
+  if (error || !data || data.length === 0) {
+    yes.disabled    = false;
+    yes.textContent = 'Delete for good';
+    showToast(error
+      ? 'Erreur : ' + (error.message || 'delete failed')
+      : 'Mot introuvable ou suppression bloquée par les RLS Supabase');
+    return;
+  }
+
+  // quiz_progress part en cascade côté base : aligner l'état local sans
+  // recharger quoi que ce soit pendant la review
+  reviewDeletedIds.add(id);
+  vocab = vocab.filter(w => w.id !== id);
+  delete progress[id];
+  computeVocabNumbers();          // les mots créés après lui perdent un rang
+  vocabDirty = true;
+
+  showReviewItem();               // referme le panneau, masque les outils, affiche « supprimé »
+  showToast('Mot supprimé — le score de cette session n\'est pas recalculé.');
+}
+
+document.getElementById('review-delete-yes').addEventListener('click', reviewCommitDelete);
+document.getElementById('review-delete-no').addEventListener('click', () => {
+  reviewHideDeleteConfirm();
+  document.getElementById('review-edit-delete').focus();
+});
+// Échap annule la confirmation, sans refermer tout le panneau de correction
+document.getElementById('review-delete-confirm').addEventListener('keydown', e => {
+  if (e.key !== 'Escape') return;
+  e.stopPropagation();
+  e.preventDefault();
+  reviewHideDeleteConfirm();
+  document.getElementById('review-edit-delete').focus();
+});
 
 /* Enter = Save, Escape = Cancel. stopPropagation() pour qu'un Enter en pleine
    correction ne puisse jamais faire avancer le quiz. */

@@ -263,7 +263,8 @@ quand on ne sait pas.
 
 | Geste | Bouton | Écrit |
 |---|---|---|
-| Corriger le mot | ✏️ Fix this word | `source_word`, `target_translation`, `example_sentence` |
+| Corriger le mot | ✏️ Fix this word | `source_word`, `target_translation`, `example_sentence`, `tips` |
+| Supprimer le mot | ✏️ Fix this word → 🗑️ Delete word | `DELETE` sur `vocabulary` (+ `quiz_progress` en cascade) |
 | Signaler la question | 🚩 Flag | `flagged_at`, `flag_reason`, `flag_note` |
 
 ### Ce qui ne bouge pas
@@ -297,6 +298,29 @@ quand on ne sait pas.
   de l'exemple elle est reconstruite via `buildClozeItem()`, sinon l'écran afficherait l'ancienne.
 - **Migration pas encore passée** : l'erreur Supabase sur colonne inconnue produit le toast
   « Flag indisponible — la migration SQL n'est pas encore passée », pas une exception.
+
+### Supprimer le mot depuis la correction
+
+Pour le mot qui n'a rien à faire dans la liste (doublon, faute d'import, mot inutile), le panneau
+**Fix this word** porte un bouton **🗑️ Delete word**, à droite, à l'écart de `Save`.
+
+- **Confirmation en ligne**, jamais `confirm()` : un encadré rouge nomme le mot et prévient que sa
+  progression part avec lui. Le focus va sur **Keep it**, l'option sûre — un `Entrée` réflexe
+  garde le mot. `Échap` referme la confirmation sans fermer la correction. `Entrée` dans un champ
+  reste `Save`, jamais `Delete`.
+- **`reviewCommitDelete()`** : `.delete().eq('id').eq('user_id').select('id')`. Même garde 0-ligne
+  que pour l'`update` — sans `.select()`, un refus RLS ressemblerait à un succès. Le bouton est
+  désactivé pendant la requête : un double clic enverrait deux `DELETE`, et le second (0 ligne)
+  afficherait un faux refus RLS.
+- **Le mot reste dans la review.** Il fait partie de la session et le score n'est pas recalculé :
+  le retirer de `reviewQueue` changerait le compteur `1 / 3` en plein milieu. L'item est marqué
+  « Deleted from your vocabulary », les outils ✏️ / 🚩 disparaissent, `Previous` / `Next`
+  fonctionnent comme avant.
+- **Aucun rechargement pendant la review** : `vocab` est filtré, `progress[id]` retiré,
+  `computeVocabNumbers()` recalculé (les mots créés après lui perdent un rang), `vocabDirty` posé.
+  `quiz_progress` part en cascade côté base (`on delete cascade`).
+- `reviewDeletedIds` est un `Set` d'ids plutôt qu'un marqueur sur l'objet mot : les lignes Supabase
+  restent des lignes, et un id supprimé ne revient jamais — pas besoin de le vider entre sessions.
 
 ### Retrouver un mot flaggé
 
