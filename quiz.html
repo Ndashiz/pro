@@ -3517,11 +3517,41 @@ async function deleteWord(id) {
 }
 
 /* ══════════════════════════════════════════════════════
+   EXCEL — chargement de la lib
+══════════════════════════════════════════════════════ */
+/* xlsx.min.js est chargé dans <head>, mais Safari est déjà arrivé au clic avec
+   XLSX absent (« Can't find variable: XLSX », 17/09/2026) — réponse cachée
+   cassée ou script bloqué côté client, alors que le fichier servi est intact.
+   Plutôt que planter en silence, on recharge la lib à la demande en
+   contournant le cache HTTP, et on le dit clairement si ça échoue encore. */
+let _xlsxLoading = null;
+function ensureXLSX() {
+  if (typeof XLSX !== 'undefined') return Promise.resolve();
+  if (!_xlsxLoading) {
+    _xlsxLoading = new Promise((resolve, reject) => {
+      const s = document.createElement('script');
+      s.src = 'xlsx.min.js?reload=' + Date.now();
+      s.onload  = () => (typeof XLSX !== 'undefined')
+        ? resolve()
+        : reject(new Error('xlsx.min.js chargé mais XLSX absent'));
+      s.onerror = () => reject(new Error('xlsx.min.js injoignable'));
+      document.head.appendChild(s);
+    }).catch(err => { _xlsxLoading = null; throw err; });
+  }
+  return _xlsxLoading;
+}
+function xlsxUnavailable(err) {
+  console.error('[Excel] lib XLSX indisponible', err);
+  showToast('Module Excel introuvable — recharge la page (⌘⇧R) et réessaie');
+}
+
+/* ══════════════════════════════════════════════════════
    EXCEL EXPORT
 ══════════════════════════════════════════════════════ */
-function exportToExcel() {
+async function exportToExcel() {
   const list = getFilteredVocab();
   if (!list.length) { showToast('Aucun mot à exporter'); return; }
+  try { await ensureXLSX(); } catch (e) { xlsxUnavailable(e); return; }
 
   const rows = list.map(w => {
     const p = progress[w.id] || {};
@@ -3565,6 +3595,7 @@ async function importFromExcel(file) {
   btn.textContent = '⏳ Import…';
 
   try {
+    await ensureXLSX();
     const data  = await file.arrayBuffer();
     const wb    = XLSX.read(data, { type: 'array' });
     const ws    = wb.Sheets[wb.SheetNames[0]];

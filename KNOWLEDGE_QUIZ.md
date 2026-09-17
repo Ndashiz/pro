@@ -420,6 +420,7 @@ let vocabDirty = false      // mot corrigé/flaggé en review → recharger plus
 ### Import/Export Excel
 - **Export** (`XLSX.js`) : colonnes source, target, langue, exemples, tips, correct, attempts, ease_factor, last_tested.
 - **Import** : lecture .xlsx, détection de doublons (insensible à la casse sur `(source_word, language_pair)`), upsert vocabulary + quiz_progress.
+- **Lib manquante** : `ensureXLSX()` recharge `xlsx.min.js?reload=<ts>` à la demande si `XLSX` est absent au clic (vu sur Safari : `Can't find variable: XLSX` alors que le fichier servi est intact), et affiche « Module Excel introuvable » si ça échoue encore — plus d'erreur silencieuse.
 
 ---
 
