@@ -49,7 +49,8 @@ Caractéristiques clés : répétition espacée adaptative, fil multijoueur avec
 - `id`, `user_id` (RLS : propre uniquement)
 - `source_word` (anglais ou néerlandais), `target_translation` (français)
 - `language_pair` ('EN→FR' ou 'NL→FR', legacy 'nl-fr')
-- `example_sentence`, `tips` (optionnels)
+- `example_sentence`, `tips` (optionnels) — `tips` est un indice montré **pendant** la question
+- `extra_info` (optionnel, migration `vocab_extra_info.sql`) — infos complémentaires (temps du verbe, pluriel…) montrées **seulement à la correction** : feedback après réponse, Error Review, liste des mots ratés du résumé. Jamais pendant la question, ni au recto des fiches imprimées.
 - `is_system` (bool) — marque le vocabulaire fourni par le système
 - `flagged_at`, `flag_reason`, `flag_note` — signalement d'une mauvaise question depuis l'Error Review (voir §7bis). `flag_reason` ∈ `wrong_translation` | `typo` | `bad_example` | `other`. Colonnes portées par la ligne elle-même : **un seul flag actif par mot, pas d'historique**.
 - RLS `own_vocabulary` — couvre déjà les colonnes de flag, pas de policy supplémentaire
@@ -263,7 +264,7 @@ quand on ne sait pas.
 
 | Geste | Bouton | Écrit |
 |---|---|---|
-| Corriger le mot | ✏️ Fix this word | `source_word`, `target_translation`, `example_sentence`, `tips` |
+| Corriger le mot | ✏️ Fix this word | `source_word`, `target_translation`, `example_sentence`, `tips`, `extra_info` |
 | Supprimer le mot | ✏️ Fix this word → 🗑️ Delete word | `DELETE` sur `vocabulary` (+ `quiz_progress` en cascade) |
 | Signaler la question | 🚩 Flag | `flagged_at`, `flag_reason`, `flag_note` |
 

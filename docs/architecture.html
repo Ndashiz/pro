@@ -2400,6 +2400,21 @@ graph TB
           <code>index.html</code> — plus de boucle possible si la garde se déclenche sur une URL de login.</li>
     </ul>
 
+    <h3>Septembre 2026 — ℹ️ Quiz : champ « Extra info » + affichage téléphone</h3>
+    <ul style="padding-left: 24px; margin-bottom: 18px;">
+      <li>Nouvelle colonne <code>vocabulary.extra_info</code> (migration <code>vocab_extra_info.sql</code>, à
+          lancer à la main) : infos complémentaires d'un mot — temps du verbe, pluriel, préposition… À la
+          différence de <code>tips</code> (indice montré <em>pendant</em> la question), elle n'apparaît
+          <strong>qu'à la correction</strong> : feedback après réponse, Error Review, mots ratés du résumé.
+          Éditable depuis le formulaire d'ajout, le tableau et le panneau « Fix this word » ; exportée /
+          importée en Excel ; imprimable (verso des fiches, corrigé du test — jamais côté question).</li>
+      <li>Téléphone : la page débordait de l'écran (barre de 5 onglets et tableau plus larges que 375 px), d'où
+          un défilement horizontal et une page qui paraissait décentrée. Les onglets passent sur deux lignes,
+          le document ne peut plus s'élargir, le champ de réponse prend toute la largeur avec Check / Skip
+          dessous, tous les champs de saisie passent à 16 px (iOS zoome sur tout champ plus petit au focus et
+          laisse la page décalée), et le tableau ne garde que #, mot, traduction, langue, taux, actions.</li>
+    </ul>
+
     <h3>Août 2026 — 🖨️ Quiz : mode impression / étude du vocabulaire</h3>
     <ul style="padding-left: 24px; margin-bottom: 18px;">
       <li>Le bouton <strong>Imprimer</strong> sortait un tableau brut de tout ce que la liste affichait.

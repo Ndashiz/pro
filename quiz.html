@@ -117,6 +117,7 @@ create table public.vocabulary (
   language_pair      text not null default 'EN→FR',
   example_sentence   text,
   tips               text,
+  extra_info         text,   -- infos complémentaires (temps du verbe, pluriel…) — jamais montrées pendant la question, seulement à la correction
   is_system          boolean default false,
   created_at         timestamptz default now(),
   updated_at         timestamptz default now()
@@ -128,6 +129,7 @@ create policy "own_vocabulary" on public.vocabulary
 -- Migration (run once if table already exists):
 -- alter table public.vocabulary add column if not exists is_system boolean default false;
 -- alter table public.vocabulary add column if not exists tips text;
+-- alter table public.vocabulary add column if not exists extra_info text;   (vocab_extra_info.sql)
 -- Flag d'un mot depuis l'Error Review — flag_reason ∈ {wrong_translation, typo, bad_example, other}
 -- alter table public.vocabulary add column if not exists flagged_at  timestamptz;
 -- alter table public.vocabulary add column if not exists flag_reason text;
@@ -792,6 +794,14 @@ body { padding-left: 64px; }
   margin-top: 4px;
   font-size: 13px;
 }
+/* Extra info du mot — révélée avec la correction, jamais avant */
+.qz-extra-info {
+  margin-top: 10px; padding: 8px 12px;
+  background: rgba(96,165,250,.08); border: 1px solid rgba(96,165,250,.22);
+  border-radius: 8px;
+  color: var(--accent2); font-size: 13px; font-weight: 500; line-height: 1.5;
+  text-align: left; white-space: pre-line;
+}
 
 .qz-action-row {
   display: flex;
@@ -877,7 +887,8 @@ body { padding-left: 64px; }
 }
 .qz-missed-item:last-child { border-bottom: none; }
 .qz-missed-word { font-weight: 600; }
-.qz-missed-answer { color: var(--success); font-weight: 500; }
+.qz-missed-answer { color: var(--success); font-weight: 500; text-align: right; }
+.qz-missed-info   { display: block; color: var(--accent2); font-size: 12px; font-weight: 400; }
 .qz-summary-btns {
   display: flex;
   gap: 10px;
@@ -1061,6 +1072,13 @@ body { padding-left: 64px; }
 }
 .review-actions {
   display: flex; justify-content: space-between; align-items: center;
+}
+.review-extra-info {
+  margin: -12px 0 24px; padding: 12px 16px;
+  background: rgba(96,165,250,.08); border: 1px solid rgba(96,165,250,.22);
+  border-radius: 12px;
+  color: var(--accent2); font-size: 14px; font-weight: 500; line-height: 1.55;
+  white-space: pre-line;
 }
 
 /* Error Review — corriger / flagger le mot sans quitter l'écran.
@@ -1505,6 +1523,10 @@ tr.row-selected { background: rgba(59,130,246,.05); }
 }
 /* Constrain wide columns so Actions stays visible */
 .qz-table td.example { max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.info-cell {
+  font-size: 12.5px; color: var(--muted);
+  max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
 .qz-table td:last-child { white-space: nowrap; } /* Actions — never wrap */
 
 /* ── Excel import/export ── */
@@ -1590,6 +1612,7 @@ tr.row-selected { background: rgba(59,130,246,.05); }
   #print-area .pa-trans { font-size: 11.5px; color: #222; }
   #print-area .pa-ex { font-size: 10.5px; color: #555; font-style: italic; margin-top: 2px; }
   #print-area .pa-tip { font-size: 10px; color: #8a6d1f; margin-top: 2px; }
+  #print-area .pa-info { font-size: 10px; color: #2f5d8a; margin-top: 2px; }
 
   /* Fiches à découper — 2 × 5 par page, verso miroir pour le recto-verso */
   #print-area .pa-page { page-break-after: always; break-after: page; }
@@ -1891,6 +1914,7 @@ tr.row-selected { background: rgba(59,130,246,.05); }
 .qz-add-fields { display: flex; align-items: flex-end; gap: 10px; flex-wrap: wrap; }
 .qz-field { display: flex; flex-direction: column; gap: 5px; flex: 1; min-width: 110px; }
 .qz-field-label { font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+.qz-field-opt   { text-transform: none; letter-spacing: 0; font-weight: 500; opacity: .7; }
 .qz-field.shrink { flex: 0 0 auto; }
 .qz-swap-btn {
   width: 36px; height: 36px; border-radius: 50%; background: var(--surface2);
@@ -1964,18 +1988,43 @@ tr.row-selected { background: rgba(59,130,246,.05); }
 
 /* ── Responsive ── */
 @media (max-width: 640px) {
+  /* Rien ne doit élargir le document : sur téléphone, un seul élément plus
+     large que l'écran (la barre d'onglets, un tableau…) fait défiler toute
+     la page horizontalement et tout paraît décentré. */
+  html, body { overflow-x: hidden; max-width: 100%; }
   body { padding-left: 0; }
   .qz-main { padding: 56px 16px 60px; }
-  .qz-header { flex-direction: column; }
+  .qz-header { flex-direction: column; gap: 16px; }
+  /* Les 5 onglets ne tiennent pas sur 375px : ils passent sur deux lignes
+     au lieu de déborder de l'écran. */
+  .qz-tabs { flex-wrap: wrap; width: 100%; justify-content: center; }
+  .qz-tab { flex: 1 1 auto; text-align: center; padding: 9px 10px; font-size: 13px; }
+  html.qz-embed .qz-header { margin-bottom: 14px !important; }
+  html.qz-embed .qz-main { padding: 14px 14px 48px !important; }
+  /* iOS zoome sur tout champ < 16px au focus, puis laisse la page décalée :
+     tous les champs de saisie passent à 16px sur mobile. */
+  .qz-input, .qz-search, .review-input, .edit-input, .vf-note,
+  .qz-answer-input, select, textarea { font-size: 16px; }
   .qz-add-row { flex-direction: column; }
   .qz-add-row .qz-input { width: 100%; }
   .qz-lang-toggle { align-self: flex-start; }
   .qz-table { font-size: 13px; }
-  /* Masque « Example » — 5e colonne depuis l'ajout de « # » en tête */
-  .qz-table th:nth-child(5),
-  .qz-table td:nth-child(5) { display: none; }
+  /* Masque « Example », « Tips » et « Info » — colonnes 5 à 7 depuis l'ajout
+     de « # » en tête ; le tableau garde #, mot, traduction, langue, taux, actions. */
+  .qz-table th:nth-child(5), .qz-table td:nth-child(5),
+  .qz-table th:nth-child(6), .qz-table td:nth-child(6),
+  .qz-table th:nth-child(7), .qz-table td:nth-child(7) { display: none; }
+  .qz-table th, .qz-table td { padding: 10px 10px; }
   .qz-question-word { font-size: 30px; }
   .qz-setup-card, .qz-question-card { padding: 24px 18px; }
+  /* Réponse : le champ prend toute la largeur, Check / Skip dessous côte à côte */
+  .qz-answer-row { flex-wrap: wrap; }
+  .qz-answer-input { flex: 1 1 100%; }
+  #btn-check, #btn-skip { flex: 1 1 0; padding: 12px 16px !important; }
+  .qz-action-row > button { flex: 1 1 auto; }
+  .qz-summary-card { padding: 28px 18px; }
+  .qz-score-big { font-size: 44px; }
+  .qz-missed-item { flex-wrap: wrap; gap: 4px; }
 }
 /* ══════════════════════════════════════════
    GRAMMAR MODULE
@@ -2262,6 +2311,10 @@ tr.row-selected { background: rgba(59,130,246,.05); }
           <label class="qz-field-label">Tips</label>
           <input type="text" id="add-tips" class="qz-input" placeholder="Mnémotechnique…" autocomplete="off">
         </div>
+        <div class="qz-field" style="flex:1.5">
+          <label class="qz-field-label" title="Jamais affiché pendant la question — seulement à la correction">Extra info <span class="qz-field-opt">(à la correction)</span></label>
+          <input type="text" id="add-info" class="qz-input" placeholder="e.g. liep – gelopen (zijn)" autocomplete="off">
+        </div>
         <div class="qz-field shrink" style="align-self:flex-end">
           <button class="btn-primary" id="btn-add-word" style="white-space:nowrap">Add Word</button>
         </div>
@@ -2343,6 +2396,7 @@ tr.row-selected { background: rgba(59,130,246,.05); }
         <span class="pp-label">Contenu</span>
         <label class="pp-check"><input type="checkbox" id="pp-example" checked> Phrase de contexte</label>
         <label class="pp-check"><input type="checkbox" id="pp-tips"> Astuce</label>
+        <label class="pp-check"><input type="checkbox" id="pp-info"> Extra info</label>
         <label class="pp-check"><input type="checkbox" id="pp-lang"> Langue</label>
       </div>
 
@@ -2372,6 +2426,7 @@ tr.row-selected { background: rgba(59,130,246,.05); }
             <th class="sortable" data-sort="lang">Language<span class="sort-icon"></span></th>
             <th class="sortable" data-sort="example">Example<span class="sort-icon"></span></th>
             <th class="sortable" data-sort="tips">Tips<span class="sort-icon"></span></th>
+            <th class="sortable" data-sort="info" title="Infos complémentaires — visibles seulement à la correction">Info<span class="sort-icon"></span></th>
             <th class="sortable" data-sort="rate">Success rate<span class="sort-icon"></span></th>
             <th>Actions</th>
           </tr>
@@ -2557,6 +2612,7 @@ tr.row-selected { background: rgba(59,130,246,.05); }
             <div class="review-answer-box right" id="review-correct">—</div>
           </div>
         </div>
+        <div class="review-extra-info" id="review-extra-info" style="display:none;"></div>
 
         <!-- Corriger / flagger le mot en place. Masqué pour les mots de
              Challenge Back (snapshot cross-user, pas d'id à mettre à jour). -->
@@ -2577,6 +2633,8 @@ tr.row-selected { background: rgba(59,130,246,.05); }
           <input class="review-input" id="review-edit-example" autocomplete="off">
           <div class="review-panel-label">💡 Hint <span class="review-panel-opt">(optional)</span></div>
           <input class="review-input" id="review-edit-tips" autocomplete="off" placeholder="Mnémotechnique, faux ami, genre du mot…">
+          <div class="review-panel-label">ℹ️ Extra info <span class="review-panel-opt">(optional — shown only after answering)</span></div>
+          <input class="review-input" id="review-edit-info" autocomplete="off" placeholder="Temps du verbe, pluriel, préposition…">
           <div class="review-panel-actions">
             <button class="btn-primary"   id="review-edit-save"   style="padding:8px 16px;font-size:13px;">Save</button>
             <button class="btn-secondary" id="review-edit-cancel" style="padding:8px 14px;font-size:13px;">Cancel</button>
@@ -3562,6 +3620,7 @@ async function exportToExcel() {
       language_pair:      w.language_pair,
       example_sentence:   w.example_sentence || '',
       tips:               w.tips || '',
+      extra_info:         w.extra_info || '',
       is_system:          w.is_system ? 1 : 0,
       created_at:         w.created_at || '',
       correct:            p.correct     ?? 0,
@@ -3576,7 +3635,7 @@ async function exportToExcel() {
   // Column widths
   ws['!cols'] = [
     {wch:38},{wch:22},{wch:22},{wch:10},{wch:40},
-    {wch:10},{wch:22},{wch:8},{wch:8},{wch:12},{wch:13},{wch:22}
+    {wch:22},{wch:22},{wch:10},{wch:22},{wch:8},{wch:8},{wch:12},{wch:13},{wch:22}
   ];
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Vocabulary');
@@ -3614,6 +3673,7 @@ async function importFromExcel(file) {
         language_pair:      String(r.language_pair || 'EN→FR').trim(),
         example_sentence:   r.example_sentence ? String(r.example_sentence).trim() : null,
         tips:               r.tips ? String(r.tips).trim() : null,
+        extra_info:         r.extra_info ? String(r.extra_info).trim() : null,
         is_system:          r.is_system == 1 || r.is_system === true || r.is_system === 'true',
       }));
 
@@ -3963,6 +4023,7 @@ function printOpts() {
     to:      num('pp-to'),
     example: !!document.getElementById('pp-example')?.checked,
     tips:    !!document.getElementById('pp-tips')?.checked,
+    info:    !!document.getElementById('pp-info')?.checked,
     lang:    !!document.getElementById('pp-lang')?.checked,
   };
 }
@@ -4003,10 +4064,11 @@ function buildPrintListHtml(list, o) {
     const ex   = o.example && w.example_sentence
       ? `<div class="pa-ex">${escHtml(w.example_sentence)}</div>` : '';
     const tip  = o.tips && w.tips ? `<div class="pa-tip">💡 ${escHtml(w.tips)}</div>` : '';
+    const inf  = o.info && w.extra_info ? `<div class="pa-info">ℹ️ ${escHtml(w.extra_info)}</div>` : '';
     return `<div class="pa-item">
       <div><span class="pa-num">${vocabNum[w.id] || '—'}</span><span class="pa-word">${escHtml(w.source_word)}</span>${lang}</div>
       <div class="pa-trans">${escHtml(w.target_translation)}</div>
-      ${ex}${tip}
+      ${ex}${tip}${inf}
     </div>`;
   }).join('')}</div>`;
 }
@@ -4025,8 +4087,9 @@ function buildPrintCardsHtml(list, o, docLabel) {
     const ex = o.example && w.example_sentence
       ? `<div class="pa-ex">${escHtml(w.example_sentence)}</div>` : '';
     const tip = o.tips && w.tips ? `<div class="pa-tip">💡 ${escHtml(w.tips)}</div>` : '';
+    const inf = o.info && w.extra_info ? `<div class="pa-info">ℹ️ ${escHtml(w.extra_info)}</div>` : '';
     return back
-      ? `<div class="pa-card"><div class="pa-trans">${escHtml(w.target_translation)}</div>${tip}</div>`
+      ? `<div class="pa-card"><div class="pa-trans">${escHtml(w.target_translation)}</div>${tip}${inf}</div>`
       : `<div class="pa-card"><div><span class="pa-num">${vocabNum[w.id] || ''}</span><span class="pa-word">${escHtml(w.source_word)}</span></div>${ex}</div>`;
   };
 
@@ -4065,7 +4128,7 @@ function buildPrintTestHtml(list, o) {
     </tr>`;
   }).join('');
   const key = list.map(w =>
-    `<li><span class="pa-num">${vocabNum[w.id] || '—'}</span> ${escHtml(w.source_word)} → ${escHtml(w.target_translation)}</li>`
+    `<li><span class="pa-num">${vocabNum[w.id] || '—'}</span> ${escHtml(w.source_word)} → ${escHtml(w.target_translation)}${o.info && w.extra_info ? ` <span class="pa-info">(${escHtml(w.extra_info)})</span>` : ''}</li>`
   ).join('');
   return `<table class="pa-test">
       <thead><tr><th style="width:8%">#</th><th style="width:52%">Mot</th><th>Traduction</th></tr></thead>
@@ -4121,7 +4184,7 @@ document.querySelectorAll('#pp-format .qz-pill').forEach(btn => {
   });
 });
 
-['pp-from', 'pp-to', 'pp-example', 'pp-tips', 'pp-lang'].forEach(id => {
+['pp-from', 'pp-to', 'pp-example', 'pp-tips', 'pp-info', 'pp-lang'].forEach(id => {
   document.getElementById(id)?.addEventListener('input', updatePrintNote);
 });
 
@@ -4158,7 +4221,7 @@ document.getElementById('bulk-deselect').addEventListener('click', () => {
 /* Add word form */
 document.getElementById('btn-add-word').addEventListener('click', submitAddWord);
 
-['add-source-en','add-source-nl','add-target','add-example','add-tips'].forEach(id => {
+['add-source-en','add-source-nl','add-target','add-example','add-tips','add-info'].forEach(id => {
   document.getElementById(id)?.addEventListener('keydown', e => {
     if (e.key === 'Enter') submitAddWord();
   });
@@ -4171,13 +4234,15 @@ function submitAddWord() {
   const target   = document.getElementById('add-target').value.trim();
   const example  = document.getElementById('add-example').value.trim();
   const tips     = document.getElementById('add-tips').value.trim();
+  const info     = document.getElementById('add-info').value.trim();
   if (!source || !target) { showToast('Please fill in source word and translation'); return; }
-  addWord({ source_word: source, target_translation: target, language_pair: selectedLang, example_sentence: example || null, ...(tips ? { tips } : {}) });
+  addWord({ source_word: source, target_translation: target, language_pair: selectedLang, example_sentence: example || null, ...(tips ? { tips } : {}), ...(info ? { extra_info: info } : {}) });
   document.getElementById('add-source-en').value = '';
   document.getElementById('add-source-nl').value = '';
   document.getElementById('add-target').value    = '';
   document.getElementById('add-example').value   = '';
   document.getElementById('add-tips').value      = '';
+  document.getElementById('add-info').value      = '';
   (selectedLang === 'NL→FR'
     ? document.getElementById('add-source-nl')
     : document.getElementById('add-source-en')).focus();
@@ -4209,6 +4274,7 @@ const SORT_ACCESSORS = {
   lang:    w => (w.language_pair || '').toLowerCase().startsWith('en') ? 'EN' : 'NL',
   example: w => (w.example_sentence || '').toLowerCase() || null,
   tips:    w => (w.tips || '').toLowerCase() || null,
+  info:    w => (w.extra_info || '').toLowerCase() || null,
   rate:    w => { const r = rateOf(w.id); return r < 0 ? null : r; },
 };
 
@@ -4291,7 +4357,7 @@ function renderVocab() {
   if (document.getElementById('print-panel')?.hidden === false) updatePrintNote();
 
   if (!vocab.length) {
-    tbody.innerHTML = `<tr><td colspan="8"><div class="qz-empty">
+    tbody.innerHTML = `<tr><td colspan="9"><div class="qz-empty">
       <div class="qz-empty-icon">📚</div>
       <h3>No words yet</h3>
       <p>Add your first vocabulary word using the form above.<br>Start with something simple!</p>
@@ -4301,7 +4367,7 @@ function renderVocab() {
   }
 
   if (!list.length) {
-    tbody.innerHTML = `<tr><td colspan="8"><div class="qz-empty">
+    tbody.innerHTML = `<tr><td colspan="9"><div class="qz-empty">
       <div class="qz-empty-icon">🔍</div>
       <h3>No matches</h3>
       <p>Try adjusting your search or filter.</p>
@@ -4353,6 +4419,9 @@ function renderVocabRow(word) {
   const tip     = word.tips
     ? `<span title="${escHtml(word.tips)}">${escHtml(word.tips.length > 28 ? word.tips.slice(0,28)+'…' : word.tips)}</span>`
     : '<span style="opacity:.3">—</span>';
+  const info    = word.extra_info
+    ? `<span title="${escHtml(word.extra_info)}">${escHtml(word.extra_info.length > 28 ? word.extra_info.slice(0,28)+'…' : word.extra_info)}</span>`
+    : '<span style="opacity:.3">—</span>';
   const flagTitle = word.flagged_at
     ? (FLAG_LABELS[word.flag_reason] || 'Flagged') + (word.flag_note ? ' — ' + word.flag_note : '')
     : '';
@@ -4366,6 +4435,7 @@ function renderVocabRow(word) {
     <td><span class="lang-badge ${isNL ? 'lang-nl' : 'lang-en'}">${isNL ? 'NL' : 'EN'}</span></td>
     <td class="example" title="${escHtml(word.example_sentence||'')}">${ex}</td>
     <td class="tip-cell">${tip}</td>
+    <td class="info-cell">${info}</td>
     <td>
       <div class="rate-wrap">
         <span class="${rateCls}">${pctStr}</span>
@@ -4391,7 +4461,7 @@ function renderFlagRow(word) {
   ).join('');
   return `<tr data-id="${word.id}" class="flagging-row">
     <td class="num-col">${vocabNum[word.id] || '—'}</td>
-    <td colspan="7">
+    <td colspan="8">
       <div class="vf-wrap">
         <span class="vf-word">🚩 ${escHtml(word.source_word)}</span>
         <div class="qz-pill-group vf-reasons">${pills}</div>
@@ -4418,6 +4488,7 @@ function renderEditRow(word) {
     </td>
     <td><input class="edit-input" id="ei-example" value="${escHtml(word.example_sentence||'')}"></td>
     <td><input class="edit-input" id="ei-tips" value="${escHtml(word.tips||'')}" placeholder="💡 Tips…"></td>
+    <td><input class="edit-input" id="ei-info" value="${escHtml(word.extra_info||'')}" placeholder="ℹ️ Extra info…"></td>
     <td>—</td>
     <td>
       <button class="btn-primary btn-save-edit" data-id="${word.id}" style="padding:6px 12px;font-size:13px;">Save</button>
@@ -4531,9 +4602,10 @@ function attachEditListeners() {
     const target = document.getElementById('ei-target')?.value.trim();
     const example= document.getElementById('ei-example')?.value.trim();
     const tips   = document.getElementById('ei-tips')?.value.trim();
+    const info   = document.getElementById('ei-info')?.value.trim();
     const lang   = document.querySelector('.editing-row .qz-dir-btn.active')?.dataset.lang || 'EN→FR';
     if (!source || !target) { showToast('Source and translation are required'); return; }
-    await updateWord(id, { source_word: source, target_translation: target, language_pair: lang, example_sentence: example || null, ...(tips ? { tips } : {}) });
+    await updateWord(id, { source_word: source, target_translation: target, language_pair: lang, example_sentence: example || null, tips: tips || null, extra_info: info || null });
     editingId = null;
   });
 
@@ -5021,27 +5093,30 @@ function checkAnswer() {
   const isCorrect = exact || close;
 
   const fb = document.getElementById('quiz-feedback');
+  // Extra info (temps du verbe, pluriel…) : jamais pendant la question, toujours à la correction
+  const extra = item.word.extra_info
+    ? `<div class="qz-extra-info">ℹ️ ${escHtml(item.word.extra_info)}</div>` : '';
   if (isCorrect) {
     input.classList.add('correct-flash');
     if (close) {
       fb.className = 'qz-feedback close';
-      fb.innerHTML = closeReason === 'form'
+      fb.innerHTML = (closeReason === 'form'
         ? `✓ Accepté ! <span class="qz-correct-answer">Forme exacte : "${closedAlt}"</span>`
-        : `✓ Proche ! <span class="qz-correct-answer">Accepté : "${closedAlt}"</span>`;
+        : `✓ Proche ! <span class="qz-correct-answer">Accepté : "${closedAlt}"</span>`) + extra;
     } else {
       fb.className = 'qz-feedback correct';
       // If multiple alternatives exist, show the others as hint
       const others = alternatives.filter(a => a.toLowerCase() !== givenLower);
-      fb.innerHTML = others.length
+      fb.innerHTML = (others.length
         ? `✓ Correct ! <span class="qz-correct-answer" style="opacity:.65;font-size:12px;">Aussi valide : ${others.join(' / ')}</span>`
-        : '✓ Correct !';
+        : '✓ Correct !') + extra;
     }
     recordAnswer(item.word.id, true);
     sessionAnswers.push({ word: item.word, correct: true, skipped: false, givenAnswer: given, direction: item.direction, question: item.question, answer: item.answer });
   } else {
     input.classList.add('wrong-flash');
     fb.className = 'qz-feedback wrong';
-    fb.innerHTML = `✗ Incorrect <div class="qz-correct-answer">Correct answer: "${correct}"</div>`;
+    fb.innerHTML = `✗ Incorrect <div class="qz-correct-answer">Correct answer: "${correct}"</div>` + extra;
     recordAnswer(item.word.id, false);
     sessionAnswers.push({ word: item.word, correct: false, skipped: false, givenAnswer: given, direction: item.direction, question: item.question, answer: item.answer });
   }
@@ -5326,6 +5401,10 @@ function showReviewItem() {
   document.getElementById('review-asked').textContent   = asked;
   document.getElementById('review-correct').textContent = correct;
 
+  const infoEl = document.getElementById('review-extra-info');
+  infoEl.textContent    = a.word.extra_info ? 'ℹ️ ' + a.word.extra_info : '';
+  infoEl.style.display  = a.word.extra_info ? 'block' : 'none';
+
   const givenEl = document.getElementById('review-given');
   if (!a.givenAnswer) {
     givenEl.textContent = '(skipped)';
@@ -5393,6 +5472,7 @@ document.getElementById('review-btn-edit').addEventListener('click', () => {
   document.getElementById('review-edit-target').value  = word.target_translation || '';
   document.getElementById('review-edit-example').value = word.example_sentence || '';
   document.getElementById('review-edit-tips').value    = word.tips || '';
+  document.getElementById('review-edit-info').value    = word.extra_info || '';
   document.getElementById('review-edit-source').focus();
 });
 
@@ -5403,6 +5483,7 @@ async function reviewCommitEdit() {
   const target  = document.getElementById('review-edit-target').value.trim();
   const example = document.getElementById('review-edit-example').value.trim();
   const tips    = document.getElementById('review-edit-tips').value.trim();
+  const info    = document.getElementById('review-edit-info').value.trim();
   if (!source || !target) { showToast('Source and translation are required'); return; }
 
   const ok = await saveWordPatch(word.id, {
@@ -5410,6 +5491,7 @@ async function reviewCommitEdit() {
     target_translation: target,
     example_sentence:   example || null,
     tips:               tips || null,
+    extra_info:         info || null,
   });
   if (!ok) return;
 
@@ -5503,7 +5585,7 @@ document.getElementById('review-delete-confirm').addEventListener('keydown', e =
 
 /* Enter = Save, Escape = Cancel. stopPropagation() pour qu'un Enter en pleine
    correction ne puisse jamais faire avancer le quiz. */
-['review-edit-source', 'review-edit-target', 'review-edit-example', 'review-edit-tips', 'review-flag-note']
+['review-edit-source', 'review-edit-target', 'review-edit-example', 'review-edit-tips', 'review-edit-info', 'review-flag-note']
   .forEach(id => {
     document.getElementById(id).addEventListener('keydown', e => {
       if (e.key !== 'Enter' && e.key !== 'Escape') return;
@@ -5619,7 +5701,7 @@ function showSummary() {
             <span style="font-family:'DM Mono',monospace;font-size:11px;color:var(--muted);">${fromL}→${toL}</span>
             <span class="qz-missed-word">${escHtml(asked)}</span>
           </span>
-          <span class="qz-missed-answer">→ ${escHtml(answer)}</span>
+          <span class="qz-missed-answer">→ ${escHtml(answer)}${a.word.extra_info ? ` <span class="qz-missed-info" title="${escHtml(a.word.extra_info)}">ℹ️ ${escHtml(a.word.extra_info)}</span>` : ''}</span>
         </div>`;
     }).join('');
   } else {
