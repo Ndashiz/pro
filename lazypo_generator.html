@@ -177,6 +177,8 @@ input[type="text"]:focus, select:focus, textarea:focus {
 .epic-field input, .epic-field select { font-size: 12px; padding: 6px 9px; }
 .epic-field textarea { font-size: 12px; padding: 6px 9px; min-height: 52px; }
 .epic-desc { line-height: 1.5; overflow: hidden; resize: none; }
+.bullet-btn { font-size: 10.5px; font-weight: 600; padding: 1px 8px; margin-left: 6px; border: 1px solid var(--accent); border-radius: 20px; background: var(--surface); color: var(--accent); cursor: pointer; font-family: inherit; line-height: 1.5; vertical-align: middle; }
+.bullet-btn:hover { background: var(--accent); color: #fff; }
 
 .release-preview { display: inline-flex; align-items: center; gap: 4px; font-size: 10.5px; font-weight: 600; padding: 2px 9px; border-radius: 20px; margin-top: 3px; }
 
@@ -1100,7 +1102,7 @@ function renderEpics() {
       <div class="epic-body">
         <div class="epic-row">
           <div class="epic-field" style="max-width:110px;"><label>Ticket</label><input type="text" class="epic-ticket" value="${esc(ep.ticket)}" /></div>
-          <div class="epic-field"><label>Description <span style="font-weight:400;color:var(--text-faint)">(une ligne = une puce · Entrée pour la suivante)</span></label><textarea class="epic-desc" placeholder="• Premier point">${esc(descToEditor(ep.desc))}</textarea></div>
+          <div class="epic-field"><label>Description <span style="font-weight:400;color:var(--text-faint)">(Entrée = nouvelle puce)</span><button type="button" class="bullet-btn" title="Ajouter une puce à la fin de la description">• Puce</button></label><textarea class="epic-desc" placeholder="• Premier point">${esc(descToEditor(ep.desc))}</textarea></div>
         </div>
         <div class="epic-row" style="align-items:flex-end;">
           <div class="epic-field">
@@ -1129,6 +1131,13 @@ function renderEpics() {
     descEl.addEventListener('input', e => { epics[i].desc = descCanon(e.target.value); autoGrow(e.target); });
     descEl.addEventListener('focus', e => { if (!e.target.value) { e.target.value = '• '; autoGrow(e.target); } });
     descEl.addEventListener('blur',  e => { if (!descLines(e.target.value).length) { e.target.value = ''; autoGrow(e.target); } });
+    card.querySelector('.bullet-btn').addEventListener('click', () => {
+      const v = descEl.value.replace(/\s+$/, '');
+      descEl.value = v ? v + '\n• ' : '• ';
+      descEl.focus();
+      descEl.selectionStart = descEl.selectionEnd = descEl.value.length;
+      descEl.dispatchEvent(new Event('input', { bubbles: true }));
+    });
     descEl.addEventListener('keydown', e => {
       if (e.key !== 'Enter' || e.shiftKey) return;
       e.preventDefault();
