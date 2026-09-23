@@ -108,7 +108,7 @@ Tool to ease my life as a PO.
 | `account.html` | — | Profile, avatar, countdowns, sign out |
 | `admin.html` | admin | User approval, module access requests, notifications |
 | `quiz.html` | quiz | Knowledge Quiz — vocabulary (EN/NL→FR), SM-2 spaced repetition, XP, multi feed, NL grammar (23 chapters), NL irregular verbs |
-| `lazypo_generator.html` | scope | Scope of Work email generator (.eml / HTML export) |
+| `lazypo_generator.html` | scope | Scope of Work email generator (.eml / HTML export) · named drafts, auto-deleted 7 days after their last save ([`sow_drafts_schema.sql`](sow_drafts_schema.sql)) |
 | `sprintplanner.html` | sprint | Sprint planning + PPTX export |
 | `jira.html` | jira | Jira hub (Query Saver, Dashboard, PI Timeline, File Cleaner) |
 | `jirarepo.html` | jira | Jira Query Saver — save/share JQL with cloud sync |

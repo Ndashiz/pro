@@ -203,6 +203,17 @@ input[type="text"]:focus, select:focus, textarea:focus {
 .add-btn:hover { background: var(--bg); border-color: var(--accent); color: var(--accent); }
 .small-add-btn { width: auto; padding: 3px 10px; font-size: 10.5px; }
 
+/* Brouillons */
+.drafts-list { display: flex; flex-direction: column; gap: 5px; }
+.draft-row { display: flex; align-items: center; gap: 4px; border: 1px solid var(--border); border-radius: var(--r-sm); background: var(--surface); padding: 2px 6px 2px 2px; transition: border-color .15s, background .15s; animation: fadeIn .15s ease; }
+.draft-row:hover { border-color: var(--accent); }
+.draft-row.current { border-color: var(--accent); background: var(--accent-light); }
+.draft-main { flex: 1; min-width: 0; background: none; border: none; cursor: pointer; text-align: left; padding: 5px 8px; font-family: inherit; display: flex; flex-direction: column; gap: 1px; }
+.draft-name { font-size: 12px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.draft-meta { font-size: 10.5px; color: var(--text-faint); }
+.drafts-empty { font-size: 11px; color: var(--text-faint); line-height: 1.5; }
+.drafts-status { display: none; font-size: 11px; margin-top: 6px; }
+
 /* ── THEME PICKER ── */
 .theme-section {
   background: var(--bg); border-radius: var(--r); padding: 14px 16px; margin-bottom: 22px;
@@ -299,6 +310,15 @@ input[type="text"]:focus, select:focus, textarea:focus {
           <input type="text" id="email-subtitle" placeholder="Sous-titre" value="" style="font-size:12px;padding:5px 9px;" />
         </div>
       </div>
+    </div>
+
+    <div class="section">
+      <div class="section-header">
+        Brouillons
+        <button class="add-btn small-add-btn" onclick="saveDraft()" title="Ctrl/⌘+S — garde tout l'état du formulaire (champs, objectifs, epics, thème) pour y revenir plus tard · effacé 7 jours après la dernière sauvegarde">💾 Sauvegarder</button>
+      </div>
+      <div class="drafts-list" id="drafts-list"></div>
+      <div class="drafts-status" id="drafts-status"></div>
     </div>
 
     <div class="section">
@@ -718,6 +738,248 @@ function showDropStatus(msg, isError) {
   st.textContent = msg;
 }
 
+// ── BROUILLONS ────────────────────────────────────────────────────
+/* Un brouillon = tout l'état du formulaire (champs, signature, objectifs,
+   epics, thème) sous un nom, pour reprendre un email pas fini plus tard.
+   Cloud : table Supabase `sow_drafts` (sow_drafts_schema.sql, à lancer à
+   la main). Sans session ou sans table — dev local, export autonome,
+   migration pas encore passée — on retombe sur localStorage et le
+   brouillon est marqué « cet appareil ».
+   Un brouillon est temporaire : supprimé 7 jours après sa dernière
+   sauvegarde (re-sauvegarder renouvelle la semaine). La purge se fait ici
+   à chaque affichage de la liste — local et cloud — et, côté base, par le
+   job pg_cron de sow_drafts_schema.sql.
+   Doit vivre DANS ce script : applyState() réassigne le `let epics`
+   (voir la note sur window.epics fantôme en bas de fichier). */
+const DRAFT_FIELDS = ['email-title', 'email-subtitle', 'pi-current', 'pi-next', 'deadline', 'email-subject',
+                      'intro-text', 'backlog-text', 'sig-name', 'sig-title', 'sig-phone', 'sig-mobile', 'sig-email', 'footer-text'];
+const DRAFTS_LS_KEY = 'lazypo:sowDrafts:v1';
+const DRAFT_TTL_MS = 7 * 24 * 3600 * 1000;
+let drafts = [];             // [{id, name, data, updated_at, local}]
+let currentDraft = null;     // le brouillon chargé / enregistré en dernier
+let lastSavedSnapshot = '';  // empreinte du dernier état enregistré ou chargé
+let draftsCloud = null;      // null = pas encore su, true / false ensuite
+
+function snapshotState() {
+  syncEpics();
+  const fields = {};
+  DRAFT_FIELDS.forEach(id => { const el = document.getElementById(id); fields[id] = el ? el.value : ''; });
+  return {
+    v: 1,
+    theme: currentTheme.id,
+    fields,
+    objectives: [...document.querySelectorAll('#objectives-list input[type="text"]')].map(el => el.value),
+    epics: JSON.parse(JSON.stringify(epics)),
+  };
+}
+function stateFingerprint() { return JSON.stringify(snapshotState()); }
+const initialSnapshot = stateFingerprint();
+function isDirty() { return stateFingerprint() !== (lastSavedSnapshot || initialSnapshot); }
+
+function renderObjectives(list) {
+  const objList = document.getElementById('objectives-list');
+  objList.innerHTML = '';
+  list.forEach((txt, i) => {
+    const item = document.createElement('div');
+    item.className = 'obj-item';
+    item.innerHTML = `<div class="obj-num obj-counter">${i + 1}</div><input type="text" value="${esc(txt)}" /><button class="del-btn" onclick="removeObj(this)">×</button>`;
+    objList.appendChild(item);
+  });
+}
+function normaliseEpic(e) {
+  e = e || {};
+  return {
+    name: String(e.name == null ? '' : e.name), ticket: String(e.ticket == null ? '' : e.ticket),
+    desc: String(e.desc == null ? '' : e.desc),
+    benefits: Array.isArray(e.benefits) ? e.benefits.map(b => String(b == null ? '' : b)) : [],
+    release: String(e.release == null || e.release === '' ? 'TBD' : e.release)
+  };
+}
+function applyState(s) {
+  s = s || {};
+  const fields = s.fields || {};
+  DRAFT_FIELDS.forEach(id => { const el = document.getElementById(id); if (el && id in fields) el.value = fields[id]; });
+  const t = THEMES.find(th => th.id === s.theme);
+  if (t) { currentTheme = t; renderThemeSwatches(); }
+  renderObjectives(Array.isArray(s.objectives) ? s.objectives : []);
+  epics = (Array.isArray(s.epics) ? s.epics : []).map(normaliseEpic);
+  renderEpics();   // ré-attache aussi les listeners « live » des objectifs
+  generate();
+}
+
+/* ── stockage ── */
+function readLocalDrafts() {
+  try { const a = JSON.parse(localStorage.getItem(DRAFTS_LS_KEY) || '[]'); return Array.isArray(a) ? a : []; }
+  catch (e) { return []; }
+}
+function writeLocalDrafts(list) {
+  try { localStorage.setItem(DRAFTS_LS_KEY, JSON.stringify(list)); }
+  catch (e) { console.warn('[sow] localStorage indisponible', e); }
+}
+/* L'utilisateur Supabase courant, ou null (déconnecté, bypass local sans
+   vraie session, export autonome sans supabase.min.js). */
+async function draftsUser() {
+  if (!window.sb) return null;
+  try {
+    const r = await window.sb.auth.getSession();
+    return (r.data && r.data.session && r.data.session.user) || null;
+  } catch (e) { return null; }
+}
+
+function draftExpiresAt(d) { return (Date.parse(d && d.updated_at) || 0) + DRAFT_TTL_MS; }
+function draftExpired(d)   { return draftExpiresAt(d) <= Date.now(); }
+
+/* Liste locale + cloud, en purgeant ce qui a plus de 7 jours au passage. */
+async function refreshDrafts() {
+  const localAll = readLocalDrafts();
+  const localKept = localAll.filter(d => !draftExpired(d));
+  if (localKept.length !== localAll.length) writeLocalDrafts(localKept);
+  const local = localKept.map(d => Object.assign({}, d, { local: true }));
+
+  let remote = [];
+  const user = await draftsUser();
+  if (user) {
+    const r = await window.sb.from('sow_drafts')
+      .select('id,name,updated_at,data').eq('user_id', user.id)
+      .order('updated_at', { ascending: false });
+    if (r.error) {
+      draftsCloud = false;
+      console.warn('[sow] brouillons cloud indisponibles —', r.error.message, '(sow_drafts_schema.sql lancé dans le SQL editor ?)');
+    } else {
+      draftsCloud = true;
+      remote = (r.data || []).filter(d => !draftExpired(d));
+      const stale = (r.data || []).filter(draftExpired).map(d => d.id);
+      // Le job pg_cron fait la même chose la nuit ; ici on n'attend pas.
+      if (stale.length) window.sb.from('sow_drafts').delete().in('id', stale).then(() => {}, () => {});
+    }
+  } else draftsCloud = false;
+  if (currentDraft && !remote.concat(local).some(d => d.id === currentDraft.id)) currentDraft = null;
+  drafts = remote.concat(local).sort((a, b) => (Date.parse(b.updated_at) || 0) - (Date.parse(a.updated_at) || 0));
+  renderDrafts();
+}
+
+async function persistDraft(existing, name, snap) {
+  const user = await draftsUser();
+  const row = { name, data: snap, updated_at: new Date().toISOString() };
+  if (user && !(existing && existing.local)) {
+    const q = existing
+      ? window.sb.from('sow_drafts').update(row).eq('id', existing.id)
+      : window.sb.from('sow_drafts').insert(Object.assign({ user_id: user.id }, row));
+    const r = await q.select('id,name,updated_at').single();
+    if (!r.error && r.data) return r.data;
+    console.warn('[sow] sauvegarde cloud impossible —', r.error && r.error.message, '(sow_drafts_schema.sql lancé ?)');
+  }
+  // Repli : cet appareil seulement.
+  const list = readLocalDrafts();
+  const id = existing && existing.local ? existing.id : 'local-' + Date.now().toString(36);
+  const rec = Object.assign({ id }, row);
+  const idx = list.findIndex(d => d.id === id);
+  if (idx >= 0) list[idx] = rec; else list.unshift(rec);
+  writeLocalDrafts(list);
+  return Object.assign({}, rec, { local: true });
+}
+
+/* ── actions ── */
+function defaultDraftName(snap) {
+  const f = snap.fields || {};
+  const base = (f['email-subject'] || f['email-title'] || '').trim() || (f['pi-current'] ? 'SoW ' + f['pi-current'].trim() : 'Brouillon');
+  return base + ' — ' + fmtWhen(new Date().toISOString());
+}
+async function saveDraft() {
+  const snap = snapshotState();
+  const name = prompt('Nom du brouillon :', currentDraft ? currentDraft.name : defaultDraftName(snap));
+  if (name === null) return;
+  const clean = name.trim();
+  if (!clean) return;
+  const existing = drafts.find(d => d.name.toLowerCase() === clean.toLowerCase());
+  const isCurrent = existing && currentDraft && existing.id === currentDraft.id;
+  if (existing && !isCurrent && !confirm(`Un brouillon « ${clean} » existe déjà — l'écraser ?`)) return;
+  setDraftsStatus('Enregistrement…');
+  const saved = await persistDraft(existing, clean, snap);
+  currentDraft = { id: saved.id, name: saved.name, local: !!saved.local };
+  lastSavedSnapshot = JSON.stringify(snap);
+  await refreshDrafts();
+  setDraftsStatus(saved.local ? '✓ Brouillon enregistré sur cet appareil seulement' : '✓ Brouillon enregistré');
+}
+async function loadDraft(id) {
+  const d = drafts.find(x => x.id === id);
+  if (!d) return;
+  if (isDirty() && !confirm(`Remplacer le contenu actuel par le brouillon « ${d.name} » ?\nLes modifications non enregistrées seront perdues.`)) return;
+  applyState(d.data);
+  currentDraft = { id: d.id, name: d.name, local: !!d.local };
+  lastSavedSnapshot = stateFingerprint();
+  renderDrafts();
+  setDraftsStatus(`✓ Brouillon « ${d.name} » chargé`);
+}
+async function deleteDraft(id) {
+  const d = drafts.find(x => x.id === id);
+  if (!d) return;
+  if (!confirm(`Supprimer le brouillon « ${d.name} » ?`)) return;
+  if (d.local) {
+    writeLocalDrafts(readLocalDrafts().filter(x => x.id !== id));
+  } else {
+    const r = await window.sb.from('sow_drafts').delete().eq('id', id);
+    if (r.error) { setDraftsStatus('❌ Suppression impossible : ' + r.error.message, true); return; }
+  }
+  if (currentDraft && currentDraft.id === id) currentDraft = null;
+  await refreshDrafts();
+  setDraftsStatus('Brouillon supprimé');
+}
+
+/* ── rendu ── */
+function fmtDay(ms) {
+  const d = new Date(ms);
+  return isNaN(d) ? '' : d.toLocaleDateString('fr-BE', { day: '2-digit', month: '2-digit' });
+}
+function fmtWhen(iso) {
+  const d = new Date(iso || 0);
+  if (isNaN(d)) return '';
+  return d.toLocaleDateString('fr-BE', { day: '2-digit', month: '2-digit' }) + ' ' +
+         d.toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' });
+}
+function renderDrafts() {
+  const box = document.getElementById('drafts-list');
+  if (!drafts.length) {
+    box.innerHTML = '<div class="drafts-empty">Aucun brouillon — 💾 Sauvegarder garde tout l\'état du formulaire pour y revenir plus tard. Un brouillon est effacé 7 jours après sa dernière sauvegarde.</div>';
+    return;
+  }
+  box.innerHTML = drafts.map(d => {
+    const cur = currentDraft && currentDraft.id === d.id;
+    const n = ((d.data && d.data.epics) || []).length;
+    const meta = [n + ' epic' + (n > 1 ? 's' : ''), fmtWhen(d.updated_at), 'expire le ' + fmtDay(draftExpiresAt(d))];
+    if (d.local) meta.push('📱 cet appareil');
+    if (cur) meta.push('chargé');
+    return `<div class="draft-row${cur ? ' current' : ''}" data-id="${esc(d.id)}">
+      <button type="button" class="draft-main" title="Charger ce brouillon">
+        <span class="draft-name">${esc(d.name)}</span>
+        <span class="draft-meta">${esc(meta.join(' · '))}</span>
+      </button>
+      <button type="button" class="del-btn draft-del" title="Supprimer">×</button>
+    </div>`;
+  }).join('');
+  box.querySelectorAll('.draft-row').forEach(row => {
+    row.querySelector('.draft-main').addEventListener('click', () => loadDraft(row.dataset.id));
+    row.querySelector('.draft-del').addEventListener('click', () => deleteDraft(row.dataset.id));
+  });
+}
+function setDraftsStatus(msg, isError) {
+  const el = document.getElementById('drafts-status');
+  el.textContent = msg;
+  el.style.color = isError ? '#e53' : 'var(--success)';
+  el.style.display = msg ? 'block' : 'none';
+  if (msg && !isError) setTimeout(() => { if (el.textContent === msg) el.style.display = 'none'; }, 4000);
+}
+
+// Liste locale tout de suite ; le cloud remplace dès que la session est là
+// (lazypo:profile est rediffusé par sidebar.js — refreshDrafts est idempotent).
+drafts = readLocalDrafts().map(d => Object.assign({}, d, { local: true }));
+renderDrafts();
+document.addEventListener('lazypo:profile', () => { refreshDrafts(); });
+setTimeout(() => { if (draftsCloud === null) refreshDrafts(); }, 1500);
+document.addEventListener('keydown', e => {
+  if ((e.metaKey || e.ctrlKey) && !e.altKey && e.key.toLowerCase() === 's') { e.preventDefault(); saveDraft(); }
+});
+
 const dz = document.getElementById('drop-zone');
 const fi = document.getElementById('file-input');
 
@@ -1126,8 +1388,11 @@ function buildExportHTML() {
     'script[src*="auth"], script[src*="popup"], script[src*="sidebar"],' +
     ' script[src*="focusfm"], script[src*="supabase"], script[src*="demo"]'
   ).forEach(s => s.remove());
+  // The marker is split on purpose: written contiguously, THIS script would
+  // contain it and strip itself from the export (empty standalone file).
+  const gateMarker = 'LazyAuth.' + 'requireModule';
   doc.querySelectorAll('script').forEach(s => {
-    if (s.textContent && s.textContent.includes('LazyAuth.requireModule')) s.remove();
+    if (s.textContent && s.textContent.includes(gateMarker)) s.remove();
   });
   // Sidebar widget shouldn't render in the exported file.
   doc.querySelectorAll('.sb-shell, .sb-rail, .sb-panel, .sb-backdrop').forEach(el => el.remove());
@@ -1136,6 +1401,10 @@ function buildExportHTML() {
   if (frame) { frame.removeAttribute('srcdoc'); frame.setAttribute('style', 'flex:1;border:none;background:#fff;display:none;'); }
   const empty = doc.querySelector('#preview-empty');
   if (empty) empty.style.display = '';
+  // Drafts list re-renders from localStorage in the exported file — don't
+  // ship the cloud rows rendered here.
+  const dl = doc.querySelector('#drafts-list');
+  if (dl) dl.innerHTML = '';
   // Disable the Export HTML button in the clone (no recursive exports
   // pointing at a now-empty document state).
   const dd = doc.querySelector('#exportHtmlDropdown');

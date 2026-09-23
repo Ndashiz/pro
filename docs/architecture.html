@@ -1115,6 +1115,23 @@ erDiagram
       </tbody>
     </table>
 
+    <h3>sow_drafts</h3>
+    <p>Brouillons du générateur Scope of Work (<code>lazypo_generator.html</code>) : l'état complet du
+      formulaire sous un nom, pour reprendre un email pas fini plus tard. Migration
+      <code>sow_drafts_schema.sql</code> (à lancer à la main) ; sans la table, le module retombe sur
+      <code>localStorage</code> et marque le brouillon « cet appareil ».</p>
+    <table class="data-table">
+      <thead><tr><th>Colonne</th><th>Type</th><th>Contrainte</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td>id</td><td>uuid</td><td>PK</td><td></td></tr>
+        <tr><td>user_id</td><td>uuid</td><td>FK → auth.users</td><td></td></tr>
+        <tr><td>name</td><td>text</td><td>not null</td><td>Nom donné au brouillon (dédoublonné côté client)</td></tr>
+        <tr><td>data</td><td>jsonb</td><td>default '{}'</td><td><code>{ v, theme, fields:{id: valeur}, objectives:[], epics:[{name,ticket,desc,benefits[],release}] }</code></td></tr>
+        <tr><td>created_at</td><td>timestamptz</td><td>default now()</td><td></td></tr>
+        <tr><td>updated_at</td><td>timestamptz</td><td>default now()</td><td>Trigger <code>touch_sow_drafts_updated_at</code> — la ligne est purgée 7 jours plus tard (job pg_cron <code>sow_drafts_purge</code>)</td></tr>
+      </tbody>
+    </table>
+
     <h3>quiz_sessions <span class="badge badge-blue">Multi feed</span></h3>
     <p>Snapshot d'une partie de quiz, posté automatiquement par <code>postMultiSession()</code> à la fin d'une session normale (pas en mode Challenge ni Démo).</p>
     <table class="data-table">
@@ -1238,6 +1255,7 @@ flowchart LR
         <tr><td>vocab_shares</td><td>sender_insert · sender_select · recipient_select · recipient_update</td>
             <td>Sender peut <code>INSERT</code> + <code>SELECT</code> ses envois. Recipient peut <code>SELECT</code> + <code>UPDATE</code> (accept/decline) ce qui lui est destiné.</td></tr>
         <tr><td>livenote_docs</td><td>public_read</td><td>Lecture publique, écriture authentifiée</td></tr>
+        <tr><td>sow_drafts</td><td>sow_drafts_owner_all</td><td><code>auth.uid() = user_id</code></td></tr>
       </tbody>
     </table>
   </section>
@@ -2388,6 +2406,23 @@ graph TB
     </div>
 
     <p>Changements significatifs des dernières releases — pour le détail complet voir <code>git log</code> ou les PR mergées sur <code>main</code>.</p>
+
+    <h3>Septembre 2026 — 💾 Scope of Work : brouillons</h3>
+    <ul style="padding-left: 24px; margin-bottom: 18px;">
+      <li>Nouvelle section <strong>Brouillons</strong> dans <code>lazypo_generator.html</code> : « 💾 Sauvegarder »
+          (ou Ctrl/⌘+S) garde tout l'état du formulaire — champs d'en-tête, signature, objectifs, epics,
+          thème — sous un nom, pour reprendre un email pas fini plus tard. La liste les propose par date :
+          clic pour charger (confirmation si le formulaire a des modifications non enregistrées),
+          × pour supprimer. Enregistrer sous le nom d'un brouillon existant l'écrase.</li>
+      <li>Stockage : table Supabase <code>sow_drafts</code> (migration <code>sow_drafts_schema.sql</code>,
+          RLS owner). Tant que la migration n'est pas passée — ou sans session : dev local, export
+          autonome — le brouillon va dans <code>localStorage</code> et s'affiche « 📱 cet appareil ».</li>
+      <li><strong>Temporaire</strong> : un brouillon est effacé <strong>7 jours après sa dernière
+          sauvegarde</strong> (re-sauvegarder renouvelle la semaine ; la date d'expiration est affichée
+          dans la liste). Purge côté client à chaque affichage — local et cloud — et, côté base, job
+          pg_cron <code>sow_drafts_purge</code> chaque nuit (même mécanisme que
+          <code>livenote_temp_cleanup.sql</code>).</li>
+    </ul>
 
     <h3>Septembre 2026 — 📧 Scope of Work : import du nouveau Jira Cloud</h3>
     <ul style="padding-left: 24px; margin-bottom: 18px;">
