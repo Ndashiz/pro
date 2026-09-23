@@ -396,6 +396,14 @@ input[type="text"]:focus, select:focus, textarea:focus {
         Objectifs PI
         <button class="add-btn small-add-btn" onclick="addObj()">+ Ajouter</button>
       </div>
+      <div class="field">
+        <label>Titre du bloc <span style="font-weight:400;color:var(--text-faint)">(vide = « PI &lt;PI en cours&gt; OBJECTIVES — &lt;Titre&gt; »)</span></label>
+        <input type="text" id="obj-heading" value="" placeholder="ex: PI 26-PI04 OBJECTIVES — CLM NXT" />
+      </div>
+      <div class="field">
+        <label>Texte sous le titre <span style="font-weight:400;color:var(--text-faint)">(en italique dans l'email · vide = rien)</span></label>
+        <textarea id="obj-intro" style="min-height:44px;">Objectives defined from backlog review sessions, aligned with product strategy &amp; roadmap.</textarea>
+      </div>
       <div id="objectives-list">
 
       </div>
@@ -837,7 +845,8 @@ function autoGrow(el) { el.style.height = 'auto'; el.style.height = Math.max(52,
    Doit vivre DANS ce script : applyState() réassigne le `let epics`
    (voir la note sur window.epics fantôme en bas de fichier). */
 const DRAFT_FIELDS = ['email-title', 'email-subtitle', 'pi-current', 'pi-next', 'deadline', 'email-subject',
-                      'intro-text', 'backlog-text', 'sig-name', 'sig-title', 'sig-phone', 'sig-mobile', 'sig-email', 'footer-text'];
+                      'intro-text', 'obj-heading', 'obj-intro', 'backlog-text',
+                      'sig-name', 'sig-title', 'sig-phone', 'sig-mobile', 'sig-email', 'footer-text'];
 const DRAFTS_LS_KEY = 'lazypo:sowDrafts:v1';
 const DRAFT_TTL_MS = 7 * 24 * 3600 * 1000;
 let drafts = [];             // [{id, name, data, updated_at, local}]
@@ -1246,6 +1255,8 @@ function buildEmailHtml() {
   const sigEmail  = document.getElementById('sig-email').value.trim();
   const footerTxt = document.getElementById('footer-text').value.trim();
   const objs = [...document.querySelectorAll('#objectives-list input[type="text"]')].map(el => el.value.trim()).filter(Boolean);
+  const objHeading = document.getElementById('obj-heading').value.trim() || `PI ${piC} OBJECTIVES — ${titleTxt}`;
+  const objIntro   = document.getElementById('obj-intro').value.trim();
 
   // Theme shorthand
   const T = currentTheme;
@@ -1368,8 +1379,8 @@ function buildEmailHtml() {
       <tr>
         <td width="4" bgcolor="${T.header}" style="background-color:${T.header};border-radius:4px 0 0 4px;">&nbsp;</td>
         <td bgcolor="${T.objBg}" style="background-color:${T.objBg};padding:20px 22px;border-radius:0 8px 8px 0;">
-          <p style="margin:0 0 8px 0;font-family:'Segoe UI',Calibri,Arial,sans-serif;font-size:14px;font-weight:bold;color:${T.header};">&#127919; PI ${esc(piC)} OBJECTIVES &mdash; ${esc(titleTxt)}</p>
-          <p style="margin:0 0 14px 0;font-family:'Segoe UI',Calibri,Arial,sans-serif;font-size:12px;font-style:italic;color:#4b5563;">Objectives defined from backlog review sessions, aligned with product strategy &amp; roadmap.</p>
+          <p style="margin:0 0 8px 0;font-family:'Segoe UI',Calibri,Arial,sans-serif;font-size:14px;font-weight:bold;color:${T.header};">&#127919; ${esc(objHeading)}</p>
+          ${objIntro ? `<p style="margin:0 0 14px 0;font-family:'Segoe UI',Calibri,Arial,sans-serif;font-size:12px;font-style:italic;color:#4b5563;">${esc(objIntro)}</p>` : ''}
           ${objsHtml}
         </td>
       </tr>
@@ -1580,7 +1591,8 @@ function downloadEml() {
   const plain = [
     'Dear Colleagues,', '',
     document.getElementById('intro-text').value.trim(), '',
-    `PI ${piC} OBJECTIVES - CLM NXT (Onboarding)`,
+    document.getElementById('obj-heading').value.trim() || `PI ${piC} OBJECTIVES - ${document.getElementById('email-title').value.trim() || 'Scope of Work'}`,
+    document.getElementById('obj-intro').value.trim(),
     ...objs.map((o,i) => `${i+1}. ${o}`), '',
     `PI ${piN} — KEY FEATURES`,
     ...epics.map((ep,i) => `${i+1}. ${ep.name} (${ep.ticket}) - Release: ${ep.release}`), '',
