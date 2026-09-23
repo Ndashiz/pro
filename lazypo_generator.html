@@ -176,6 +176,7 @@ input[type="text"]:focus, select:focus, textarea:focus {
 .epic-field label { display: block; font-size: 10.5px; font-weight: 500; color: var(--text-faint); margin-bottom: 3px; }
 .epic-field input, .epic-field select { font-size: 12px; padding: 6px 9px; }
 .epic-field textarea { font-size: 12px; padding: 6px 9px; min-height: 52px; }
+.epic-desc { line-height: 1.5; overflow: hidden; resize: none; }
 
 .release-preview { display: inline-flex; align-items: center; gap: 4px; font-size: 10.5px; font-weight: 600; padding: 2px 9px; border-radius: 20px; margin-top: 3px; }
 
@@ -747,7 +748,7 @@ function processRows(rows) {
       return {
         name:     String(r[col.name] || '').trim(),
         ticket:   col.ticket ? String(r[col.ticket] || '').trim() : '',
-        desc:     split.description,
+        desc:     descCanon(split.description),
         benefits: (fromCol.length ? fromCol : split.benefits).map(withArrow),
         release:  matchRelease(firstFilled(r, headers, col.release))
       };
@@ -782,7 +783,7 @@ function loadFromPI(manual) {
     return {
       name:     f.name || '',
       ticket:   f.key || '',
-      desc:     f.description || '',
+      desc:     descCanon(f.description),
       // Déjà un tableau côté PI — surtout ne pas re-splitter ; juste la flèche.
       benefits: (f.benefits || []).map(withArrow),
       release:  (rel && rel.name) || f.fixVersion || 'TBD'
@@ -803,6 +804,20 @@ function showDropStatus(msg, isError) {
   st.style.color = isError ? '#e53' : 'var(--success)';
   st.textContent = msg;
 }
+
+// ── DESCRIPTION : une ligne = une puce ────────────────────────────
+/* `epics[i].desc` garde une puce par ligne, sans marqueur. La zone de
+   saisie montre « • » devant chaque ligne (Entrée ouvre la suivante) et
+   l'email rend une puce par ligne. L'ancienne convention « point ; point »
+   (imports, brouillons d'avant, PI) est convertie à la lecture. */
+function descLines(desc) {
+  const s = String(desc == null ? '' : desc);
+  const raw = s.includes('\n') ? s.split('\n') : s.split(/\s*;\s*/);
+  return raw.map(l => l.replace(/^[\s•·\-*]+/, '').trim()).filter(Boolean);
+}
+function descCanon(desc)    { return descLines(desc).join('\n'); }
+function descToEditor(desc) { return descLines(desc).map(l => '• ' + l).join('\n'); }
+function autoGrow(el) { el.style.height = 'auto'; el.style.height = Math.max(52, el.scrollHeight + 2) + 'px'; }
 
 // ── BROUILLONS ────────────────────────────────────────────────────
 /* Un brouillon = tout l'état du formulaire (champs, signature, objectifs,
@@ -857,7 +872,7 @@ function normaliseEpic(e) {
   e = e || {};
   return {
     name: String(e.name == null ? '' : e.name), ticket: String(e.ticket == null ? '' : e.ticket),
-    desc: String(e.desc == null ? '' : e.desc),
+    desc: descCanon(e.desc),
     benefits: Array.isArray(e.benefits) ? e.benefits.map(b => String(b == null ? '' : b)) : [],
     release: String(e.release == null || e.release === '' ? 'TBD' : e.release)
   };
@@ -1085,7 +1100,7 @@ function renderEpics() {
       <div class="epic-body">
         <div class="epic-row">
           <div class="epic-field" style="max-width:110px;"><label>Ticket</label><input type="text" class="epic-ticket" value="${esc(ep.ticket)}" /></div>
-          <div class="epic-field"><label>Description <span style="font-weight:400;color:var(--text-faint)">(sépare les points par " ; ")</span></label><textarea class="epic-desc">${esc(ep.desc)}</textarea></div>
+          <div class="epic-field"><label>Description <span style="font-weight:400;color:var(--text-faint)">(une ligne = une puce · Entrée pour la suivante)</span></label><textarea class="epic-desc" placeholder="• Premier point">${esc(descToEditor(ep.desc))}</textarea></div>
         </div>
         <div class="epic-row" style="align-items:flex-end;">
           <div class="epic-field">
@@ -1110,7 +1125,18 @@ function renderEpics() {
     card.querySelector('.del-btn').addEventListener('click', () => { epics.splice(i,1); renderEpics(); });
     card.querySelector('.epic-name-input').addEventListener('input', e => { epics[i].name = e.target.value; });
     card.querySelector('.epic-ticket').addEventListener('input', e => { epics[i].ticket = e.target.value; });
-    card.querySelector('.epic-desc').addEventListener('input', e => { epics[i].desc = e.target.value; });
+    const descEl = card.querySelector('.epic-desc');
+    descEl.addEventListener('input', e => { epics[i].desc = descCanon(e.target.value); autoGrow(e.target); });
+    descEl.addEventListener('focus', e => { if (!e.target.value) { e.target.value = '• '; autoGrow(e.target); } });
+    descEl.addEventListener('blur',  e => { if (!descLines(e.target.value).length) { e.target.value = ''; autoGrow(e.target); } });
+    descEl.addEventListener('keydown', e => {
+      if (e.key !== 'Enter' || e.shiftKey) return;
+      e.preventDefault();
+      const el = e.target, a = el.selectionStart, b = el.selectionEnd, v = el.value;
+      el.value = v.slice(0, a) + '\n• ' + v.slice(b);
+      el.selectionStart = el.selectionEnd = a + 3;
+      el.dispatchEvent(new Event('input', { bubbles: true }));
+    });
     card.querySelector('.epic-release').addEventListener('change', e => {
       const v = e.target.value;
       if (v === '__add__')    { addCustomRelease(i); return; }
@@ -1149,6 +1175,7 @@ function renderEpics() {
       if (dragSrc !== null && dragSrc !== i) { const m = epics.splice(dragSrc,1)[0]; epics.splice(i,0,m); renderEpics(); }
     });
     list.appendChild(card);
+    autoGrow(descEl);
   });
   // Re-attach live listeners whenever epics are re-rendered
   attachLiveListeners();
@@ -1164,7 +1191,7 @@ function addObj() {
   list.appendChild(item); item.querySelector('input').focus();
 }
 function addEpic() {
-  epics.push({ name:'Nouvel Epic', ticket:'CRM-XXXX', desc:'Description...', benefits:['↗ Bénéfice'], release: releaseOptions()[0] || 'TBD' });
+  epics.push({ name:'Nouvel Epic', ticket:'CRM-XXXX', desc:'', benefits:['↗ Bénéfice'], release: releaseOptions()[0] || 'TBD' });
   renderEpics();
   setTimeout(() => { const inputs = document.querySelectorAll('.epic-name-input'); inputs[inputs.length-1]?.focus(); inputs[inputs.length-1]?.select(); }, 50);
 }
@@ -1172,7 +1199,7 @@ function addEpic() {
 function syncEpics() {
   document.querySelectorAll('.epic-name-input').forEach((el,i) => { if(epics[i]) epics[i].name = el.value; });
   document.querySelectorAll('.epic-ticket').forEach((el,i) => { if(epics[i]) epics[i].ticket = el.value; });
-  document.querySelectorAll('.epic-desc').forEach((el,i) => { if(epics[i]) epics[i].desc = el.value; });
+  document.querySelectorAll('.epic-desc').forEach((el,i) => { if(epics[i]) epics[i].desc = descCanon(el.value); });
   epics.forEach((ep,i) => {
     const tags = document.querySelectorAll(`#tw-${i} .tag`);
     if (tags.length) ep.benefits = [...tags].map(t => {
@@ -1227,8 +1254,8 @@ function buildEmailHtml() {
   const epicRows = epics.map((ep, i) => {
     const bg = i % 2 === 0 ? '#ffffff' : '#f9fafb';
 
-    // Description: split by " ; " into bullet points
-    const parts = ep.desc.split(/\s*;\s*/).map(s => s.trim()).filter(Boolean);
+    // Description: one bullet per line (legacy " ; " still understood)
+    const parts = descLines(ep.desc);
     const descHtml = parts.map(d =>
       `<p style="margin:0 0 4px 0;font-family:'Segoe UI',Calibri,Arial,sans-serif;font-size:12px;font-style:italic;color:#4b5563;">&#8226; ${esc(d)}</p>`
     ).join('');

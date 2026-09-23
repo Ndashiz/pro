@@ -2407,6 +2407,16 @@ graph TB
 
     <p>Changements significatifs des dernières releases — pour le détail complet voir <code>git log</code> ou les PR mergées sur <code>main</code>.</p>
 
+    <h3>Septembre 2026 — • Scope of Work : description en puces</h3>
+    <ul style="padding-left: 24px; margin-bottom: 18px;">
+      <li>La description d'un epic se rédige <strong>une ligne = une puce</strong> : la zone affiche « • »
+          devant chaque ligne, Entrée ouvre la puce suivante (Maj+Entrée pour un simple retour), la zone
+          grandit avec le texte, et l'email rend une puce par ligne. Le modèle (<code>epics[i].desc</code>,
+          brouillons) garde une puce par ligne sans marqueur.</li>
+      <li>L'ancienne convention « point ; point » — imports Jira, features du PI, brouillons d'avant — est
+          convertie à la lecture (<code>descCanon</code>) ; rien à reprendre à la main.</li>
+    </ul>
+
     <h3>Septembre 2026 — 🏷️ Scope of Work : ajouter une release depuis la carte</h3>
     <ul style="padding-left: 24px; margin-bottom: 18px;">
       <li>Le champ Release d'un epic devient une vraie liste déroulante : releases du PI, puis celles
