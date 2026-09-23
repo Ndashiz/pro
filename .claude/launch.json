@@ -73,6 +73,28 @@
       "port": 5180
     },
     {
+      "name": "virtualcoffee",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": [
+        "serve",
+        "-l",
+        "4321",
+        "/Users/ndashiz/Documents/virtualcoffee"
+      ],
+      "port": 4321
+    },
+    {
+      "name": "virtualcoffee-4333",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": [
+        "serve",
+        "-l",
+        "4333",
+        "/Users/ndashiz/Documents/virtualcoffee"
+      ],
+      "port": 4333
+    },
+    {
       "name": "rikiki-static",
       "runtimeExecutable": "npx",
       "runtimeArgs": [
@@ -84,6 +106,17 @@
       "port": 8123
     },
     {
+      "name": "hello-root",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": [
+        "serve",
+        "-l",
+        "8130",
+        "/private/tmp/claude-501/-Users-ndashiz-Documents-lazypo/efeb0d1e-c380-4bc9-afcd-062e8c427050/scratchpad/ndashiz.github.io"
+      ],
+      "port": 8130
+    },
+    {
       "name": "jarvis-dev-iso",
       "runtimeExecutable": "sh",
       "runtimeArgs": [
@@ -91,6 +124,37 @@
         "cd /Users/ndashiz/Documents/jarvis && PORT=3009 BACKEND_URL=http://localhost:3009 DATA_DIR=/private/tmp/claude-501/-Users-ndashiz-Documents-lazypo/d6b19ebd-2c46-4fde-9afe-19acaeb7f09a/scratchpad/data-iso npm run dev"
       ],
       "port": 5174
+    },
+    {
+      "name": "virtualcoffee-4341",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": [
+        "serve",
+        "-l",
+        "4341",
+        "/Users/ndashiz/Documents/virtualcoffee"
+      ],
+      "port": 4341
+    },
+    {
+      "name": "jarvis-vc-front-5182",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": [
+        "-c",
+        "cd /Users/ndashiz/Documents/jarvis/frontend && BACKEND_URL=http://localhost:3011 npx vite --port 5182 --strictPort"
+      ],
+      "port": 5182
+    },
+    {
+      "name": "root-site",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": [
+        "serve",
+        "-l",
+        "3100",
+        "/Users/ndashiz/Documents/ndashiz.github.io"
+      ],
+      "port": 3100
     }
   ]
 }
