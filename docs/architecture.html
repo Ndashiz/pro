@@ -2425,9 +2425,10 @@ graph TB
 
     <h3>Septembre 2026 — 💾 Scope of Work : brouillons</h3>
     <ul style="padding-left: 24px; margin-bottom: 18px;">
-      <li>Nouvelle section <strong>Brouillons</strong> dans <code>lazypo_generator.html</code> : « 💾 Sauvegarder »
-          (ou Ctrl/⌘+S) garde tout l'état du formulaire — champs d'en-tête, signature, objectifs, epics,
-          thème — sous un nom, pour reprendre un email pas fini plus tard. La liste les propose par date :
+      <li>Nouvelle section <strong>Scopes of Work sauvegardés</strong> en tête du panneau gauche de
+          <code>lazypo_generator.html</code>, plus un bouton « Sauvegarder » dans la barre du haut (ou
+          Ctrl/⌘+S) : tout l'état du formulaire — champs d'en-tête, signature, objectifs, epics, thème —
+          est gardé sous un nom, pour reprendre un email pas fini plus tard. La liste les propose par date :
           clic pour charger (confirmation si le formulaire a des modifications non enregistrées),
           × pour supprimer. Enregistrer sous le nom d'un brouillon existant l'écrase.</li>
       <li>Stockage : table Supabase <code>sow_drafts</code> (migration <code>sow_drafts_schema.sql</code>,
