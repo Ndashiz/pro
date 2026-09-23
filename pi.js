@@ -74,7 +74,7 @@
       start: '',
       end: '',            // last day of the PI, INCLUSIVE (what a human types)
       sprintLen: 14,
-      releases: [],       // {id, name, date}
+      releases: [],       // {id, name, date, testDate} — date = production, testDate = test env
       features: [],       // {id, key, name, description, benefits[], fixVersion, epic, epicKey, order, source, offset}
       testing: [],        // {id, label, start, end}
       off: [],            // {id, name, reason, start, end}
@@ -102,6 +102,9 @@
       if (!r.id) r.id = uid();
       r.name = String(r.name == null ? '' : r.name);
       r.date = String(r.date == null ? '' : r.date);
+      // Target date on the test environment. Optional: a release that is only
+      // ever flagged for prod keeps an empty string here.
+      r.testDate = String(r.testDate == null ? '' : r.testDate);
     });
     pi.features.forEach(function (f, i) {
       if (!f.id) f.id = uid();
@@ -603,7 +606,7 @@
           sprintLen: g.sprintLen || 14,
           fileName: g.fileName || '',
           releases: (g.releases || []).map(function (r) {
-            return { id: r.id || uid(), name: r.name || '', date: r.date || '' };
+            return { id: r.id || uid(), name: r.name || '', date: r.date || '', testDate: r.testDate || '' };
           }),
           features: (g.features || []).map(function (f, i) {
             return {

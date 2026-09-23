@@ -303,7 +303,7 @@
         feature's <b>fix version</b> is matched against.
       </p>
       <table class="tbl">
-        <thead><tr><th>Release name</th><th class="col-narrow">Date</th><th style="width:110px">Sprint</th><th style="width:96px">Features</th><th class="col-act"></th></tr></thead>
+        <thead><tr><th>Release name</th><th class="col-narrow">Test env</th><th class="col-narrow">Date</th><th style="width:110px">Sprint</th><th style="width:96px">Features</th><th class="col-act"></th></tr></thead>
         <tbody id="relBody"></tbody>
       </table>
       <button class="btn btn-sm" style="margin-top:12px" onclick="addRelease()">+ Add a release</button>
@@ -649,7 +649,7 @@ function renderReleases(){
   });
 
   if (!(pi.releases || []).length) {
-    body.innerHTML = '<tr><td colspan="5" class="empty-line">No release yet — import a Jira backlog or add one by hand.</td></tr>';
+    body.innerHTML = '<tr><td colspan="6" class="empty-line">No release yet — import a Jira backlog or add one by hand.</td></tr>';
   } else {
     body.innerHTML = pi.releases.map((r, i) => {
       const d = LazyPI.parseD(r.date);
@@ -664,7 +664,10 @@ function renderReleases(){
         <td><span class="swatch" style="background:${PALETTE[i % PALETTE.length]}"></span>
             <input type="text" value="${esc(r.name)}" placeholder="Release name"
                    data-rel="${esc(r.id)}" data-relfield="name"></td>
-        <td><input type="date" value="${esc(r.date)}" data-rel="${esc(r.id)}" data-relfield="date"></td>
+        <td><input type="date" value="${esc(r.testDate || '')}" data-rel="${esc(r.id)}" data-relfield="testDate"
+                   title="Target date on the test environment — optional"></td>
+        <td><input type="date" value="${esc(r.date)}" data-rel="${esc(r.id)}" data-relfield="date"
+                   title="Target date in production"></td>
         <td>${sprintCell}</td>
         <td><span class="count-chip">${counts[r.id] || 0} feat.</span></td>
         <td><button class="btn btn-sm btn-ghost btn-danger" onclick="removeRelease('${esc(r.id)}')" title="Remove this release">✕</button></td>
@@ -682,7 +685,7 @@ function renderReleases(){
 }
 
 function addRelease(){
-  PI().releases.push({ id: LazyPI.uid(), name: '', date: '' });
+  PI().releases.push({ id: LazyPI.uid(), name: '', date: '', testDate: '' });
   commit();
 }
 
@@ -1338,10 +1341,10 @@ function exportExcel(){
   wsPI['!cols'] = [{ wch: 22 }, { wch: 40 }];
   XLSX.utils.book_append_sheet(wb, wsPI, XLS_SHEETS.pi);
 
-  const rel = [['Release name', 'Date']].concat(
-    (pi.releases || []).map(r => [r.name || '', r.date || '']));
+  const rel = [['Release name', 'Test env date', 'Date']].concat(
+    (pi.releases || []).map(r => [r.name || '', r.testDate || '', r.date || '']));
   const wsRel = XLSX.utils.aoa_to_sheet(rel);
-  wsRel['!cols'] = [{ wch: 34 }, { wch: 14 }];
+  wsRel['!cols'] = [{ wch: 34 }, { wch: 14 }, { wch: 14 }];
   XLSX.utils.book_append_sheet(wb, wsRel, XLS_SHEETS.releases);
 
   const feat = [['Order', 'Key', 'Name', 'Description', 'Benefit', 'Fix version', 'Epic', 'Epic key', 'Source', 'Release date']].concat(
@@ -1434,7 +1437,8 @@ function importExcel(file){
     sheetRows(wb, sheetNamed(XLS_SHEETS.releases)).forEach(row => {
       const name = String(pick(row, ['Release name', 'Name', 'Release']) || '').trim();
       const date = cellDate(pick(row, ['Date', 'Release date']));
-      if (name || date) next.releases.push({ id: LazyPI.uid(), name: name, date: date });
+      const testDate = cellDate(pick(row, ['Test env date', 'Test date', 'Test env']));
+      if (name || date || testDate) next.releases.push({ id: LazyPI.uid(), name: name, date: date, testDate: testDate });
     });
 
     sheetRows(wb, sheetNamed(XLS_SHEETS.features)).forEach((row, i) => {

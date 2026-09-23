@@ -184,7 +184,10 @@
     .marker .dot{width:11px;height:11px;transform:rotate(45deg);border-radius:2px;flex:none;box-shadow:0 0 0 3px var(--surface)}
     .marker .lbl{position:absolute;left:11px;white-space:nowrap;font-size:10.5px;font-family:'DM Mono',monospace;padding-left:4px}
     .marker.flip .lbl{left:auto;right:11px;padding-left:0;padding-right:4px}
+    /* A hollow diamond is the test-environment target; the filled one is prod. */
+    .marker .dot.hollow{background:transparent !important;border:2px solid currentColor}
     .rel-line{position:absolute;top:0;bottom:0;width:1px;z-index:1;pointer-events:none;opacity:.35}
+    .rel-line.test{width:0;background:none !important;border-left:1px dashed;opacity:.4}
 
     .legend{display:flex;flex-wrap:wrap;gap:16px;margin-top:16px;padding-top:14px;border-top:1px solid var(--border);font-size:11px;color:var(--muted)}
     .legend span{display:inline-flex;align-items:center;gap:6px}
@@ -363,9 +366,9 @@
       <span class="chev"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></span>
     </div>
     <div class="panel-body">
-      <p class="row-note">Fix versions found in the extract are listed automatically. Give each one its release date — features inherit their position from it. Rows without a date are ignored.</p>
+      <p class="row-note">Fix versions found in the extract are listed automatically. Give each one its release date — features inherit their position from it. Rows without a date are ignored. <b>Test env</b> is the target date for the same release on the test environment; leave it empty if you don't track it.</p>
       <table class="tbl">
-        <thead><tr><th>Fix version</th><th class="col-narrow">Release date</th><th style="width:110px">Features</th><th class="col-act"></th></tr></thead>
+        <thead><tr><th>Fix version</th><th class="col-narrow">Test env date</th><th class="col-narrow">Release date</th><th style="width:110px">Features</th><th class="col-act"></th></tr></thead>
         <tbody id="relBody"></tbody>
       </table>
       <button class="btn btn-sm" style="margin-top:12px" onclick="addRelease()">+ Add a release</button>
@@ -431,6 +434,7 @@
       <span><i class="k" style="background:rgba(59,130,246,.24);box-shadow:inset 0 0 0 1px rgba(255,255,255,.12)"></i> Feature</span>
       <span><i class="k" style="background:rgba(245,158,11,.22);box-shadow:inset 0 0 0 1px rgba(245,158,11,.4)"></i> Testing session</span>
       <span><i class="k" style="background:repeating-linear-gradient(135deg,rgba(239,68,68,.26) 0 6px,rgba(239,68,68,.12) 6px 12px);box-shadow:inset 0 0 0 1px rgba(239,68,68,.34)"></i> Unavailable</span>
+      <span><i class="kd" style="border:2px solid var(--accent2);box-sizing:border-box"></i> Test env target</span>
       <span><i class="kd" style="background:var(--accent2)"></i> Release date</span>
       <span><i style="width:2px;height:11px;background:rgba(239,68,68,.7);display:inline-block"></i> Today</span>
       <span class="legend-hint" style="margin-left:auto;font-family:'DM Mono',monospace;font-size:10.5px">Hover a feature bar → ‹ › to shift it one sprint</span>
@@ -476,7 +480,7 @@ const STATE = {
   sprintLen: 14,
   fileName:  '',
   features:  [],   // {id, key, title, fixVersion, offset}
-  releases:  [],   // {id, name, date}
+  releases:  [],   // {id, name, date, testDate} — date = prod target, testDate = test env target
   testing:   [],   // {id, label, start, end}
   off:       [],   // {id, name, reason, start, end}
   mode:      'detailed',
@@ -599,7 +603,7 @@ function pushToPI(){
   pi.start     = STATE.pi.start;
   pi.end       = STATE.pi.end;
   pi.sprintLen = STATE.sprintLen;
-  pi.releases  = STATE.releases.map(r => ({ id: r.id, name: r.name, date: r.date }));
+  pi.releases  = STATE.releases.map(r => ({ id: r.id, name: r.name, date: r.date, testDate: r.testDate || '' }));
   pi.testing   = STATE.testing;
   pi.off       = STATE.off;
   // Match on id first (a rename keeps the id), then on issue key + fix version.
@@ -624,7 +628,7 @@ function pullFromPI(){
   STATE.pi        = { start: pi.start, end: pi.end };
   STATE.sprintLen = pi.sprintLen || 14;
   STATE.fileName  = pi.fileName || STATE.fileName;
-  STATE.releases  = pi.releases.map(r => ({ id: r.id, name: r.name, date: r.date }));
+  STATE.releases  = pi.releases.map(r => ({ id: r.id, name: r.name, date: r.date, testDate: r.testDate || '' }));
   STATE.features  = LazyPI.featuresSorted(pi)
     .filter(f => f.fixVersion)               // no fix version → nothing to place it against
     .map(f => ({
@@ -787,7 +791,7 @@ function syncReleasesFromFeatures(){
   STATE.features.forEach(f => {
     if (!known.has(f.fixVersion)) {
       known.add(f.fixVersion);
-      STATE.releases.push({ id: uid(), name: f.fixVersion, date: '' });
+      STATE.releases.push({ id: uid(), name: f.fixVersion, date: '', testDate: '' });
     }
   });
 }
@@ -799,22 +803,26 @@ function renderReleaseTable(){
   STATE.features.forEach(f => { counts[f.fixVersion] = (counts[f.fixVersion] || 0) + 1; });
 
   if (!STATE.releases.length) {
-    body.innerHTML = '<tr><td colspan="4" class="empty-line">No release yet — load a Jira extract or add one manually.</td></tr>';
+    body.innerHTML = '<tr><td colspan="5" class="empty-line">No release yet — load a Jira extract or add one manually.</td></tr>';
   } else {
     body.innerHTML = STATE.releases.map((r, i) => `
       <tr>
         <td><span class="swatch" style="background:${PALETTE[i % PALETTE.length]}"></span>
             <input type="text" value="${esc(r.name)}" oninput="editRelease('${r.id}','name',this.value)" placeholder="Fix version"></td>
-        <td><input type="date" value="${esc(r.date)}" onchange="editRelease('${r.id}','date',this.value)"></td>
+        <td><input type="date" value="${esc(r.testDate || '')}" onchange="editRelease('${r.id}','testDate',this.value)" title="Target date on the test environment"></td>
+        <td><input type="date" value="${esc(r.date)}" onchange="editRelease('${r.id}','date',this.value)" title="Target date in production"></td>
         <td><span class="count-chip">${counts[r.name] || 0} feat.</span></td>
         <td><button class="btn btn-sm btn-ghost btn-danger" onclick="removeRelease('${r.id}')" title="Remove">✕</button></td>
       </tr>`).join('');
   }
   const dated = STATE.releases.filter(r => r.date).length;
+  const onTest = STATE.releases.filter(r => r.testDate).length;
   document.getElementById('relSub').textContent =
-    STATE.releases.length ? dated + '/' + STATE.releases.length + ' dated' : 'Fix version → release date';
+    STATE.releases.length
+      ? dated + '/' + STATE.releases.length + ' dated' + (onTest ? ' · ' + onTest + ' on test env' : '')
+      : 'Fix version → release date';
 }
-function addRelease(){ STATE.releases.push({ id: uid(), name: '', date: '' }); save(); renderAll(); }
+function addRelease(){ STATE.releases.push({ id: uid(), name: '', date: '', testDate: '' }); save(); renderAll(); }
 function editRelease(id, field, val){
   const r = STATE.releases.find(x => x.id === id); if (!r) return;
   if (field === 'name') {
@@ -930,7 +938,11 @@ function renderChart(){
   }
 
   const dated = STATE.releases.filter(r => r.date && parseD(r.date));
-  const hasContent = sprints.length && (dated.length || STATE.testing.length || STATE.off.length);
+  // A release can be flagged on the test environment before — or without — a
+  // production date, so the test targets are their own lane and their own
+  // reason for the chart to exist.
+  const onTest = STATE.releases.filter(r => r.testDate && parseD(r.testDate));
+  const hasContent = sprints.length && (dated.length || onTest.length || STATE.testing.length || STATE.off.length);
   document.getElementById('placeholder').classList.toggle('hidden', !!hasContent);
   document.getElementById('chartCard').classList.toggle('hidden', !hasContent);
   if (!hasContent) return;
@@ -945,11 +957,16 @@ function renderChart(){
   const today = new Date(); today.setHours(0, 0, 0, 0);
   const todayLine = (today >= s && today <= e)
     ? '<div class="gt-today" style="left:' + pct(today) + '%"></div>' : '';
-  // Release dates run through the whole chart as faint guides.
+  // Release dates run through the whole chart as faint guides — solid for the
+  // production target, dashed for the test-environment one.
   let relLines = '';
-  dated.forEach((r, i) => {
+  dated.forEach(r => {
     const c = PALETTE[STATE.releases.indexOf(r) % PALETTE.length];
     relLines += '<div class="rel-line" style="left:' + clampPct(pct(parseD(r.date))) + '%;background:' + c + '"></div>';
+  });
+  onTest.forEach(r => {
+    const c = PALETTE[STATE.releases.indexOf(r) % PALETTE.length];
+    relLines += '<div class="rel-line test" style="left:' + clampPct(pct(parseD(r.testDate))) + '%;color:' + c + '"></div>';
   });
   const overlay = lines + relLines + todayLine;
 
@@ -991,23 +1008,31 @@ function renderChart(){
             '<div class="gt-row gt-band-sprint"><div class="gt-label">Sprints</div><div class="gt-track">' + cols + '</div></div>' +
           '</div>';
 
-  /* — releases lane — */
-  if (dated.length) {
-    html += section('Releases');
+  /* — releases lane: test environment first, production under it — */
+  const markerLane = (list, field, hollow) => {
     let markers = '';
-    dated.forEach(r => {
-      const d = parseD(r.date);
+    list.forEach(r => {
+      const d = parseD(r[field]);
       const p = clampPct(pct(d));
       const c = PALETTE[STATE.releases.indexOf(r) % PALETTE.length];
       // Labels past the two-thirds mark are flipped so they stay inside the chart.
       const flip = p > 66;
-      markers += '<div class="marker' + (flip ? ' flip' : '') + '" style="left:' + p + '%" title="' +
-                 esc(r.name) + ' — ' + fmtLong(d) + '">' +
-                   '<span class="dot" style="background:' + c + '"></span>' +
+      markers += '<div class="marker' + (flip ? ' flip' : '') + '" style="left:' + p + '%;color:' + c + '" title="' +
+                 esc(r.name + (hollow ? ' → test environment' : ' → production')) + ' — ' + fmtLong(d) + '">' +
+                   '<span class="dot' + (hollow ? ' hollow' : '') + '" style="background:' + c + '"></span>' +
                    '<span class="lbl" style="color:' + c + '">' + esc(r.name) + ' · ' + fmtShort(d) + '</span>' +
                  '</div>';
     });
-    html += row('<span class="txt" style="font-weight:600">🚀 Release dates</span>', markers);
+    return markers;
+  };
+  if (dated.length || onTest.length) {
+    html += section('Releases');
+    if (onTest.length) {
+      html += row('<span class="txt" style="font-weight:600">🧪 Test env target</span>', markerLane(onTest, 'testDate', true));
+    }
+    if (dated.length) {
+      html += row('<span class="txt" style="font-weight:600">🚀 Release dates</span>', markerLane(dated, 'date', false));
+    }
   }
 
   /* — testing sessions — */
@@ -1313,7 +1338,10 @@ window.loadDemoData = function(){
   const names = ['R-' + relDates[0].toLocaleDateString('en-GB',{month:'short'}),
                  'R-' + relDates[1].toLocaleDateString('en-GB',{month:'short'}),
                  'R-' + relDates[2].toLocaleDateString('en-GB',{month:'short'})];
-  STATE.releases = names.map((n, i) => ({ id: uid(), name: n, date: isoD(relDates[i]) }));
+  // Each release hits the test environment a week before production.
+  STATE.releases = names.map((n, i) => ({
+    id: uid(), name: n, date: isoD(relDates[i]), testDate: isoD(addDays(relDates[i], -7)),
+  }));
 
   const titles = [
     ['Client onboarding — KYC refresh flow', 'Bulk document upload', 'AML alert triage screen'],

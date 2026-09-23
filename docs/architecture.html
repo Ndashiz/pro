@@ -2442,6 +2442,27 @@ graph TB
           laisse la page décalée), et le tableau ne garde que #, mot, traduction, langue, taux, actions.</li>
     </ul>
 
+    <h3>Août 2026 — 🧪 Gantt : date cible sur l'environnement de test</h3>
+    <ul style="padding-left: 24px; margin-bottom: 18px;">
+      <li>Une release porte désormais <strong>deux dates</strong> : <code>testDate</code> (cible sur
+          l'environnement de test) et <code>date</code> (cible en production). Nouvelle colonne
+          <strong>Test env</strong> dans le tableau des releases de <code>gantt.html</code> et de
+          <code>pi.html</code>.</li>
+      <li>Sur le graphique, une voie <strong>🧪 Test env target</strong> passe au-dessus de
+          <strong>🚀 Release dates</strong> : losange <em>creux</em> + repère vertical <em>pointillé</em>
+          pour le test, losange plein + trait continu pour la prod, dans la couleur de la release.</li>
+      <li>Une release <strong>flaguée seulement sur le test</strong> suffit à afficher la timeline —
+          elle reste signalée « missing release date » tant qu'aucune date de prod ne positionne ses
+          features.</li>
+      <li>Le champ traverse tout l'aller-retour : <code>pi.js</code> (<code>normalise</code>, adoption
+          du legacy gantt), la synchro <code>gantt ↔ PI ↔ Supabase</code>, l'export Excel de
+          <code>pi.html</code> (colonne « Test env date », un fichier ancien sans la colonne se relit
+          sans se tromper de date) et l'export HTML autonome.</li>
+      <li>Les trois autres flags existaient déjà : <strong>Testing sessions</strong> (période TESTS &amp;
+          UAT) et <strong>Consultant unavailability</strong> (congés d'un analyste, plusieurs périodes
+          par personne).</li>
+    </ul>
+
     <h3>Août 2026 — 🖨️ Quiz : mode impression / étude du vocabulaire</h3>
     <ul style="padding-left: 24px; margin-bottom: 18px;">
       <li>Le bouton <strong>Imprimer</strong> sortait un tableau brut de tout ce que la liste affichait.
