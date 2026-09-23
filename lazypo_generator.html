@@ -166,7 +166,9 @@ input[type="text"]:focus, select:focus, textarea:focus {
 }
 .epic-head:active { cursor: grabbing; }
 .drag-dots { color: var(--text-faint); font-size: 13px; flex-shrink: 0; letter-spacing: -1px; }
-.epic-idx { width: 18px; height: 18px; background: var(--blue); color: #fff; border-radius: 50%; font-size: 10px; font-weight: 600; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.epic-idx { width: 22px; height: 22px; min-width: 22px; background: var(--blue); color: #fff; border-radius: 50%; font-size: 10.5px; font-weight: 600; font-family: inherit; flex-shrink: 0; border: none; padding: 0; margin: 0; text-align: center; text-align-last: center; -webkit-appearance: none; -moz-appearance: none; appearance: none; cursor: pointer; box-shadow: none; outline: none; line-height: 22px; transition: background .12s, transform .12s; }
+.epic-idx:hover { background: var(--accent); transform: scale(1.08); }
+.epic-idx option { color: var(--text); background: var(--surface); font-weight: 500; }
 .epic-head input { flex: 1; border: none; background: transparent; font-weight: 600; font-size: 13px; color: var(--navy); outline: none; padding: 0; box-shadow: none; }
 .del-btn { background: none; border: none; cursor: pointer; color: var(--text-faint); font-size: 17px; line-height: 1; padding: 0 2px; transition: color .1s; flex-shrink: 0; }
 .del-btn:hover { color: var(--danger); }
@@ -1095,7 +1097,7 @@ function renderEpics() {
     card.innerHTML = `
       <div class="epic-head">
         <span class="drag-dots">⠿</span>
-        <div class="epic-idx">${i+1}</div>
+        <select class="epic-idx" title="Priorité ${i+1} — choisis un autre numéro pour déplacer l'epic">${epics.map((_, n) => `<option value="${n}"${n === i ? ' selected' : ''}>${n + 1}</option>`).join('')}</select>
         <input type="text" class="epic-name-input" value="${esc(ep.name)}" />
         <button class="del-btn">×</button>
       </div>
@@ -1125,6 +1127,14 @@ function renderEpics() {
       </div>`;
 
     card.querySelector('.del-btn').addEventListener('click', () => { epics.splice(i,1); renderEpics(); });
+    card.querySelector('.epic-idx').addEventListener('change', e => {
+      const to = +e.target.value;
+      if (to === i || isNaN(to)) return;
+      const moved = epics.splice(i, 1)[0];
+      epics.splice(to, 0, moved);
+      renderEpics();
+      if (lastEmailHtml) generate();
+    });
     card.querySelector('.epic-name-input').addEventListener('input', e => { epics[i].name = e.target.value; });
     card.querySelector('.epic-ticket').addEventListener('input', e => { epics[i].ticket = e.target.value; });
     const descEl = card.querySelector('.epic-desc');
