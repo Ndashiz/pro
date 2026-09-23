@@ -1001,7 +1001,9 @@ const COL_ALIASES = {
   key:        ['issue key','key','issue id','id'],
   summary:    ['summary','title','name'],
   description:['description','desc'],
-  benefits:   ['benefit','benefits','business value','value','label','labels'],
+  // Jira Cloud labels ("security", "PI_Q42026"…) are tags, not benefits —
+  // those now live in the Description blob, see LazyPI.splitDescriptionBenefit.
+  benefits:   ['benefit','benefits','business value','value'],
   fixVersion: ['fix version/s','fix version','fixversion','fix versions','fix-version','fixversions','release'],
   epic:       ['epic name','epic link','custom field (epic link)','custom field (epic name)','epic'],
   type:       ['issue type','type','issuetype'],
@@ -1047,85 +1049,13 @@ function multiValue(row, cols){
   return out;
 }
 
-/* ── Jira wiki markup → readable plain text ───────────────────── */
-function cleanJira(raw){
-  let s = String(raw == null ? '' : raw);
-  s = s.replace(/\r\n?/g, '\n');
-  s = s.replace(/\{code(:[^}]*)?\}/gi, '').replace(/\{noformat\}/gi, '');
-  s = s.replace(/\{quote\}/gi, '').replace(/\{color[^}]*\}/gi, '').replace(/\{\/?color\}/gi, '');
-  s = s.replace(/\{panel[^}]*\}/gi, '');
-  s = s.replace(/^h[1-6]\.\s*/gim, '');            // headings
-  s = s.replace(/\[([^\]|]+)\|[^\]]+\]/g, '$1');   // [text|url] → text
-  s = s.replace(/^[*#]+\s+/gm, '• ');              // list bullets
-  s = s.replace(/(^|\s)[*_]([^*_\n]{1,120})[*_](?=\s|$)/g, '$1$2'); // *bold* / _italic_
-  s = s.replace(/\n{3,}/g, '\n\n');
-  return s.trim();
-}
-
-/**
- * Jira bundles the description and the benefit into one field (spec §6.4).
- * Split on an explicit marker when there is one, then on a user-story
- * "so that" clause; otherwise everything stays in the description and the
- * user fixes it in the list.
- */
-const BENEFIT_MARKER = /^[\s>*_•-]*(?:h[1-6]\.\s*)?[*_]{0,2}\s*(benefits?|b[ée]n[ée]fices?|business\s+value|value|valeur|gains?|why|pourquoi|outcomes?)\s*[*_]{0,2}\s*[:：-]?\s*$/i;
-const BENEFIT_INLINE = /(?:^|\n)[\s>*_•-]*(?:h[1-6]\.\s*)?[*_]{0,2}\s*(?:benefits?|b[ée]n[ée]fices?|business\s+value|value|valeur|gains?)\s*[*_]{0,2}\s*[:：]\s*/i;
-/* "Description" / "Contexte" as a heading of its own says nothing — once the
-   h2. prefix is stripped it would otherwise survive as the first line. */
-const DESC_LABEL = /^[\s>*_•-]*[*_]{0,2}\s*(description|desc|summary|r[ée]sum[ée]|context|contexte|what|quoi)\s*[*_]{0,2}\s*[:：-]?\s*$/i;
-/* Only treat "so that" as a benefit connector inside an actual user story —
-   in ordinary prose it is just a conjunction. */
-const STORY_OPENER  = /\b(as an?|en tant que|i want|i need|je (?:veux|souhaite|dois))\b/i;
-const STORY_CLAUSE  = /\s+(?:so that|in order to|afin de|afin que|pour que|dans le but de)\s+/i;
-
-function stripDescLabel(text){
-  const lines = String(text || '').split('\n');
-  while (lines.length && (!lines[0].trim() || DESC_LABEL.test(lines[0]))) lines.shift();
-  return lines.join('\n').trim();
-}
-
-function splitDescriptionBenefit(raw){
-  const text = cleanJira(raw);
-  if (!text) return { description: '', benefits: [] };
-
-  // 1. A line that IS the marker ("Benefit:", "h2. Business value")
-  const lines = text.split('\n');
-  for (let i = 0; i < lines.length; i++) {
-    if (BENEFIT_MARKER.test(lines[i])) {
-      return {
-        description: stripDescLabel(lines.slice(0, i).join('\n')),
-        benefits: bulletsOf(lines.slice(i + 1).join('\n'))
-      };
-    }
-  }
-  // 2. An inline marker ("Benefit: faster onboarding")
-  const inline = BENEFIT_INLINE.exec(text);
-  if (inline) {
-    return {
-      description: stripDescLabel(text.slice(0, inline.index)),
-      benefits: bulletsOf(text.slice(inline.index + inline[0].length))
-    };
-  }
-  // 3. A user story — the "so that" clause is the benefit.
-  const story = STORY_OPENER.test(text) ? STORY_CLAUSE.exec(text) : null;
-  if (story) {
-    return {
-      description: stripDescLabel(text.slice(0, story.index)),
-      benefits: bulletsOf(text.slice(story.index + story[0].length))
-    };
-  }
-  // 4. No signal — keep it all as description (spec: the user fixes it here).
-  return { description: stripDescLabel(text), benefits: [] };
-}
-
-/** Turn a block into benefit bullets: real bullets first, else lines, else one. */
-function bulletsOf(block){
-  const t = String(block || '').trim();
-  if (!t) return [];
-  const lines = t.split('\n').map(l => l.replace(/^[\s>*#•-]+/, '').trim()).filter(Boolean);
-  if (lines.length > 1) return lines;
-  return LazyPI.splitBenefits(lines[0] || t);
-}
+/* ── Jira wiki markup → description + benefits ──────────────────
+   Shared with the Scope of Work importer: LazyPI.splitDescriptionBenefit
+   (pi.js) reads the Jira Cloud blob — "h3. *Description*", bullets,
+   "*Business Benefits*", more bullets, "Additional notes" kept out — and
+   returns { description, benefits } with the points joined by " ; ", the
+   separator the email splits on. */
+function splitDescriptionBenefit(raw){ return LazyPI.splitDescriptionBenefit(raw); }
 
 /* ── File reading ─────────────────────────────────────────────── */
 function handleFile(file){
@@ -1228,13 +1158,13 @@ function ingest(rows, headers, fileName){
     const blob  = cDesc ? String(r[cDesc] || '') : '';
     if (!name && !key && !blob) return;
 
-    // Benefits: from their own column when the export has one — the Scope of
-    // Work convention (a `benefit`/`label` column, split on , ; |). Only when
-    // there isn't one do we split the description blob (spec §6.4).
+    // Benefits: from their own column when the export has one and it is
+    // filled — the old-Jira convention (a `benefit` column, split on , ; |).
+    // Otherwise we split the description blob (spec §6.4).
     let description, benefits;
     const fromCol = cBen ? LazyPI.splitBenefits(r[cBen]) : [];
     if (fromCol.length) {
-      description = cleanJira(blob);
+      description = splitDescriptionBenefit(blob).description;
       benefits = fromCol;
     } else {
       const split = splitDescriptionBenefit(blob);

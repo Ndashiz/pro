@@ -134,6 +134,134 @@
   }
 
   /* ═══════════════════════════════════════════════════
+     JIRA DESCRIPTION → DESCRIPTION + BENEFITS
+     The Jira Cloud export (September 2026) carries no benefit column any
+     more: the Description field is one wiki-markup blob — "h3. *Description*",
+     a few bullets, then "*Business Benefits*" / "Benefits:" and more bullets,
+     sometimes an "Additional notes" section meant for the squad only.
+     pi.html and the Scope of Work email (lazypo_generator.html) both split
+     it through here so the two importers can never drift apart.
+  ═══════════════════════════════════════════════════ */
+  var DESC_HEADING    = /^(?:description|descriptif|desc|summary|r[ée]sum[ée]|context|contexte|scope|what|quoi|objectives?|objectifs?|goals?)$/i;
+  var BENEFIT_HEADING = /^(?:(?:business|expected|key|main|client|customer)\s+)?(?:benefits?|b[ée]n[ée]fices?(?:\s+(?:m[ée]tiers?|business|clients?))?|business\s+value|value|valeur|gains?|outcomes?|why|pourquoi)$/i;
+  // "* item", "** nested", "# numbered", "- dash", "• bullet", "1. one"
+  var BULLET_LINE   = /^\s*(?:([*#]+)|[-•]|\d+[.)])\s+(\S.*)$/;
+  var STORY_OPENER  = /\b(?:as an?|en tant que|i want|i need|je (?:veux|souhaite|dois))\b/i;
+  var STORY_CLAUSE  = /\s+(?:so that|in order to|afin de|afin que|pour que|dans le but de)\s+/i;
+
+  /** One line of Jira wiki markup → plain text. */
+  function stripWikiInline(s) {
+    var t = String(s == null ? '' : s);
+    t = t.replace(/^\s*h[1-6]\.\s*/i, '');                               // h3. heading
+    t = t.replace(/\{color[^}]*\}/gi, '')
+         .replace(/\{\/?(?:code|noformat|quote|panel)[^}]*\}/gi, '');
+    t = t.replace(/\{\{([^}]*)\}\}/g, '$1');                             // {{monospace}}
+    t = t.replace(/!([^!\s|]+)(?:\|[^!]*)?!/g, '');                      // !image.png|thumbnail!
+    t = t.replace(/\[([^\]|]+)\|[^\]]*\]/g, '$1');                       // [text|url] → text
+    t = t.replace(/\[(https?:\/\/[^\]\s]+)\]/g, '$1');                   // [url] → url
+    // *bold* _italic_ +inserted+ — unwrap, and again for nested markers.
+    var prev;
+    do {
+      prev = t;
+      t = t.replace(/(^|[\s(])([*_+])(?!\s)([^\n]+?)\2(?=[\s).,;:!?]|$)/g, '$1$3');
+    } while (t !== prev);
+    t = t.replace(/\?\?([^?\n]+)\?\?/g, '$1');                           // ??citation??
+    t = t.replace(/\\\\/g, ' ');                                          // forced line break
+    return t.replace(/\s+/g, ' ').trim();
+  }
+
+  /** "Business Benefits:" → "business benefits" (what the heading regexes read). */
+  function headingKey(plain) {
+    return plain.replace(/[\s:：\-–—]+$/, '').trim().toLowerCase();
+  }
+  function sectionOf(key) {
+    if (DESC_HEADING.test(key)) return 'desc';
+    if (BENEFIT_HEADING.test(key)) return 'benefits';
+    return null;
+  }
+  /* A short "h2." / bold / colon-terminated line that is neither a
+     description nor a benefit heading — "Additional notes:", "Out of scope".
+     Only honoured once the blob has proven to be structured. */
+  function looksLikeHeading(raw, plain) {
+    if (!plain || plain.length > 60 || /[.!?]\s/.test(plain)) return false;
+    var r = raw.trim();
+    if (/^h[1-6]\.\s/i.test(r) || /^[*_+]\S.*\S[*_+]:?\s*$/.test(r)) return true;
+    return /[:：]$/.test(plain) && plain.split(/\s+/).length <= 3;
+  }
+
+  /**
+   * Split one Jira description blob into its sections.
+   * Returns { description, descriptionPoints, benefits, notes }:
+   *   - description: the points joined with " ; " — the separator the
+   *     Scope of Work email splits on to draw one bullet per point;
+   *   - benefits: one entry per bullet (or per line) under a benefit heading;
+   *   - notes: whatever sat under another heading ("Additional notes") —
+   *     kept out of both, that is squad-internal.
+   * A nested bullet whose parent ends with ":" is folded into the parent
+   * ("…related to: Ex client"); consecutive plain lines form one point.
+   * Without any benefit heading, a user story's "so that" clause is the
+   * benefit; otherwise everything stays in the description.
+   */
+  function parseJiraDescription(raw) {
+    var text = String(raw == null ? '' : raw).replace(/\r\n?/g, '\n');
+    var sections = { desc: [], benefits: [], other: [] };
+    var cur = 'desc', structured = false, prevPara = false, mergedChild = false;
+    var lines = text.split('\n');
+
+    for (var i = 0; i < lines.length; i++) {
+      var line = lines[i];
+      if (!line.trim()) { prevPara = false; continue; }
+
+      var m = BULLET_LINE.exec(line);
+      var level = m ? (m[1] ? m[1].length : 1) : 0;
+      var body  = stripWikiInline(m ? m[2] : line);
+      if (!body) { prevPara = false; continue; }
+
+      // Heading on its own line: "h3. *Business Benefits*", "Benefits:", "* Benefits:"
+      var sec = sectionOf(headingKey(body));
+      if (sec) { cur = sec; structured = true; prevPara = false; mergedChild = false; continue; }
+
+      // Inline heading: "Benefits: faster onboarding"
+      var inl = /^([^:：]{1,40})[:：]\s*(\S.*)$/.exec(body);
+      if (inl && (sec = sectionOf(headingKey(inl[1])))) {
+        cur = sec; structured = true; prevPara = false; mergedChild = false;
+        body = inl[2];
+      } else if (!m && structured && looksLikeHeading(line, body)) {
+        cur = 'other'; prevPara = false; mergedChild = false; continue;
+      }
+
+      var items = sections[cur];
+      var last  = items.length ? items[items.length - 1] : '';
+      if (level >= 2 && items.length && (mergedChild || /[:：]$/.test(last))) {
+        items[items.length - 1] = last + (mergedChild ? ', ' : ' ') + body;
+        mergedChild = true; prevPara = false;
+      } else if (level === 0 && prevPara && items.length) {
+        items[items.length - 1] = last + ' ' + body;
+      } else {
+        items.push(body);
+        mergedChild = false; prevPara = (level === 0);
+      }
+    }
+
+    // No benefit heading: a user story's "so that" clause is the benefit.
+    if (!sections.benefits.length && sections.desc.length) {
+      var joined = sections.desc.join(' ; ');
+      var story = STORY_OPENER.test(joined) ? STORY_CLAUSE.exec(joined) : null;
+      if (story) {
+        sections.benefits = splitBenefits(joined.slice(story.index + story[0].length));
+        sections.desc = joined.slice(0, story.index).split(' ; ').filter(Boolean);
+      }
+    }
+
+    return {
+      description: sections.desc.join(' ; '),
+      descriptionPoints: sections.desc,
+      benefits: sections.benefits,
+      notes: sections.other
+    };
+  }
+
+  /* ═══════════════════════════════════════════════════
      SPRINT GRID  (derived, never stored)
   ═══════════════════════════════════════════════════ */
 
@@ -681,6 +809,8 @@
     featuresSorted: featuresSorted,
     epics: epics,
     splitBenefits: splitBenefits,
+    splitDescriptionBenefit: parseJiraDescription,
+    stripWikiInline: stripWikiInline,
 
     cockpit: cockpit,
 

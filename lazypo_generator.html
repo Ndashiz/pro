@@ -19,8 +19,6 @@
   --text: #0f172a; --text-muted: #64748b; --text-faint: #94a3b8;
   --tag-bg: #eff6ff; --tag-text: #1d4ed8;
   --danger: #ef4444; --success: #10b981;
-  --apr-bg: #fae8ff; --apr-text: #86198f;
-  --may-bg: #fff7ed; --may-text: #c2410c;
   --r: 10px; --r-sm: 6px;
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -180,9 +178,6 @@ input[type="text"]:focus, select:focus, textarea:focus {
 .epic-field textarea { font-size: 12px; padding: 6px 9px; min-height: 52px; }
 
 .release-preview { display: inline-flex; align-items: center; gap: 4px; font-size: 10.5px; font-weight: 600; padding: 2px 9px; border-radius: 20px; margin-top: 3px; }
-.rel-apr { background: var(--apr-bg); color: var(--apr-text); }
-.rel-may { background: var(--may-bg); color: var(--may-text); }
-.rel-other { background: #f1f5f9; color: #475569; }
 
 .tags-wrap {
   display: flex; flex-wrap: wrap; gap: 4px; border: 1px solid var(--border);
@@ -309,7 +304,7 @@ input[type="text"]:focus, select:focus, textarea:focus {
     <div class="section">
       <div class="section-header">
         Import Excel
-        <span style="font-size:10px;color:var(--text-faint);text-transform:none;letter-spacing:0;">Jira · Epic Name · Description · Benefits · Release</span>
+        <span style="font-size:10px;color:var(--text-faint);text-transform:none;letter-spacing:0;">Jira Cloud · Summary · Description (bénéfices inclus) · Fix versions</span>
       </div>
       <div class="drop-zone" id="drop-zone">
         <input type="file" accept=".xlsx,.xls,.csv" id="file-input" />
@@ -434,7 +429,18 @@ function renderThemeSwatches() {
   });
 }
 
-const RELEASE_OPTIONS = ['1/04/26 (16 Apr)','April (16 Apr)','21/05/26 (21 May)','May (21 May)','June 26','July 26',"Q2 26'","Q3 26'",'TBD'];
+const HAS_PI = typeof LazyPI !== 'undefined';
+const MONTHS_EN = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+/* Sans PI, la datalist propose les 8 prochains mois : c'est la forme à
+   laquelle se ramène une fix version Jira Cloud (« Monthly Release
+   December 2026 » → « December 2026 »). */
+function fallbackReleaseOptions() {
+  const out = [], d = new Date(); d.setDate(1);
+  for (let i = 0; i < 8; i++) { out.push(MONTHS_EN[d.getMonth()] + ' ' + d.getFullYear()); d.setMonth(d.getMonth() + 1); }
+  out.push('TBD');
+  return out;
+}
 
 const DEFAULT_EPICS = [];
 
@@ -442,28 +448,43 @@ let epics = JSON.parse(JSON.stringify(DEFAULT_EPICS));
 let dragSrc = null;
 let lastEmailHtml = '';
 
-function relClass(r) {
-  const l = r.toLowerCase();
-  if (l.includes('apr') || l.includes('1/04')) return 'rel-apr';
-  if (l.includes('may') || l.includes('21/05')) return 'rel-may';
-  return 'rel-other';
-}
-function relLabel(r) {
-  // Quand le PI connaît la release, on affiche sa vraie date plutôt qu'une
-  // correspondance devinée sur le nom du mois.
-  if (HAS_PI && r) {
-    const hit = LazyPI.matchRelease(r);
+/* Une couleur par mois de release — avril violet et mai orange comme avant,
+   les autres mois dans la même veine pastel. [fond, texte] */
+const REL_PALETTE = [
+  ['#e0f2fe','#075985'], ['#ede9fe','#5b21b6'], ['#dcfce7','#166534'], ['#fae8ff','#86198f'],
+  ['#fff7ed','#c2410c'], ['#fef9c3','#854d0e'], ['#ffe4e6','#9f1239'], ['#d1fae5','#065f46'],
+  ['#fef3c7','#92400e'], ['#ffedd5','#9a3412'], ['#e0e7ff','#3730a3'], ['#cffafe','#155e75'],
+];
+const REL_NEUTRAL = ['#f1f5f9', '#475569'];
+
+/* Mois / année / date d'une release : la date du PI quand il la connaît,
+   sinon ce que le nom laisse deviner (« December 2026 », « Q4 26' »). */
+function releaseMonth(r) {
+  const s = String(r == null ? '' : r).trim();
+  if (!s) return null;
+  if (HAS_PI) {
+    const hit = LazyPI.matchRelease(s);
     if (hit && hit.date) {
       const d = LazyPI.parseD(hit.date);
-      if (d) return '📅 ' + d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+      if (d) return { month: d.getMonth(), year: d.getFullYear(), date: d };
     }
+    return LazyPI.parseFixMonth(s);
   }
-  const l = r.toLowerCase();
-  if (l.includes('1/04') || l.includes('apr')) return '📅 16 Apr';
-  if (l.includes('21/05') || l.includes('may')) return '📅 21 May';
-  return '📅 ' + r;
+  const l = s.toLowerCase();
+  const month = MONTHS_EN.findIndex(m => l.includes(m.toLowerCase()) || new RegExp('\\b' + m.slice(0, 3).toLowerCase() + '\\b').test(l));
+  if (month < 0) return null;
+  const y = /\b(20\d{2})\b/.exec(l);
+  return { month, year: y ? +y[1] : null, date: null };
 }
-const HAS_PI = typeof LazyPI !== 'undefined';
+function relColors(r) { const fm = releaseMonth(r); return fm ? REL_PALETTE[fm.month] : REL_NEUTRAL; }
+function relStyle(r)  { const c = relColors(r); return `background:${c[0]};color:${c[1]};`; }
+/* Texte du badge : la date réelle quand le PI la connaît, sinon le nom. */
+function relText(r) {
+  const fm = releaseMonth(r);
+  if (fm && fm.date) return fm.date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+  return String(r == null ? '' : r);
+}
+function relLabel(r) { return '📅 ' + relText(r); }
 
 function esc(s) {
   return String(s == null ? '' : s)
@@ -471,45 +492,50 @@ function esc(s) {
     .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
-/* Les releases du PI d'abord ; la liste en dur ne sert plus que de secours
+/* Les releases du PI d'abord ; les prochains mois ne servent que de secours
    quand aucun PI n'est défini. */
 function releaseOptions() {
   if (HAS_PI) {
     const rels = LazyPI.get().releases || [];
     if (rels.length) return rels.filter(r => r.name).map(r => r.name);
   }
-  return RELEASE_OPTIONS;
+  return fallbackReleaseOptions();
 }
 
+/* Fix version Jira → nom de release. Le PI est la référence : s'il connaît
+   cette fix version (nom exact, inclusion, même mois, même trimestre) on
+   prend son nom. Sinon on normalise le libellé Jira Cloud
+   « Monthly Release December 2026 » en « December 2026 », « Q4 26' » en
+   « Q4 2026 », et on garde tel quel ce qu'on ne sait pas lire. */
 function matchRelease(raw) {
-  if (!raw) return 'TBD';
-  // Le PI est la référence : s'il connaît cette fix version, on prend son nom.
+  const s = String(raw == null ? '' : raw).trim();
+  if (!s) return 'TBD';
   if (HAS_PI) {
-    const hit = LazyPI.matchRelease(raw);
+    const hit = LazyPI.matchRelease(s);
     if (hit && hit.name) return hit.name;
   }
-  const s = String(raw).toLowerCase().trim();
-  if (s.includes('apr') || s.includes('04/')) return '1/04/26 (16 Apr)';
-  if (s.includes('may') || s.includes('05/')) return 'May (21 May)';
-  if (s.includes('jun')) return 'June 26';
-  if (s.includes('jul')) return 'July 26';
-  if (s.includes('aug')) return 'August 26';
-  if (s.includes('sep')) return 'September 26';
-  if (s.includes('oct')) return 'October 26';
-  if (s.includes('nov')) return 'November 26';
-  if (s.includes('dec')) return 'December 26';
-  if (s.includes('q2')) return "Q2 26'";
-  if (s.includes('q3')) return "Q3 26'";
-  if (s.includes('q4')) return "Q4 26'";
-  const d = new Date(raw);
-  if (!isNaN(d)) {
-    const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-    const m = d.getMonth();
-    if (m === 3) return '1/04/26 (16 Apr)';
-    if (m === 4) return 'May (21 May)';
-    return months[m] + ' 26';
+  const fm = releaseMonth(s);
+  if (fm) return MONTHS_EN[fm.month] + (fm.year ? ' ' + fm.year : '');
+  const q = /\bq([1-4])\b/i.exec(s);
+  if (q) {
+    const y = /\b(20\d{2})\b/.exec(s) || /\b(\d{2})['’]/.exec(s);
+    return 'Q' + q[1] + (y ? ' ' + (y[1].length === 2 ? '20' + y[1] : y[1]) : '');
   }
-  return raw.trim() || 'TBD';
+  return s;
+}
+
+/* ── Bénéfices : une flèche par bénéfice ──────────────────────────
+   Format d'affichage retenu : chaque bénéfice porte ↗ (hausse) ou ↘
+   (baisse). À l'import on la devine sur le verbe de tête — « Decrease
+   squad support activity » ↘, « Increase Tool Stability » ↗ — et ↗ par
+   défaut : un bénéfice est une bonne nouvelle. Un bénéfice qui a déjà sa
+   flèche est laissé tel quel ; le bouton ↕ de la carte permet de corriger. */
+const DOWN_LEAD = /\b(?:decreas|reduc|lower|minimi[sz]|less|fewer|shorter|eliminat|remov|avoid|cut|mitigat|prevent|diminu|r[ée]duc|moins|baiss|supprim)/i;
+function withArrow(b) {
+  const t = String(b == null ? '' : b).trim();
+  if (!t || /^[↗↘]\s/.test(t)) return t;
+  const lead = t.split(/\s+/).slice(0, 3).join(' ');
+  return (DOWN_LEAD.test(lead) ? '↘ ' : '↗ ') + t;
 }
 
 function parseExcel(file) {
@@ -554,36 +580,99 @@ function parseHtmlTable(html) {
   }).filter(r => Object.values(r).some(v => v));
 }
 
+/* ── Colonnes Jira ────────────────────────────────────────────────
+   L'export Jira Cloud (sept. 2026) compte 265 colonnes, dont plusieurs
+   contiennent « desc », « benefit » ou « ticket » dans leur nom
+   (« Project description », « Custom field (Idea short description) »,
+   « Custom field (Ticket Quality Rating) »…) : une recherche par
+   sous-chaîne tombe sur la mauvaise. On cherche donc par alias — exact
+   d'abord, préfixe ensuite, sous-chaîne en dernier recours — la même
+   échelle que l'import PI (pi.html). Mapping validé sur l'export du
+   23/09/2026 :
+     ticket   → Issue key
+     name     → Summary
+     desc     → Description   (bénéfices inclus : LazyPI.splitDescriptionBenefit)
+     benefits → Custom field (Benefit Hypothesis) — vide dans le nouveau
+                Jira, d'où le repli sur la section « Benefits » de la description
+     release  → Fix versions  (« Monthly Release December 2026 »)
+   « Labels » ne sont plus des bénéfices (« security », « PI_Q42026 »…). */
+const COL_ALIASES = {
+  ticket:   ['issue key', 'key', 'ticket', 'jira key', 'jira', 'issue id'],
+  name:     ['summary', 'epic name', 'custom field (epic name)', 'title', 'name'],
+  desc:     ['description', 'desc'],
+  benefits: ['benefits', 'benefit', 'business benefits', 'custom field (benefit hypothesis)', 'benefit hypothesis', 'business value'],
+  release:  ['fix versions', 'fix version/s', 'fix version', 'fixversion', 'release', 'sprint'],
+};
+function normHeader(h) {
+  return String(h == null ? '' : h)
+    .replace(/^﻿/, '')       // BOM sur la première colonne
+    .replace(/[;\s]+$/, '')       // « ; » traînant sur la dernière
+    .replace(/^\s+/, '')
+    .toLowerCase();
+}
+function findCol(headers, aliases) {
+  const low = headers.map(normHeader);
+  let i;
+  for (const a of aliases) { i = low.indexOf(a);                      if (i !== -1) return headers[i]; }
+  for (const a of aliases) { i = low.findIndex(h => h.startsWith(a)); if (i !== -1) return headers[i]; }
+  for (const a of aliases) { i = low.findIndex(h => h.includes(a));   if (i !== -1) return headers[i]; }
+  return null;
+}
+/* Jira répète la colonne quand un ticket a plusieurs valeurs
+   (« Fix versions », « Fix versions_1 »…) : première valeur remplie. */
+function firstFilled(row, headers, col) {
+  if (!col) return '';
+  const base = normHeader(col);
+  for (const h of headers) {
+    const n = normHeader(h);
+    if (n !== base && !n.startsWith(base + '_')) continue;
+    const v = String(row[h] == null ? '' : row[h]).trim();
+    if (v) return v;
+  }
+  return '';
+}
+/* Description + bénéfices depuis le blob wiki Jira (parser partagé avec
+   l'import PI). Sans pi.js, le texte brut reste la description. */
+function splitJira(blob) {
+  if (HAS_PI) return LazyPI.splitDescriptionBenefit(blob);
+  return { description: String(blob == null ? '' : blob).trim(), benefits: [] };
+}
+
 function processRows(rows) {
   if (!rows.length) { showDropStatus('❌ Aucune donnée trouvée', true); return; }
 
-  const colMap = {};
-  Object.keys(rows[0]).forEach(k => {
-    const kl = k.toLowerCase().trim();
-    if (kl === 'key' || kl === 'issue key' || kl.includes('ticket') || kl.includes('jira') || kl.includes('crm')) colMap.ticket = k;
-    if ((kl === 'summary' || kl.includes('name')) && !colMap.name) colMap.name = k;
-    if (kl.includes('epic') && !colMap.name) colMap.name = k;
-    if (kl.includes('desc')) colMap.desc = k;
-    if (kl.includes('benefit') || kl.includes('label')) colMap.benefits = k;
-    if ((kl.includes('fix version') || kl.includes('release')) && !colMap.release) colMap.release = k;
-    if (kl === 'sprint' && !colMap.release) colMap.release = k;
-  });
+  const headers = Object.keys(rows[0]);
+  const col = {};
+  Object.keys(COL_ALIASES).forEach(k => { col[k] = findCol(headers, COL_ALIASES[k]); });
+  if (!col.name) {
+    showDropStatus('❌ Colonne « Summary » introuvable — colonnes vues : ' + headers.join(', '), true);
+    return;
+  }
 
   const imported = rows
-    .filter(r => String(r[colMap.name] || '').trim())
-    .map(r => ({
-      name:     String(r[colMap.name]     || '').trim(),
-      ticket:   String(r[colMap.ticket]   || '').trim(),
-      desc:     String(r[colMap.desc]     || '').trim(),
-      benefits: String(r[colMap.benefits] || '').split(/[,;|]/).map(b => b.trim()).filter(Boolean),
-      release:  matchRelease(r[colMap.release] || '')
-    }));
+    .filter(r => String(r[col.name] || '').trim())
+    .map(r => {
+      const split = splitJira(col.desc ? r[col.desc] : '');
+      // Une vraie colonne bénéfices (ancien Jira) prime sur la section
+      // « Benefits » de la description.
+      const fromCol = col.benefits
+        ? String(r[col.benefits] || '').split(/[,;|]|\r?\n/).map(b => b.trim()).filter(Boolean)
+        : [];
+      return {
+        name:     String(r[col.name] || '').trim(),
+        ticket:   col.ticket ? String(r[col.ticket] || '').trim() : '',
+        desc:     split.description,
+        benefits: (fromCol.length ? fromCol : split.benefits).map(withArrow),
+        release:  matchRelease(firstFilled(r, headers, col.release))
+      };
+    });
 
   if (imported.length) {
     epics = imported; renderEpics();
-    showDropStatus(`✓ ${imported.length} epic${imported.length > 1 ? 's' : ''} importé${imported.length > 1 ? 's' : ''}`);
+    const used = ['ticket', 'name', 'desc', 'benefits', 'release'].filter(k => col[k]).map(k => col[k]);
+    showDropStatus(`✓ ${imported.length} epic${imported.length > 1 ? 's' : ''} importé${imported.length > 1 ? 's' : ''} · colonnes : ${used.join(' · ')}`);
   } else {
-    showDropStatus('❌ 0 ligne — colonnes détectées : ' + Object.keys(rows[0]).join(', '), true);
+    showDropStatus('❌ 0 ligne — colonnes détectées : ' + headers.join(', '), true);
   }
 }
 
@@ -608,8 +697,8 @@ function loadFromPI(manual) {
       name:     f.name || '',
       ticket:   f.key || '',
       desc:     f.description || '',
-      // Déjà un tableau côté PI — surtout ne pas re-splitter.
-      benefits: (f.benefits || []).slice(),
+      // Déjà un tableau côté PI — surtout ne pas re-splitter ; juste la flèche.
+      benefits: (f.benefits || []).map(withArrow),
       release:  (rel && rel.name) || f.fixVersion || 'TBD'
     };
   });
@@ -676,7 +765,7 @@ function renderEpics() {
             <label>Release</label>
             <datalist id="${datalistId}">${datalistHtml}</datalist>
             <input type="text" class="epic-release" list="${datalistId}" value="${esc(ep.release)}" placeholder="ex: Q3 26'" />
-            <span class="release-preview ${relClass(ep.release)}">${esc(relLabel(ep.release))}</span>
+            <span class="release-preview" style="${relStyle(ep.release)}">${esc(relLabel(ep.release))}</span>
           </div>
         </div>
       </div>`;
@@ -688,7 +777,7 @@ function renderEpics() {
     card.querySelector('.epic-release').addEventListener('input', e => {
       epics[i].release = e.target.value;
       const p = card.querySelector('.release-preview');
-      p.className = `release-preview ${relClass(e.target.value)}`;
+      p.style.cssText = relStyle(e.target.value);
       p.textContent = relLabel(e.target.value);
     });
     card.querySelector('.tag-input').addEventListener('keydown', e => {
@@ -735,7 +824,7 @@ function addObj() {
   list.appendChild(item); item.querySelector('input').focus();
 }
 function addEpic() {
-  epics.push({ name:'Nouvel Epic', ticket:'CRM-XXXX', desc:'Description...', benefits:['Bénéfice'], release:'May (21 May)' });
+  epics.push({ name:'Nouvel Epic', ticket:'CRM-XXXX', desc:'Description...', benefits:['↗ Bénéfice'], release: releaseOptions()[0] || 'TBD' });
   renderEpics();
   setTimeout(() => { const inputs = document.querySelectorAll('.epic-name-input'); inputs[inputs.length-1]?.focus(); inputs[inputs.length-1]?.select(); }, 50);
 }
@@ -812,11 +901,9 @@ function buildEmailHtml() {
     </td></tr>
   </table>`).join('');
 
-    // Release badge
-    const rel = ep.release.toLowerCase();
-    let relBg = '#f1f5f9', relColor = '#475569', relText = '&#128197; ' + esc(ep.release);
-    if (rel.includes('apr') || rel.includes('1/04')) { relBg = '#fae8ff'; relColor = '#86198f'; relText = '&#128197; 16 Apr'; }
-    else if (rel.includes('may') || rel.includes('21/05')) { relBg = '#fff7ed'; relColor = '#c2410c'; relText = '&#128197; 21 May'; }
+    // Release badge — couleur du mois, date réelle quand le PI la connaît
+    const [relBg, relColor] = relColors(ep.release);
+    const relBadge = '&#128197; ' + esc(relText(ep.release));
 
     return `
   <tr bgcolor="${bg}" style="background-color:${bg};border-bottom:1px solid #f3f4f6;">
@@ -832,7 +919,7 @@ function buildEmailHtml() {
     <td valign="top" style="padding:10px;border-bottom:1px solid #f3f4f6;">
       <table cellpadding="0" cellspacing="0" border="0"><tr>
         <td bgcolor="${relBg}" style="background-color:${relBg};padding:5px 10px;border-radius:20px;">
-          <span style="font-family:'Segoe UI',Calibri,Arial,sans-serif;font-size:11px;font-weight:bold;color:${relColor};">${relText}</span>
+          <span style="font-family:'Segoe UI',Calibri,Arial,sans-serif;font-size:11px;font-weight:bold;color:${relColor};">${relBadge}</span>
         </td>
       </tr></table>
     </td>
@@ -1205,25 +1292,25 @@ window.loadDemoData = function () {
       name: 'Authentication Overhaul', ticket: 'PLT-101',
       desc: 'Migrate to OAuth 2.0 SSO and implement MFA across all platform services.',
       benefits: ['Security compliance', 'Reduced login friction', 'GDPR alignment'],
-      release: '1/04/26 (16 Apr)'
+      release: 'October 2026'
     },
     {
       name: 'API Gateway v2', ticket: 'PLT-102',
       desc: 'Deploy new API gateway with rate limiting, versioning and real-time analytics dashboard.',
       benefits: ['99.9% SLA guaranteed', '3× faster routing', 'Live monitoring'],
-      release: 'May (21 May)'
+      release: 'November 2026'
     },
     {
       name: 'Data Pipeline Refactor', ticket: 'PLT-103',
       desc: 'Replace legacy batch ETL with an event-driven streaming architecture (Kafka + Flink).',
       benefits: ['Sub-second latency', 'Scales to 10M events/day', '30% lower infra cost'],
-      release: 'May (21 May)'
+      release: 'November 2026'
     },
     {
       name: 'Developer Portal Launch', ticket: 'PLT-104',
       desc: 'Public dev portal with interactive API docs, sandbox environment and usage analytics.',
       benefits: ['Onboarding in under 1 hour', 'Self-service API keys', 'Partner ecosystem ready'],
-      release: 'June 26'
+      release: 'December 2026'
     },
   ];
   renderEpics();

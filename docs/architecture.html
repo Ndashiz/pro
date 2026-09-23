@@ -2389,6 +2389,33 @@ graph TB
 
     <p>Changements significatifs des dernières releases — pour le détail complet voir <code>git log</code> ou les PR mergées sur <code>main</code>.</p>
 
+    <h3>Septembre 2026 — 📧 Scope of Work : import du nouveau Jira Cloud</h3>
+    <ul style="padding-left: 24px; margin-bottom: 18px;">
+      <li>Jira a migré vers Jira Cloud : l'export CSV compte désormais <strong>265 colonnes</strong>, dont
+          plusieurs portent « desc », « benefit » ou « ticket » dans leur nom (« Project description »,
+          « Custom field (Idea short description) », « Custom field (Ticket Quality Rating) »…).
+          L'ancienne détection par sous-chaîne de <code>lazypo_generator.html</code> gardait la
+          <em>dernière</em> colonne venue — vide — pour le ticket, la description et les bénéfices.
+          Le générateur cherche maintenant par alias, exact d'abord (<code>Issue key</code>,
+          <code>Summary</code>, <code>Description</code>, <code>Fix versions</code>), la même échelle que
+          l'import PI. Les <code>Labels</code> ne sont plus pris pour des bénéfices.</li>
+      <li>Plus de colonne bénéfices : ils vivent <strong>dans la Description</strong>, sous « Benefits: »,
+          « h3. *Business Benefits* »… Nouveau parseur partagé
+          <code>LazyPI.splitDescriptionBenefit</code> (<code>pi.js</code>) : sections Description /
+          Benefits, puces <code>*</code> / <code>**</code> / <code>-</code>, balisage wiki (<code>h3.</code>,
+          <code>*gras*</code>, <code>_italique_</code>, liens), puce imbriquée repliée dans son parent
+          (« …related to: Ex client »), section « Additional notes » écartée de l'email. Les points de la
+          description sont joints par « ; », le séparateur que l'email transforme en puces.
+          <code>pi.html</code> s'en sert aussi — sa copie locale du découpage disparaît.</li>
+      <li>Chaque bénéfice importé porte sa flèche <strong>↗ / ↘</strong> — le format d'affichage retenu
+          pour l'email — devinée sur le verbe de tête (« Decrease squad support activity » ↘,
+          « Increase Tool Stability » ↗, ↗ par défaut) ; le bouton ↕ de la carte corrige.</li>
+      <li>Fix versions « Monthly Release December 2026 » : résolues par le PI quand il connaît la release
+          (nom exact, inclusion, même mois, même trimestre), sinon normalisées en « December 2026 ».
+          Les dates en dur d'avril / mai 2026 (« 16 Apr », « 21 May ») disparaissent du badge, de
+          l'aperçu et de la datalist : couleur par mois, date réelle quand le PI la fournit.</li>
+    </ul>
+
     <h3>Septembre 2026 — 🔐 Login : fin du 404 <code>login.html&amp;next=…</code></h3>
     <ul style="padding-left: 24px; margin-bottom: 18px;">
       <li><code>auth-gate.js</code> choisissait le séparateur de <code>?next=</code> d'après l'URL de la
