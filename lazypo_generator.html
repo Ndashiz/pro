@@ -327,10 +327,10 @@ input[type="text"]:focus, select:focus, textarea:focus {
         <span style="font-size:10px;color:var(--text-faint);text-transform:none;letter-spacing:0;">Jira Cloud · Summary · Description (bénéfices inclus) · Fix versions</span>
       </div>
       <div class="drop-zone" id="drop-zone">
-        <input type="file" accept=".xlsx,.xls,.csv" id="file-input" />
+        <input type="file" accept=".xlsx,.xls,.csv,.html,.htm" id="file-input" />
         <div class="drop-icon">📊</div>
         <p><strong>Glisse ton fichier Excel ici</strong> ou clique pour parcourir</p>
-        <p class="drop-hint">.xlsx · .xls · .csv</p>
+        <p class="drop-hint">.xlsx · .xls · .csv · .html (export Jira « Excel »)</p>
         <div class="drop-status" id="drop-status"></div>
       </div>
       <button class="btn btn-ghost" id="pi-load-btn" style="margin-top:10px;width:100%;justify-content:center" onclick="loadFromPI(true)">
@@ -563,8 +563,8 @@ function parseExcel(file) {
   reader.onerror = () => showDropStatus('❌ Erreur lecture fichier', true);
   reader.onload = e => {
     const buf = e.target.result;
-    // Detect HTML-disguised XLS (Jira export): first byte is '<' (0x3C)
-    // or starts with UTF-8 BOM then '<'
+    // Jira's « Excel (HTML) » export — a .html, or an .xls that is really
+    // HTML: first byte is '<' (0x3C), or a UTF-8 BOM then '<'.
     const probe = new Uint8Array(buf, 0, 4);
     const isHtml = probe[0] === 0x3C ||
                    (probe[0] === 0xEF && probe[1] === 0xBB && probe[2] === 0xBF && probe[3] === 0x3C);
@@ -583,17 +583,27 @@ function parseExcel(file) {
   reader.readAsArrayBuffer(file);
 }
 
+/* Lecteur partagé (pi.js) : rend aux cellules leurs sauts de ligne — dans
+   l'export HTML de Jira chaque retour est un <br/>, que textContent avale,
+   et la description entière tombait sur une seule ligne. Le repli local ne
+   sert qu'à l'export autonome, où pi.js n'est pas chargé. */
 function parseHtmlTable(html) {
+  if (HAS_PI && LazyPI.parseJiraHtmlTable) return LazyPI.parseJiraHtmlTable(html);
   const doc = new DOMParser().parseFromString(html, 'text/html');
-  // Pick the table with the most rows (Jira exports have a metadata table before the data table)
   const tables = Array.from(doc.querySelectorAll('table'));
-  const table = tables.reduce((best, t) => t.rows.length > (best ? best.rows.length : 0) ? t : best, null);
+  const table = doc.getElementById('issuetable') ||
+    tables.reduce((best, t) => t.rows.length > (best ? best.rows.length : 0) ? t : best, null);
   if (!table) return [];
   const rows = Array.from(table.querySelectorAll('tr'));
   if (rows.length < 2) return [];
-  const headers = Array.from(rows[0].querySelectorAll('th,td')).map(c => c.textContent.trim());
+  const cellText = c => {
+    const tmp = doc.createElement('div');
+    tmp.innerHTML = c.innerHTML.replace(/<br\s*\/?>/gi, '\n').replace(/<\/(?:p|div|h[1-6])\s*>/gi, '\n').replace(/<li[^>]*>/gi, '\n* ');
+    return tmp.textContent.replace(/\u00a0/g, ' ').split('\n').map(l => l.replace(/\s+$/, '')).join('\n').replace(/\n{3,}/g, '\n\n').replace(/^\n+|\n+$/g, '');
+  };
+  const headers = Array.from(rows[0].querySelectorAll('th,td')).map(c => c.textContent.replace(/\s+/g, ' ').trim());
   return rows.slice(1).map(row => {
-    const cells = Array.from(row.querySelectorAll('td')).map(c => c.textContent.trim());
+    const cells = Array.from(row.querySelectorAll('td')).map(cellText);
     const obj = {};
     headers.forEach((h, i) => { obj[h] = cells[i] !== undefined ? cells[i] : ''; });
     return obj;
@@ -630,8 +640,11 @@ function normHeader(h) {
     .replace(/^\s+/, '')
     .toLowerCase();
 }
+/* Les colonnes « (migrated …) » sont des champs hérités de la migration
+   Jira (« Business Value (migrated 2) », « Team (migrated) ») : jamais la
+   bonne réponse, on les écarte avant de chercher. */
 function findCol(headers, aliases) {
-  const low = headers.map(normHeader);
+  const low = headers.map(h => { const n = normHeader(h); return n.includes('(migrated') ? '\u0000' : n; });
   let i;
   for (const a of aliases) { i = low.indexOf(a);                      if (i !== -1) return headers[i]; }
   for (const a of aliases) { i = low.findIndex(h => h.startsWith(a)); if (i !== -1) return headers[i]; }

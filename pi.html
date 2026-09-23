@@ -315,7 +315,7 @@
     <div class="panel-head" onclick="togglePanel('panelImport')">
       <span class="step">3</span>
       <h3>Jira backlog import</h3>
-      <span class="sub" id="importSub">CSV or XLSX export</span>
+      <span class="sub" id="importSub">CSV, XLSX or HTML export</span>
       <span class="chev"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></span>
     </div>
     <div class="panel-body">
@@ -327,9 +327,9 @@
       <div id="dropZone" class="file-card">
         <div class="file-card-icon">📥</div>
         <div class="file-card-title">Drop your Jira export here</div>
-        <div class="file-card-meta">CSV or XLSX · parsed in your browser · never uploaded</div>
+        <div class="file-card-meta">CSV, XLSX or Jira HTML · parsed in your browser · never uploaded</div>
         <button class="btn btn-primary" style="margin-top:14px" onclick="document.getElementById('fileInput').click()">Choose a file</button>
-        <input type="file" id="fileInput" accept=".csv,.xlsx,.xls,text/csv" style="display:none">
+        <input type="file" id="fileInput" accept=".csv,.xlsx,.xls,.html,.htm,text/csv" style="display:none">
       </div>
       <label class="opt-row">
         <input type="checkbox" id="optKeepEdits" checked>
@@ -1020,9 +1020,11 @@ function normHeader(h){
     .toLowerCase();
 }
 
-/** Single-value column: exact, then prefix, then substring. */
+/** Single-value column: exact, then prefix, then substring. Columns named
+    "… (migrated …)" are leftovers of the Jira migration ("Business Value
+    (migrated 2)", "Team (migrated)") and never the right answer. */
 function findColumn(headers, aliases){
-  const low = headers.map(normHeader);
+  const low = headers.map(h => { const n = normHeader(h); return n.includes('(migrated') ? '\u0000' : n; });
   let i;
   for (const a of aliases) { i = low.indexOf(a);                       if (i !== -1) return headers[i]; }
   for (const a of aliases) { i = low.findIndex(h => h.startsWith(a));  if (i !== -1) return headers[i]; }
@@ -1077,6 +1079,16 @@ function handleFile(file){
       } catch (err) { showError('CSV parse error: ' + (err.message || err)); }
     };
     reader.readAsText(file);
+  } else if (ext === 'html' || ext === 'htm') {
+    // Jira's « Excel (HTML) » export saved with its real extension.
+    reader.onload = e => {
+      try {
+        const rows = parseHtmlTable(String(e.target.result));
+        if (!rows.length) return showError('No issue table found in this HTML file.');
+        ingest(rows, Object.keys(rows[0]), file.name);
+      } catch (err) { showError('HTML parse error: ' + (err.message || err)); }
+    };
+    reader.readAsText(file);
   } else if (ext === 'xlsx' || ext === 'xls') {
     reader.onload = e => {
       const buf = e.target.result;
@@ -1102,26 +1114,14 @@ function handleFile(file){
     };
     reader.readAsArrayBuffer(file);
   } else {
-    showError('Unsupported file type — use CSV or XLSX.');
+    showError('Unsupported file type — use CSV, XLSX or the Jira HTML export.');
   }
 }
 
-/** Jira's HTML export puts a metadata table before the data one: take the biggest. */
-function parseHtmlTable(html){
-  const doc = new DOMParser().parseFromString(html, 'text/html');
-  const tables = Array.from(doc.querySelectorAll('table'));
-  const table = tables.reduce((best, t) => (t.rows.length > (best ? best.rows.length : 0) ? t : best), null);
-  if (!table) return [];
-  const rows = Array.from(table.querySelectorAll('tr'));
-  if (rows.length < 2) return [];
-  const headers = Array.from(rows[0].querySelectorAll('th,td')).map(c => c.textContent.trim());
-  return rows.slice(1).map(row => {
-    const cells = Array.from(row.querySelectorAll('td')).map(c => c.textContent.trim());
-    const obj = {};
-    headers.forEach((h, i) => { obj[h] = cells[i] !== undefined ? cells[i] : ''; });
-    return obj;
-  }).filter(r => Object.values(r).some(v => v));
-}
+/** Jira's « Excel (HTML) » export → rows. Shared reader (pi.js): it gives
+    the cells their <br/> line breaks back, without which a description
+    collapses to one line and the Description / Benefits split fails. */
+function parseHtmlTable(html){ return LazyPI.parseJiraHtmlTable(html); }
 
 /* ── Reconciliation (spec §6.1 / §6.2) ────────────────────────── */
 function ingest(rows, headers, fileName){
@@ -1299,7 +1299,7 @@ function renderImportReport(r){
        <div style="margin-top:8px;font-size:11px;color:var(--muted)">Columns matched: ${cols || 'none'}</div>
      </div>` +
     (warns.length ? `<div class="banner warn"><b>Worth a look.</b><ul>${warns.map(w => `<li>${esc(w)}</li>`).join('')}</ul></div>` : '');
-  $('importSub').textContent = r.fileName || 'CSV or XLSX export';
+  $('importSub').textContent = r.fileName || 'CSV, XLSX or HTML export';
 }
 
 /* Drag & drop + file picker */

@@ -2407,6 +2407,22 @@ graph TB
 
     <p>Changements significatifs des dernières releases — pour le détail complet voir <code>git log</code> ou les PR mergées sur <code>main</code>.</p>
 
+    <h3>Septembre 2026 — 📄 Import Jira : export « Excel (HTML) »</h3>
+    <ul style="padding-left: 24px; margin-bottom: 18px;">
+      <li>Le générateur Scope of Work et l'import PI acceptent le fichier <code>.html</code> que Jira Cloud
+          produit via « Export → Excel (HTML) » — une table <code>#issuetable</code>, en-têtes
+          <code>&lt;th&gt;</code>, une ligne par ticket. Les cellules gardent le balisage wiki brut
+          (« h3. *Description* », puces <code>*</code>) mais chaque retour à la ligne est un
+          <code>&lt;br/&gt;</code> : lues par <code>textContent</code>, les descriptions tombaient sur une
+          seule ligne et le découpage Description / Benefits échouait.</li>
+      <li>Nouveau lecteur partagé <code>LazyPI.parseJiraHtmlTable</code> (<code>pi.js</code>) : rend leurs
+          sauts de ligne aux cellules (<code>&lt;br&gt;</code>, <code>&lt;/p&gt;</code>, <code>&lt;li&gt;</code>),
+          décode les entités, suffixe les en-têtes dupliqués comme SheetJS. Les deux pages y délèguent
+          (plus de copie locale dans <code>pi.html</code> ; <code>lazypo_generator.html</code> garde un repli
+          minimal pour son export autonome, sans <code>pi.js</code>). Le sélecteur de fichier accepte
+          <code>.html</code> / <code>.htm</code>.</li>
+    </ul>
+
     <h3>Septembre 2026 — 💾 Scope of Work : brouillons</h3>
     <ul style="padding-left: 24px; margin-bottom: 18px;">
       <li>Nouvelle section <strong>Brouillons</strong> dans <code>lazypo_generator.html</code> : « 💾 Sauvegarder »

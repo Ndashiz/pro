@@ -265,6 +265,67 @@
   }
 
   /* ═══════════════════════════════════════════════════
+     JIRA "EXCEL (HTML)" EXPORT → ROWS
+     Jira's HTML export (an .html, or an .xls that starts with "<") is one
+     <table id="issuetable"> — <th> headers, one <tr> per issue — behind a
+     small metadata table. Cells keep the raw wiki markup ("h3. *Description*",
+     "* bullet", "** nested") but every newline is a <br/>, which textContent
+     drops: read naively a description collapses to one line and the
+     Description / Benefits split fails. This reader turns <br>, </p>, </div>
+     and <li> back into lines, decodes entities and hands back one object per
+     issue keyed by header (duplicates suffixed _1, _2 like SheetJS does).
+     Both importers (pi.html, lazypo_generator.html) go through here.
+  ═══════════════════════════════════════════════════ */
+  function htmlCellText(cell) {
+    var h = cell.innerHTML
+      .replace(/<br\s*\/?>/gi, '\n')
+      .replace(/<\/(?:p|div|tr|h[1-6])\s*>/gi, '\n')
+      .replace(/<li[^>]*>/gi, '\n* ')
+      .replace(/<\/?(?:ul|ol)[^>]*>/gi, '\n');
+    var tmp = cell.ownerDocument.createElement('div');
+    tmp.innerHTML = h;
+    return tmp.textContent.replace(/ /g, ' ').replace(/\r/g, '')
+      .split('\n').map(function (l) { return l.replace(/\s+$/, ''); }).join('\n')
+      .replace(/\n{3,}/g, '\n\n').replace(/^\n+|\n+$/g, '');
+  }
+
+  function parseJiraHtmlTable(html) {
+    var doc = new DOMParser().parseFromString(String(html == null ? '' : html), 'text/html');
+    var table = doc.getElementById('issuetable');
+    if (!table) {
+      // Older exports have no id: the data table is the one with the most rows.
+      var tables = Array.prototype.slice.call(doc.querySelectorAll('table'));
+      table = tables.reduce(function (best, t) {
+        return t.rows.length > (best ? best.rows.length : 0) ? t : best;
+      }, null);
+    }
+    if (!table) return [];
+    var rows = Array.prototype.slice.call(table.querySelectorAll('tr'));
+    var hi = 0;
+    for (var i = 0; i < rows.length; i++) { if (rows[i].querySelector('th')) { hi = i; break; } }
+    var seen = {};
+    var headers = Array.prototype.slice.call(rows[hi].querySelectorAll('th,td')).map(function (c) {
+      var name = c.textContent.replace(/\s+/g, ' ').trim();
+      if (seen[name] == null) { seen[name] = 0; return name; }
+      seen[name] += 1;
+      return name + '_' + seen[name];
+    });
+    var out = [];
+    rows.slice(hi + 1).forEach(function (row) {
+      var cells = Array.prototype.slice.call(row.querySelectorAll('td'));
+      if (!cells.length) return;
+      var obj = {}, any = false;
+      headers.forEach(function (h, i) {
+        var v = cells[i] ? htmlCellText(cells[i]) : '';
+        if (v) any = true;
+        obj[h] = v;
+      });
+      if (any) out.push(obj);
+    });
+    return out;
+  }
+
+  /* ═══════════════════════════════════════════════════
      SPRINT GRID  (derived, never stored)
   ═══════════════════════════════════════════════════ */
 
@@ -813,6 +874,7 @@
     epics: epics,
     splitBenefits: splitBenefits,
     splitDescriptionBenefit: parseJiraDescription,
+    parseJiraHtmlTable: parseJiraHtmlTable,
     stripWikiInline: stripWikiInline,
 
     cockpit: cockpit,
