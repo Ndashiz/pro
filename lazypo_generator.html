@@ -464,7 +464,7 @@ function renderThemeSwatches() {
 const HAS_PI = typeof LazyPI !== 'undefined';
 const MONTHS_EN = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 
-/* Sans PI, la datalist propose les 8 prochains mois : c'est la forme à
+/* Sans PI, la liste propose les 8 prochains mois : c'est la forme à
    laquelle se ramène une fix version Jira Cloud (« Monthly Release
    December 2026 » → « December 2026 »). */
 function fallbackReleaseOptions() {
@@ -524,14 +524,55 @@ function esc(s) {
     .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
-/* Les releases du PI d'abord ; les prochains mois ne servent que de secours
-   quand aucun PI n'est défini. */
-function releaseOptions() {
+/* ── Releases de la liste déroulante ──────────────────────────────
+   Le PI est la référence (Réglages PI : nom + date). La liste y ajoute :
+   - les releases créées ici avec « ➕ Ajouter une release… » — locales au
+     Scope of Work (sans date, donc badge sans date), mémorisées dans le
+     navigateur et emportées dans les sauvegardes ;
+   - celles que les epics utilisent déjà (import, brouillon), pour ne jamais
+     perdre une valeur qui n'est plus dans le PI.
+   Sans PI, les prochains mois servent de secours. */
+const RELEASES_LS_KEY = 'lazypo:sowReleases:v1';
+let customReleases = (() => {
+  try { const a = JSON.parse(localStorage.getItem(RELEASES_LS_KEY) || '[]'); return Array.isArray(a) ? a.map(String).filter(Boolean) : []; }
+  catch (e) { return []; }
+})();
+function saveCustomReleases() {
+  try { localStorage.setItem(RELEASES_LS_KEY, JSON.stringify(customReleases)); } catch (e) {}
+}
+function piReleaseNames() {
   if (HAS_PI) {
     const rels = LazyPI.get().releases || [];
     if (rels.length) return rels.filter(r => r.name).map(r => r.name);
   }
   return fallbackReleaseOptions();
+}
+function releaseOptions() {
+  const seen = new Set(), out = [];
+  [...piReleaseNames(), ...customReleases, ...epics.map(e => e.release), 'TBD'].forEach(r => {
+    const t = String(r == null ? '' : r).trim();
+    if (t && !seen.has(t.toLowerCase())) { seen.add(t.toLowerCase()); out.push(t); }
+  });
+  return out;
+}
+function addCustomRelease(i) {
+  const name = prompt('Nom de la nouvelle release :', '');
+  const t = name == null ? '' : name.trim();
+  if (t) {
+    const known = releaseOptions().find(r => r.toLowerCase() === t.toLowerCase());
+    if (!known) { customReleases.push(t); saveCustomReleases(); }
+    if (epics[i]) epics[i].release = known || t;
+  }
+  renderEpics();
+  if (lastEmailHtml) generate();
+}
+function removeCustomRelease() {
+  if (customReleases.length) {
+    const menu = customReleases.map((r, n) => `${n + 1}. ${r}`).join('\n');
+    const n = parseInt(prompt('Retirer quelle release ajoutée ? (numéro)\n' + menu, ''), 10);
+    if (n >= 1 && n <= customReleases.length) { customReleases.splice(n - 1, 1); saveCustomReleases(); }
+  }
+  renderEpics();
 }
 
 /* Fix version Jira → nom de release. Le PI est la référence : s'il connaît
@@ -795,6 +836,7 @@ function snapshotState() {
     fields,
     objectives: [...document.querySelectorAll('#objectives-list input[type="text"]')].map(el => el.value),
     epics: JSON.parse(JSON.stringify(epics)),
+    releases: customReleases.slice(),
   };
 }
 function stateFingerprint() { return JSON.stringify(snapshotState()); }
@@ -827,6 +869,11 @@ function applyState(s) {
   const t = THEMES.find(th => th.id === s.theme);
   if (t) { currentTheme = t; renderThemeSwatches(); }
   renderObjectives(Array.isArray(s.objectives) ? s.objectives : []);
+  (Array.isArray(s.releases) ? s.releases : []).forEach(r => {
+    const t = String(r == null ? '' : r).trim();
+    if (t && !customReleases.some(c => c.toLowerCase() === t.toLowerCase())) customReleases.push(t);
+  });
+  saveCustomReleases();
   epics = (Array.isArray(s.epics) ? s.epics : []).map(normaliseEpic);
   renderEpics();   // ré-attache aussi les listeners « live » des objectifs
   generate();
@@ -1022,8 +1069,12 @@ function renderEpics() {
   epics.forEach((ep, i) => {
     const card = document.createElement('div');
     card.className = 'epic-card'; card.draggable = true; card.dataset.idx = i;
-    const datalistId = `rl-${i}`;
-    const datalistHtml = releaseOptions().map(o => `<option value="${esc(o)}">`).join('');
+    if (!String(ep.release || '').trim()) ep.release = 'TBD';
+    const cur = String(ep.release).trim().toLowerCase();
+    const relSelect = releaseOptions().map(o =>
+      `<option value="${esc(o)}"${o.toLowerCase() === cur ? ' selected' : ''}>${esc(o)}</option>`).join('')
+      + '<option value="__add__">➕ Ajouter une release…</option>'
+      + (customReleases.length ? '<option value="__remove__">🗑 Retirer une release ajoutée…</option>' : '');
     card.innerHTML = `
       <div class="epic-head">
         <span class="drag-dots">⠿</span>
@@ -1050,8 +1101,7 @@ function renderEpics() {
           </div>
           <div class="epic-field" style="max-width:155px;">
             <label>Release</label>
-            <datalist id="${datalistId}">${datalistHtml}</datalist>
-            <input type="text" class="epic-release" list="${datalistId}" value="${esc(ep.release)}" placeholder="ex: Q3 26'" />
+            <select class="epic-release" title="Releases du PI + celles ajoutées ici">${relSelect}</select>
             <span class="release-preview" style="${relStyle(ep.release)}">${esc(relLabel(ep.release))}</span>
           </div>
         </div>
@@ -1061,11 +1111,14 @@ function renderEpics() {
     card.querySelector('.epic-name-input').addEventListener('input', e => { epics[i].name = e.target.value; });
     card.querySelector('.epic-ticket').addEventListener('input', e => { epics[i].ticket = e.target.value; });
     card.querySelector('.epic-desc').addEventListener('input', e => { epics[i].desc = e.target.value; });
-    card.querySelector('.epic-release').addEventListener('input', e => {
-      epics[i].release = e.target.value;
+    card.querySelector('.epic-release').addEventListener('change', e => {
+      const v = e.target.value;
+      if (v === '__add__')    { addCustomRelease(i); return; }
+      if (v === '__remove__') { removeCustomRelease(); return; }
+      epics[i].release = v;
       const p = card.querySelector('.release-preview');
-      p.style.cssText = relStyle(e.target.value);
-      p.textContent = relLabel(e.target.value);
+      p.style.cssText = relStyle(v);
+      p.textContent = relLabel(v);
     });
     card.querySelector('.tag-input').addEventListener('keydown', e => {
       if ((e.key === 'Enter' || e.key === ',') && e.target.value.trim()) {

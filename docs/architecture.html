@@ -2407,6 +2407,17 @@ graph TB
 
     <p>Changements significatifs des dernières releases — pour le détail complet voir <code>git log</code> ou les PR mergées sur <code>main</code>.</p>
 
+    <h3>Septembre 2026 — 🏷️ Scope of Work : ajouter une release depuis la carte</h3>
+    <ul style="padding-left: 24px; margin-bottom: 18px;">
+      <li>Le champ Release d'un epic devient une vraie liste déroulante : releases du PI, puis celles
+          déjà utilisées par les epics (import, brouillon), puis « ➕ Ajouter une release… » qui demande
+          un nom et le rend disponible pour tous les epics. « 🗑 Retirer une release ajoutée… » n'apparaît
+          que s'il y en a.</li>
+      <li>Une release ajoutée ici est locale au Scope of Work : sans date (badge au nom), mémorisée dans le
+          navigateur (<code>lazypo:sowReleases:v1</code>) et emportée dans les brouillons. Pour une release
+          datée que gantt et sprint planner voient aussi, c'est toujours Réglages PI.</li>
+    </ul>
+
     <h3>Septembre 2026 — 📄 Import Jira : export « Excel (HTML) »</h3>
     <ul style="padding-left: 24px; margin-bottom: 18px;">
       <li>Le générateur Scope of Work et l'import PI acceptent le fichier <code>.html</code> que Jira Cloud
