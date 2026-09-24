@@ -2407,6 +2407,27 @@ graph TB
 
     <p>Changements significatifs des dernières releases — pour le détail complet voir <code>git log</code> ou les PR mergées sur <code>main</code>.</p>
 
+    <h3>Septembre 2026 — 🧹 Jira File Cleaner : export HTML → Excel propre</h3>
+    <ul style="padding-left: 24px; margin-bottom: 18px;">
+      <li>Nouvelle page <code>jira_filecleaner.html</code> (carte « File Cleaner » du hub Jira, module
+          <code>jira</code>) : on y dépose le fichier « Export Excel (toutes colonnes) » de Jira Cloud — un
+          HTML déguisé en <code>.xls</code> — et on récupère un classeur <code>.xlsx</code>. Tout est lu
+          dans le navigateur (<code>DOMParser</code> + <code>xlsx.min.js</code>), rien n'est envoyé.</li>
+      <li>Implémente les étapes 1 et 2 de <code>lazypo_jira_import_spec.md</code> : colonnes mappées par
+          <code>th[data-id]</code> (jamais par position ni libellé), <code>&lt;br&gt;</code> → retours à la
+          ligne, entités et NBSP décodés, nulls déguisés (« Unassigned », « None »…), dates
+          <code>dd/MMM/yy h:mm a</code>, multi-valeurs dédoublonnées, durées en heures. Les Features
+          ont leur description séparée en description / benefit / notes (titres de section « collés »,
+          une puce « * Business Benefits » reste du contenu) ; les Story / Bug / Task sont rattachés à
+          leur feature par le summary du parent, avec <strong>feature fantôme</strong> quand le parent
+          manque ; fix versions « Monthly Release &lt;Mois&gt; &lt;Année&gt; » → clé
+          <code>YYYY-MM</code>, la plus tardive quand il y en a plusieurs.</li>
+      <li>Feuilles : <strong>Features</strong>, <strong>Items</strong>, <strong>Releases</strong>,
+          <strong>Rapport</strong> (JQL, horodatage, PI déduit, compteurs, avertissements) et
+          <strong>Brut</strong> (toutes les colonnes nettoyées). La fusion avec le PI (REQ-30 et
+          suivantes) reste l'affaire de <code>pi.html</code>.</li>
+    </ul>
+
     <h3>Septembre 2026 — 🎯 Scope of Work : texte du bloc objectifs modifiable</h3>
     <ul style="padding-left: 24px; margin-bottom: 18px;">
       <li>Deux champs en tête de la section « Objectifs PI » : le <strong>titre du bloc</strong> (vide =

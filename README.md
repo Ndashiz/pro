@@ -114,6 +114,7 @@ Tool to ease my life as a PO.
 | `jirarepo.html` | jira | Jira Query Saver — save/share JQL with cloud sync |
 | `jira_dashboard.html` | jira | Jira Dashboard Builder — CSV/XLSX → KPIs + PPTX/PDF/HTML export |
 | `gantt.html` | jira | PI Timeline — Gantt view of the program increment |
+| `jira_filecleaner.html` | jira | File Cleaner — Jira « Export Excel (all fields) » HTML → clean .xlsx (features with description / benefit / notes split, items attached to their feature, releases, report, raw table) |
 | `gif_repo.html` | — | GIF Repo — paste, label, copy; sorted by usage (Supabase Storage) |
 | `livenote.html` | livenote | Live shared notes (Supabase realtime) |
 | `livenote_editor.html` | livenote | Note editor |

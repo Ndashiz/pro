@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<script>if(location.protocol==="http:"&&location.hostname!=="localhost"&&location.hostname!=="127.0.0.1")location.replace("https:"+location.href.slice(5));</script>
+<script src="auth-gate.js"></script>
+<meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests">
+<meta charset="UTF-8">
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<title>LazyPO — Jira File Cleaner</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="stylesheet" href="fonts.css">
+<script src="xlsx.min.js"></script>
+<style>
+:root{
+  --navy:#002060; --navy-border:#0a3575;
+  --bg:#0c0c0c; --surface:#161616; --surface2:#1c1c1c;
+  --border:#222; --border2:#2a2a2a;
+  --text:#e8e8e8; --muted:#8a8a8a; --faint:#555;
+  --accent:#3b82f6; --accent-soft:rgba(59,130,246,.14);
+  --ok:#10b981; --warn:#f59e0b; --danger:#ef4444;
+  --r:12px; --r-sm:8px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'DM Sans',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+header.top{background:var(--navy);border-bottom:1px solid var(--navy-border);padding:14px 28px;display:flex;align-items:center;gap:14px}
+header.top .logo{font-family:'Bangers','DM Sans',sans-serif;font-size:26px;letter-spacing:1px;color:#fff;text-decoration:none}
+header.top .sub{font-size:12px;color:#93c5fd}
+header.top .spacer{flex:1}
+.btn{padding:9px 16px;border:none;border-radius:var(--r-sm);font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:7px;white-space:nowrap;transition:all .15s}
+.btn-primary{background:var(--accent);color:#fff}.btn-primary:hover{background:#2563eb}
+.btn-ghost{background:rgba(255,255,255,.08);color:#fff;border:1px solid rgba(255,255,255,.18)}.btn-ghost:hover{background:rgba(255,255,255,.16)}
+.btn-success{background:var(--ok);color:#fff}.btn-success:hover{background:#059669}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.wrap{max-width:1180px;margin:0 auto;padding:26px 24px 60px}
+h1{font-size:22px;font-weight:700;margin-bottom:4px}
+.lead{color:var(--muted);font-size:13.5px;line-height:1.55;max-width:820px;margin-bottom:22px}
+.lead code{background:var(--surface2);border:1px solid var(--border2);padding:1px 6px;border-radius:5px;font-size:12px}
+.drop{border:2px dashed var(--border2);border-radius:var(--r);background:var(--surface);padding:42px 24px;text-align:center;cursor:pointer;transition:border-color .15s,background .15s;position:relative}
+.drop:hover,.drop.over{border-color:var(--accent);background:var(--accent-soft)}
+.drop input{position:absolute;inset:0;opacity:0;cursor:pointer}
+.drop .ico{font-size:38px;margin-bottom:8px}
+.drop p{font-size:14px}.drop p b{color:var(--accent)}
+.drop .hint{font-size:12px;color:var(--muted);margin-top:6px}
+.status{margin-top:12px;font-size:13px;display:none}
+.status.err{color:var(--danger)}.status.ok{color:var(--ok)}
+.result{display:none;margin-top:26px}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:20px}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:14px 16px}
+.card .k{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.card .v{font-size:26px;font-weight:700;margin-top:4px}
+.card .s{font-size:12px;color:var(--muted);margin-top:2px}
+.panel{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:16px 18px;margin-bottom:16px}
+.panel h2{font-size:13px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:10px;display:flex;align-items:center;gap:8px}
+.meta{display:grid;grid-template-columns:160px 1fr;gap:6px 14px;font-size:13px}
+.meta .k{color:var(--muted)}
+.meta .v{word-break:break-word}
+ul.warn{list-style:none;font-size:13px;line-height:1.6}
+ul.warn li::before{content:"⚠ ";color:var(--warn)}
+ul.warn li.ok::before{content:"✓ ";color:var(--ok)}
+table.tbl{width:100%;border-collapse:collapse;font-size:12.5px}
+table.tbl th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);padding:6px 8px;border-bottom:1px solid var(--border2);white-space:nowrap}
+table.tbl td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:top}
+table.tbl tr:last-child td{border-bottom:none}
+.tag{display:inline-block;font-size:10.5px;font-weight:600;padding:1px 7px;border-radius:20px;background:var(--surface2);border:1px solid var(--border2);color:var(--muted)}
+.tag.ok{color:var(--ok);border-color:rgba(16,185,129,.4)}
+.tag.warn{color:var(--warn);border-color:rgba(245,158,11,.4)}
+.tag.ghost{color:#c084fc;border-color:rgba(192,132,252,.4)}
+.actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:6px 0 18px}
+.small{font-size:12px;color:var(--muted)}
+.key{font-family:ui-monospace,Menlo,monospace;font-size:11.5px;color:#93c5fd}
+@media (max-width:640px){.wrap{padding:18px 14px 50px}.meta{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <a class="logo" href="index.html">LazyPO ✦</a>
+  <span class="sub">Jira · File Cleaner</span>
+  <div class="spacer"></div>
+  <a class="btn btn-ghost" href="jira.html">← Jira hub</a>
+</header>
+
+<div class="wrap">
+  <h1>🧹 Export Jira HTML → Excel propre</h1>
+  <p class="lead">
+    Dépose le fichier <b>« Export Excel (toutes colonnes) »</b> de Jira Cloud — un HTML déguisé en
+    <code>.xls</code>, parfois enregistré en <code>.html</code>. Tout est lu dans ton navigateur, rien
+    n'est envoyé nulle part. Tu récupères un classeur Excel : <b>Features</b> (description / bénéfice /
+    notes séparés, release, epic, compteurs), <b>Items</b> (stories, bugs, tasks rattachés à leur
+    feature), <b>Releases</b>, <b>Rapport</b> et la table <b>Brut</b> nettoyée.
+  </p>
+
+  <div class="drop" id="drop">
+    <input type="file" id="file" accept=".html,.htm,.xls" />
+    <div class="ico">📥</div>
+    <p><b>Glisse l'export ici</b> ou clique pour choisir</p>
+    <div class="hint">.html · .htm · .xls (HTML déguisé) — détecté par le contenu, pas l'extension</div>
+  </div>
+  <div class="status" id="status"></div>
+
+  <div class="result" id="result">
+    <div class="actions">
+      <button class="btn btn-success" id="dl" onclick="downloadExcel()">⬇ Télécharger l'Excel</button>
+      <button class="btn btn-ghost" onclick="reset()">Nouveau fichier</button>
+      <span class="small" id="dlname"></span>
+    </div>
+
+    <div class="cards" id="cards"></div>
+
+    <div class="panel">
+      <h2>Import</h2>
+      <div class="meta" id="meta"></div>
+    </div>
+
+    <div class="panel">
+      <h2>Rapport</h2>
+      <ul class="warn" id="warnings"></ul>
+    </div>
+
+    <div class="panel">
+      <h2>Features <span class="small" id="featcount"></span></h2>
+      <div style="overflow:auto"><table class="tbl" id="feattable"></table></div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ═══════════════════════════════════════════════════════════════
+   LazyPO · Jira File Cleaner
+   Spec : lazypo_jira_import_spec.md v1.0 (24/09/2026) — étapes 1 et 2 :
+   parseJiraHtml() puis buildModel(), rendus en classeur Excel. La fusion
+   avec le PI (REQ-30+) n'est pas ici : le PI s'importe dans pi.html.
+   Tout tourne dans le navigateur (DOMParser + xlsx.min.js vendored).
+═══════════════════════════════════════════════════════════════ */
+
+const MONTHS = ['january','february','march','april','may','june','july','august','september','october','november','december'];
+const MON3   = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
+const NULLS  = new Set(['unassigned', 'none', 'restricted to agents', 'unsupported.', 'unsupported', 'no permission', '']);
+const MULTI  = new Set(['fixVersions', 'labels', 'components', 'customfield_13153', 'customfield_10020', 'issuelinks', 'versions']);
+const BLOCKS = new Set(['description', 'customfield_10608', 'customfield_10324', 'environment']);   // keep line breaks
+const DATES  = new Set(['created', 'updated', 'resolutiondate', 'lastViewed', 'statuscategorychangedate', 'duedate']);
+
+/* REQ-10 : mapping par data-id (section 4). Libellés Excel en sortie. */
+const FEATURE_COLS = [
+  ['jira_key','Key'], ['jira_url','URL'], ['name','Summary'],
+  ['description','Description'], ['benefit','Benefit'], ['notes','Notes'], ['split_status','Split'],
+  ['fix_versions','Fix versions'], ['release_key','Release (YYYY-MM)'], ['release_label','Release'],
+  ['epic','Epic'], ['epic_status','Epic status'],
+  ['status','Status'], ['status_category','Status category'], ['priority','Priority'],
+  ['owner','Assignee'], ['reporter','Reporter'], ['labels','Labels'], ['components','Components'],
+  ['pi','PI Planning'], ['color_hint','Issue color'],
+  ['created_at','Created'], ['updated_at','Updated'], ['resolved_at','Resolved'],
+  ['source','Source'], ['order','Order'], ['placeholder','Placeholder'],
+  ['n_items','Items'], ['n_story','Stories'], ['n_bug','Bugs'], ['n_task','Tasks'],
+  ['n_todo','To Do'], ['n_progress','In Progress'], ['n_done','Done'],
+];
+const ITEM_COLS = [
+  ['jira_key','Key'], ['jira_url','URL'], ['title','Summary'], ['type','Type'],
+  ['parent','Parent (Jira)'], ['feature_key','Feature key'], ['feature_name','Feature'],
+  ['description','Description'], ['as_a','As a'], ['i_want','I want'], ['so_that','So that'],
+  ['status','Status'], ['status_category','Status category'], ['priority','Priority'], ['assignee','Assignee'],
+  ['fix_versions','Fix versions'], ['release_key','Release (YYYY-MM)'], ['release_label','Release'],
+  ['sprints','Sprints'], ['sprint','Current sprint'], ['labels','Labels'],
+  ['requester','Requester'], ['snow_ref','ServiceNow ref'], ['links','Linked issues'],
+  ['blocking','Blocking'], ['environment','Environment'],
+  ['estimate_h','Original estimate (h)'], ['remaining_h','Remaining (h)'], ['story_points','Story points'],
+  ['last_comment','Last comment'],
+  ['created_at','Created'], ['updated_at','Updated'], ['resolved_at','Resolved'],
+];
+
+/* ── Nettoyage des cellules (REQ-11, REQ-12) ────────────────── */
+function cellText(td, keepLines) {
+  // Dans l'export, seul <br/> est un vrai retour à la ligne : les retours
+  // littéraux du HTML (après chaque <br/>, autour des <p>) sont du blanc.
+  const h = td.innerHTML
+    .replace(/\r?\n/g, ' ')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/(?:p|div|li|h[1-6]|tr)\s*>/gi, '\n');
+  const tmp = document.createElement('div');
+  tmp.innerHTML = h;
+  let t = tmp.textContent.replace(/\u00a0/g, ' ');
+  if (keepLines) {
+    t = t.split('\n').map(l => l.replace(/[ \t]{2,}/g, ' ').trim()).join('\n')
+         .replace(/\n{3,}/g, '\n\n').replace(/^\n+|\n+$/g, '');
+  } else {
+    t = t.replace(/\s+/g, ' ').trim();
+  }
+  return t;
+}
+function nul(v) { return NULLS.has(String(v == null ? '' : v).trim().toLowerCase()) ? '' : v; }
+function multi(v) {
+  const seen = new Set(), out = [];
+  String(v == null ? '' : v).split(',').forEach(x => {
+    const t = x.trim();
+    if (t && !seen.has(t.toLowerCase())) { seen.add(t.toLowerCase()); out.push(t); }
+  });
+  return out;
+}
+/* REQ-13 : dd/MMM/yy h:mm a → "YYYY-MM-DD HH:MM" (heure locale telle qu'exportée) */
+function parseJiraDate(v) {
+  const s = String(v == null ? '' : v).trim();
+  if (!s) return { value: '', ok: true };
+  const m = /^(\d{1,2})\/([A-Za-z]{3})\/(\d{2,4})(?:\s+(\d{1,2}):(\d{2})\s*(AM|PM)?)?$/i.exec(s);
+  if (!m) return { value: '', ok: false, raw: s };
+  const mi = MON3.indexOf(m[2].toLowerCase());
+  if (mi < 0) return { value: '', ok: false, raw: s };
+  let y = +m[3]; if (y < 100) y += 2000;
+  let hh = m[4] ? +m[4] : 0; const mm = m[5] ? +m[5] : 0;
+  if (m[6]) { const pm = m[6].toUpperCase() === 'PM'; if (pm && hh < 12) hh += 12; if (!pm && hh === 12) hh = 0; }
+  const p = n => String(n).padStart(2, '0');
+  return { value: `${y}-${p(mi + 1)}-${p(+m[1])} ${p(hh)}:${p(mm)}`, ok: true };
+}
+function hours(v) { const n = parseFloat(String(v == null ? '' : v).replace(',', '.')); return isFinite(n) && String(v).trim() !== '' ? Math.round(n / 3600 * 100) / 100 : ''; }
+function num(v)   { const n = parseFloat(String(v == null ? '' : v).replace(',', '.')); return isFinite(n) && String(v).trim() !== '' ? n : ''; }
+function bool(v)  { const s = String(v == null ? '' : v).trim().toLowerCase(); return s === 'yes' ? 'Yes' : s === 'no' ? 'No' : ''; }
+function normKey(s) {
+  return String(s == null ? '' : s).toLowerCase().replace(/[–—]/g, '-').replace(/\s+/g, ' ').trim();
+}
+
+/* ── Markup Jira → texte (section 5.3, mode plain) ─────────── */
+function cleanInline(s) {
+  let t = String(s == null ? '' : s);
+  t = t.replace(/\{color[^}]*\}/gi, '').replace(/\{\/?(?:code|noformat|quote|panel)[^}]*\}/gi, '');
+  t = t.replace(/\{\{([^}]*)\}\}/g, '$1');
+  t = t.replace(/!([^!\s|]+)(?:\|[^!]*)?!/g, '');
+  t = t.replace(/\[([^\]|]+)\|([^\]]*)\]/g, (m, a, b) => /^https?:/i.test(b) ? `${a} (${b})` : a);
+  let prev;
+  do { prev = t; t = t.replace(/(^|[\s(])([*_+])(?!\s)([^\n]+?)\2(?=[\s).,;:!?]|$)/g, '$1$3'); } while (t !== prev);
+  return t.replace(/[ \t]+/g, ' ').trim();
+}
+function clean(text) {
+  const lines = String(text == null ? '' : text).replace(/\r\n?/g, '\n').split('\n');
+  const out = [];
+  lines.forEach(raw => {
+    let l = raw.replace(/^\s*h[1-6]\.\s*/i, '');
+    const m = /^\s*(?:(\*{1,3}|-{1,3}|#{1,3})|•|◦)\s+(.*)$/.exec(l);
+    if (m) {
+      const lvl = m[1] ? m[1].length : 1;
+      l = (lvl >= 2 ? '  ◦ ' : '• ') + cleanInline(m[2]);
+    } else l = cleanInline(l);
+    out.push(l);
+  });
+  return out.join('\n').replace(/\n{3,}/g, '\n\n').replace(/^\n+|\n+$/g, '');
+}
+
+/* ── Split description / benefit / notes (section 5) ───────── */
+/* Le * de gras doit être COLLÉ au mot-clé : « * Business Benefits » (étoile
+   + espace) est une puce, donc du contenu — piège CRMBDP-5515. */
+const SECTION_RE = /^[ \t]*(?:h[1-6]\.[ \t]*)?[*_]?(business[ \t]+benefits?|benefits?|description|additional[ \t]+notes?)[ \t]*:?[ \t]*[*_]?[ \t]*:?[ \t]*$/gim;
+function splitFeatureText(raw) {
+  const text = String(raw == null ? '' : raw).replace(/\r\n?/g, '\n');
+  const heads = [...text.matchAll(SECTION_RE)];
+  if (!heads.length) return { description: clean(text), benefit: '', notes: '', split_status: 'no_sections' };
+  const out = { description: '', benefit: '', notes: '' };
+  const preamble = text.slice(0, heads[0].index).trim();
+  heads.forEach((m, i) => {
+    const key = /benefit/i.test(m[1]) ? 'benefit' : /note/i.test(m[1]) ? 'notes' : 'description';
+    const end = i + 1 < heads.length ? heads[i + 1].index : text.length;
+    const body = text.slice(m.index + m[0].length, end).trim();
+    out[key] = out[key] ? out[key] + '\n' + body : body;
+  });
+  if (preamble) out.description = preamble + (out.description ? '\n' + out.description : '');
+  return { description: clean(out.description), benefit: clean(out.benefit), notes: clean(out.notes),
+           split_status: out.benefit ? 'ok' : 'no_benefit' };
+}
+/* REQ-28 : *As a* … *I want to* … *so that* … */
+function splitStory(desc) {
+  const t = cleanInline(String(desc || '').replace(/\n+/g, ' '));
+  const m = /\bas an?\s+(.+?)\s*,?\s+i (?:want|need)(?: to)?\s+(.+?)\s*,?\s+so that\s+(.+)$/i.exec(t);
+  return m ? { as_a: m[1].trim(), i_want: m[2].trim(), so_that: m[3].trim() } : { as_a: '', i_want: '', so_that: '' };
+}
+
+/* ── Fix version → release (section 6) ──────────────────────── */
+function releaseKey(name) {
+  const m = /^\s*Monthly Release\s+([A-Za-z]+)\s+(\d{4})\s*$/i.exec(String(name || ''));
+  if (!m) return null;
+  const mi = MONTHS.indexOf(m[1].toLowerCase());
+  return mi < 0 ? null : `${m[2]}-${String(mi + 1).padStart(2, '0')}`;
+}
+/* R-3 : plusieurs fix versions → la plus tardive ; R-7 : nom non conforme → libellé tel quel */
+function pickRelease(fixes, warnings, who) {
+  let bestKey = '', bestLabel = '';
+  fixes.forEach(f => {
+    const k = releaseKey(f);
+    if (k) { if (k > bestKey) { bestKey = k; bestLabel = f; } }
+    else { warnings.add(`Release non reconnue « ${f} » (${who}) — nom hors format « Monthly Release <Mois> <Année> »`); if (!bestKey && !bestLabel) bestLabel = f; }
+  });
+  return { key: bestKey, label: bestLabel };
+}
+
+/* ═══════════════ 1. parseJiraHtml (REQ-01 → REQ-16) ═══════════════ */
+function parseJiraHtml(text, filename) {
+  const doc = new DOMParser().parseFromString(text, 'text/html');
+  const table = doc.getElementById('issuetable');
+  if (!table) throw new Error('Ce fichier n\'est pas un export Jira HTML (table #issuetable introuvable).');
+  const ths = [...table.querySelectorAll('th[data-id]')];
+  const columns = ths.map(th => ({ id: th.getAttribute('data-id'), label: th.textContent.replace(/\s+/g, ' ').trim() }));
+  const ids = new Set(columns.map(c => c.id));
+  for (const need of ['issuekey', 'summary', 'issuetype']) {
+    if (!ids.has(need)) throw new Error(`Ce fichier n'est pas un export Jira HTML (colonne « ${need} » absente).`);
+  }
+
+  // Métadonnées (REQ-03, REQ-04)
+  const meta = { filename, imported_at: new Date().toISOString().slice(0, 16).replace('T', ' '), jql: '', expected_count: null, exported_at: '' };
+  const link = doc.querySelector('a[href*="jql="]');
+  if (link) { try { meta.jql = new URL(link.getAttribute('href'), 'https://x/').searchParams.get('jql') || ''; } catch (e) {} }
+  const headTxt = (doc.querySelector('table') && doc.querySelector('table') !== table ? doc.querySelector('table').textContent : doc.body.textContent).replace(/\s+/g, ' ');
+  const dm = /Displaying\s+(\d+)\s+issues?\s+at\s+(\d{1,2}\/[A-Za-z]{3}\/\d{2,4}\s+\d{1,2}:\d{2}\s*(?:AM|PM)?)/i.exec(headTxt);
+  if (dm) { meta.expected_count = +dm[1]; meta.exported_at = dm[2]; }
+
+  const rows = [];
+  const trs = [...table.querySelectorAll('tr.issuerow')].length ? [...table.querySelectorAll('tr.issuerow')] : [...table.querySelectorAll('tbody tr')];
+  trs.forEach((tr, idx) => {
+    const raw = {}, urls = {};
+    [...tr.children].forEach(td => {
+      const id = (td.getAttribute('class') || '').split(/\s+/).find(c => ids.has(c));
+      if (!id) return;
+      raw[id] = nul(cellText(td, BLOCKS.has(id)));
+      const a = td.querySelector('a[href]');
+      if (a) urls[id] = a.getAttribute('href');
+    });
+    if (!raw.issuekey) raw.issuekey = tr.getAttribute('data-issuekey') || '';
+    rows.push({ index: idx, raw, urls });
+  });
+  return { meta, columns, rows };
+}
+
+/* ═══════════════ 2. buildModel (REQ-20 → REQ-29, section 6) ═══════════════ */
+function buildModel(parsed) {
+  const warnings = new Set();
+  const invalidDates = [];
+  const date = (raw, id, key) => {
+    const d = parseJiraDate(raw[id]);
+    if (!d.ok) invalidDates.push(`${key} · ${id} = « ${d.raw} »`);
+    return d.value;
+  };
+
+  const features = [], items = [];
+  parsed.rows.forEach(({ index, raw, urls }) => {
+    const type = String(raw.issuetype || '').trim();
+    const key = raw.issuekey, url = urls.issuekey || '';
+    const fixes = multi(raw.fixVersions);
+    const rel = pickRelease(fixes, warnings, key);
+    if (/^feature$/i.test(type)) {
+      const split = splitFeatureText(raw.description || '');
+      const epic = (raw.customfield_10011 || '').trim();
+      const name = (raw.summary || '').trim();
+      features.push({
+        jira_key: key, jira_url: url, name,
+        description: split.description, benefit: split.benefit, notes: split.notes, split_status: split.split_status,
+        fix_versions: fixes.join(', '), release_key: rel.key, release_label: rel.label,
+        epic: epic || name, epic_status: raw.customfield_10012 || '',
+        status: raw.status || '', status_category: raw.statusCategory || '', priority: raw.priority || '',
+        owner: raw.assignee || '', reporter: raw.reporter || '',
+        labels: multi(raw.labels).join(', '), components: multi(raw.components).join(', '),
+        pi: multi(raw.customfield_13153).join(', '), color_hint: raw.customfield_10017 || '',
+        created_at: date(raw, 'created', key), updated_at: date(raw, 'updated', key), resolved_at: date(raw, 'resolutiondate', key),
+        source: 'jira', order: features.length + 1,
+        placeholder: (!split.description || normKey(split.description) === normKey(name)) ? 'Yes' : '',
+        n_items: 0, n_story: 0, n_bug: 0, n_task: 0, n_todo: 0, n_progress: 0, n_done: 0,
+        _epicNameEmpty: !epic, _row: index,
+      });
+    } else {
+      const story = splitStory(raw.description || '');
+      const sprints = multi(raw.customfield_10020);
+      items.push({
+        jira_key: key, jira_url: url, title: (raw.summary || '').trim(), type: type.toLowerCase(),
+        parent: (raw.parent || '').trim(), feature_key: '', feature_name: '',
+        description: clean(raw.description || ''), as_a: story.as_a, i_want: story.i_want, so_that: story.so_that,
+        status: raw.status || '', status_category: raw.statusCategory || '', priority: raw.priority || '', assignee: raw.assignee || '',
+        fix_versions: fixes.join(', '), release_key: rel.key, release_label: rel.label,
+        sprints: sprints.join(', '), sprint: sprints.length ? sprints[sprints.length - 1] : '',
+        labels: multi(raw.labels).join(', '),
+        requester: raw.customfield_12642 || '', snow_ref: raw.customfield_12644 || '', links: multi(raw.issuelinks).join(', '),
+        blocking: bool(raw.customfield_10330), environment: raw.customfield_10324 || '',
+        estimate_h: hours(raw.timeoriginalestimate), remaining_h: hours(raw.timeestimate),
+        story_points: num(raw.customfield_10016) !== '' ? num(raw.customfield_10016) : num(raw.customfield_10042),
+        last_comment: clean(raw.customfield_10608 || ''),
+        created_at: date(raw, 'created', key), updated_at: date(raw, 'updated', key), resolved_at: date(raw, 'resolutiondate', key),
+        _row: index,
+      });
+    }
+  });
+
+  // REQ-21 / REQ-22 : rattachement par summary normalisé, fantômes sinon
+  const byName = new Map();
+  const dupNames = new Set();
+  features.forEach(f => { const k = normKey(f.name); if (byName.has(k)) dupNames.add(f.name); else byName.set(k, f); });
+  dupNames.forEach(n => warnings.add(`Deux features portent le même summary « ${n} » — les items sont rattachés à la première`));
+  const ghosts = [];
+  let unattached = 0;
+  items.forEach(it => {
+    if (!it.parent) { unattached++; return; }
+    let f = byName.get(normKey(it.parent));
+    if (!f) {
+      f = { jira_key: '', jira_url: '', name: it.parent, description: '', benefit: '', notes: '', split_status: '',
+            fix_versions: '', release_key: '', release_label: '', epic: it.parent, epic_status: '',
+            status: '', status_category: '', priority: '', owner: '', reporter: '', labels: '', components: '', pi: '', color_hint: '',
+            created_at: '', updated_at: '', resolved_at: '', source: 'jira_orphan', order: features.length + 1, placeholder: '',
+            n_items: 0, n_story: 0, n_bug: 0, n_task: 0, n_todo: 0, n_progress: 0, n_done: 0, _epicNameEmpty: false, _row: 1e9 };
+      features.push(f); ghosts.push(f); byName.set(normKey(it.parent), f);
+    }
+    it.feature_key = f.jira_key; it.feature_name = f.name;
+    f.n_items++;
+    if (it.type === 'story') f.n_story++; else if (it.type === 'bug') f.n_bug++; else if (it.type === 'task') f.n_task++;
+    const sc = it.status_category.toLowerCase();
+    if (sc === 'done') f.n_done++; else if (sc === 'in progress') f.n_progress++; else f.n_todo++;
+  });
+  ghosts.forEach(g => warnings.add(`Feature fantôme « ${g.name} » : parent absent de l'export, ${g.n_items} item${g.n_items > 1 ? 's' : ''} rattaché${g.n_items > 1 ? 's' : ''}`));
+  if (unattached) warnings.add(`${unattached} item${unattached > 1 ? 's' : ''} sans parent`);
+  invalidDates.forEach(d => warnings.add('Date invalide : ' + d));
+
+  // Releases utilisées
+  const relMap = new Map();
+  const bump = (key, label, kind) => {
+    const id = key || label; if (!id) return;
+    if (!relMap.has(id)) relMap.set(id, { key, label, features: 0, items: 0 });
+    relMap.get(id)[kind]++;
+  };
+  features.forEach(f => multi(f.fix_versions).forEach(v => bump(releaseKey(v) || '', v, 'features')));
+  items.forEach(i => multi(i.fix_versions).forEach(v => bump(releaseKey(v) || '', v, 'items')));
+  const releases = [...relMap.values()].sort((a, b) => (a.key || a.label).localeCompare(b.key || b.label));
+
+  // REQ-05 : PI déduit
+  let pi = '';
+  const jm = /PI Planning[^=]*?=\s*"?([0-9]{2}-PI[0-9]{2})/i.exec(parsed.meta.jql || '');
+  if (jm) pi = jm[1];
+  else {
+    const cnt = {};
+    parsed.rows.forEach(r => multi(r.raw.customfield_13153).forEach(v => { cnt[v] = (cnt[v] || 0) + 1; }));
+    pi = Object.keys(cnt).sort((a, b) => cnt[b] - cnt[a])[0] || '';
+  }
+
+  const stats = {
+    parsed: parsed.rows.length, expected: parsed.meta.expected_count,
+    features: features.length - ghosts.length, ghosts: ghosts.length,
+    items: items.length,
+    stories: items.filter(i => i.type === 'story').length, bugs: items.filter(i => i.type === 'bug').length, tasks: items.filter(i => i.type === 'task').length,
+    other_types: items.filter(i => !['story', 'bug', 'task'].includes(i.type)).length,
+    attached: items.filter(i => i.feature_key).length, ghost_items: ghosts.reduce((s, g) => s + g.n_items, 0), unattached,
+    features_with_items: features.filter(f => f.source === 'jira' && f.n_items).length,
+    split_ok: features.filter(f => f.split_status === 'ok').length,
+    split_no_benefit: features.filter(f => f.split_status === 'no_benefit').length,
+    split_no_sections: features.filter(f => f.split_status === 'no_sections').length,
+    notes: features.filter(f => f.notes).length,
+    no_epic_name: features.filter(f => f._epicNameEmpty).length,
+    placeholders: features.filter(f => f.placeholder).length,
+    pi, invalid_dates: invalidDates.length,
+  };
+  if (stats.expected != null && stats.expected !== stats.parsed) warnings.add(`${stats.parsed} lignes lues pour ${stats.expected} annoncées par Jira`);
+  if (stats.other_types) warnings.add(`${stats.other_types} issue(s) d'un type autre que Feature / Story / Bug / Task, rangées dans Items`);
+  if (stats.split_no_sections) warnings.add(`${stats.split_no_sections} feature(s) sans sections Description / Benefits : ${features.filter(f => f.split_status === 'no_sections').map(f => f.jira_key).join(', ')}`);
+  if (stats.split_no_benefit) warnings.add(`${stats.split_no_benefit} feature(s) sans section Benefits : ${features.filter(f => f.split_status === 'no_benefit').map(f => f.jira_key).join(', ')}`);
+
+  return { features, items, releases, warnings: [...warnings], stats };
+}
+
+/* ═══════════════ 3. Excel ═══════════════ */
+function sheetFrom(cols, objs) {
+  const aoa = [cols.map(c => c[1])].concat(objs.map(o => cols.map(c => o[c[0]] == null ? '' : o[c[0]])));
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+  ws['!cols'] = cols.map(c => ({ wch: /description|benefit|notes|comment|summary|feature$|jql/i.test(c[1]) ? 48 : /url/i.test(c[1]) ? 34 : 16 }));
+  ws['!freeze'] = { xSplit: 0, ySplit: 1 };
+  return ws;
+}
+function buildWorkbook(parsed, model) {
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, sheetFrom(FEATURE_COLS, model.features), 'Features');
+  XLSX.utils.book_append_sheet(wb, sheetFrom(ITEM_COLS, model.items), 'Items');
+  XLSX.utils.book_append_sheet(wb, sheetFrom([['key','Release (YYYY-MM)'], ['label','Fix version'], ['features','Features'], ['items','Items']], model.releases), 'Releases');
+
+  const s = model.stats, m = parsed.meta;
+  const report = [
+    ['Rapport d\'import', ''],
+    ['Fichier', m.filename], ['Exporté de Jira le', m.exported_at], ['Converti le', m.imported_at],
+    ['JQL', m.jql], ['PI déduit', s.pi],
+    ['Issues annoncées', s.expected == null ? '' : s.expected], ['Issues lues', s.parsed],
+    ['Features', s.features], ['Features fantômes (parent absent)', s.ghosts],
+    ['Items', s.items], ['  dont stories', s.stories], ['  dont bugs', s.bugs], ['  dont tasks', s.tasks],
+    ['Items rattachés à une feature de l\'export', s.attached - s.ghost_items], ['Items rattachés à une feature fantôme', s.ghost_items], ['Items sans parent', s.unattached],
+    ['Features avec items', s.features_with_items],
+    ['Split ok', s.split_ok], ['Split sans benefit', s.split_no_benefit], ['Split sans sections', s.split_no_sections], ['Sections notes', s.notes],
+    ['Features sans Epic Name (fallback summary)', s.no_epic_name], ['Descriptions placeholder', s.placeholders],
+    ['Dates invalides', s.invalid_dates],
+    ['', ''], ['Avertissements', model.warnings.length],
+  ].concat(model.warnings.map(w => ['⚠', w]));
+  const wsR = XLSX.utils.aoa_to_sheet(report); wsR['!cols'] = [{ wch: 44 }, { wch: 90 }];
+  XLSX.utils.book_append_sheet(wb, wsR, 'Rapport');
+
+  // REQ-16 : la ligne brute normalisée, toutes colonnes (sauf 100 % vides)
+  const used = parsed.columns.filter(c => parsed.rows.some(r => r.raw[c.id]));
+  const rawAoa = [used.map(c => c.label)].concat(parsed.rows.map(r => used.map(c => r.raw[c.id] == null ? '' : r.raw[c.id])));
+  const wsB = XLSX.utils.aoa_to_sheet(rawAoa); wsB['!cols'] = used.map(c => ({ wch: /description|comment/i.test(c.label) ? 48 : 16 })); wsB['!freeze'] = { xSplit: 0, ySplit: 1 };
+  XLSX.utils.book_append_sheet(wb, wsB, 'Brut');
+  return wb;
+}
+
+/* ═══════════════ UI ═══════════════ */
+let PARSED = null, MODEL = null;
+const $ = id => document.getElementById(id);
+const esc = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+function setStatus(msg, kind) { const el = $('status'); el.textContent = msg; el.className = 'status ' + (kind || ''); el.style.display = msg ? 'block' : 'none'; }
+function reset() { PARSED = MODEL = null; $('result').style.display = 'none'; setStatus('', ''); $('file').value = ''; }
+
+function handleFile(file) {
+  setStatus('Lecture de ' + file.name + '…', '');
+  const reader = new FileReader();
+  reader.onerror = () => setStatus('❌ Lecture du fichier impossible', 'err');
+  reader.onload = e => {
+    const text = String(e.target.result);
+    if (!/^﻿?\s*</.test(text)) { setStatus('❌ Ce fichier n\'est pas un export Jira HTML (le contenu ne commence pas par une balise)', 'err'); return; }
+    try {
+      PARSED = parseJiraHtml(text, file.name);
+      MODEL = buildModel(PARSED);
+    } catch (err) { setStatus('❌ ' + (err.message || err), 'err'); return; }
+    render();
+    setStatus(`✓ ${MODEL.stats.parsed} issues lues — ${MODEL.stats.features} features, ${MODEL.stats.items} items`, 'ok');
+  };
+  reader.readAsText(file);
+}
+
+function outName() {
+  const s = MODEL.stats;
+  return `lazypo_jira_${(s.pi || 'export').replace(/[^\w-]+/g, '_')}_${(PARSED.meta.exported_at ? parseJiraDate(PARSED.meta.exported_at).value : '').slice(0, 10) || new Date().toISOString().slice(0, 10)}.xlsx`;
+}
+function downloadExcel() {
+  if (!MODEL) return;
+  XLSX.writeFile(buildWorkbook(PARSED, MODEL), outName());
+}
+
+function render() {
+  const s = MODEL.stats, m = PARSED.meta;
+  $('result').style.display = 'block';
+  $('dlname').textContent = outName();
+  const card = (k, v, sub) => `<div class="card"><div class="k">${k}</div><div class="v">${v}</div>${sub ? `<div class="s">${sub}</div>` : ''}</div>`;
+  $('cards').innerHTML =
+    card('Issues', s.parsed, s.expected != null ? `${s.expected} annoncées` : '') +
+    card('Features', s.features, s.ghosts ? `+ ${s.ghosts} fantôme${s.ghosts > 1 ? 's' : ''}` : 'aucun fantôme') +
+    card('Items', s.items, `${s.stories} stories · ${s.bugs} bugs · ${s.tasks} tasks`) +
+    card('Rattachés', s.attached, `${s.unattached} sans parent`) +
+    card('Split ok', s.split_ok, `${s.split_no_benefit} sans benefit · ${s.split_no_sections} sans sections`) +
+    card('Releases', MODEL.releases.length, MODEL.releases.map(r => r.key || r.label).join(', '));
+  $('meta').innerHTML = [
+    ['Fichier', m.filename], ['Exporté de Jira le', m.exported_at || '—'], ['PI déduit', s.pi || '—'],
+    ['JQL', m.jql || '—'],
+  ].map(([k, v]) => `<div class="k">${esc(k)}</div><div class="v">${esc(v)}</div>`).join('');
+  $('warnings').innerHTML = MODEL.warnings.length
+    ? MODEL.warnings.map(w => `<li>${esc(w)}</li>`).join('')
+    : '<li class="ok">Aucun avertissement</li>';
+  $('featcount').textContent = `${MODEL.features.length} lignes (dont ${s.ghosts} fantôme${s.ghosts > 1 ? 's' : ''})`;
+  const tagFor = f => f.source === 'jira_orphan' ? '<span class="tag ghost">fantôme</span>'
+    : f.split_status === 'ok' ? '<span class="tag ok">ok</span>' : `<span class="tag warn">${esc(f.split_status)}</span>`;
+  $('feattable').innerHTML =
+    '<tr><th>#</th><th>Key</th><th>Feature</th><th>Release</th><th>Epic</th><th>Items</th><th>Split</th></tr>' +
+    MODEL.features.map(f => `<tr>
+      <td>${f.order}</td><td class="key">${esc(f.jira_key) || '—'}</td><td>${esc(f.name)}</td>
+      <td>${esc(f.release_key || f.release_label) || '—'}</td><td>${esc(f.epic)}</td>
+      <td>${f.n_items}${f.n_items ? ` <span class="small">(${f.n_story}s · ${f.n_bug}b · ${f.n_task}t)</span>` : ''}</td>
+      <td>${tagFor(f)}</td></tr>`).join('');
+}
+
+const drop = $('drop');
+drop.addEventListener('dragover', e => { e.preventDefault(); drop.classList.add('over'); });
+drop.addEventListener('dragleave', () => drop.classList.remove('over'));
+drop.addEventListener('drop', e => { e.preventDefault(); drop.classList.remove('over'); if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]); });
+$('file').addEventListener('change', e => { if (e.target.files[0]) handleFile(e.target.files[0]); });
+</script>
+
+<script src="popup.js"></script>
+<script src="sidebar.js"></script>
+<script src="supabase.min.js"></script>
+<script src="auth.js"></script>
+<script>document.addEventListener("DOMContentLoaded", function(){ LazyAuth.requireModule('jira'); });</script>
+<script src="focusfm.js"></script>
+</body>
+</html>
