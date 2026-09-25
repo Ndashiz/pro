@@ -2,7 +2,12 @@
 
 Tool to ease my life as a PO.
 
-**Live** : <https://ndashiz.be/pro/>
+> **⚠ Offline since 2026-09-25.** `ndashiz.be/pro/` answers 404 on purpose (GitHub
+> Pages unpublished + Worker lockdown) after a data-leak alert at work. The app is
+> to be re-homed under `ndashiz.be/lazypo2/` — see `CLAUDE.md` « Lockdown » and
+> `worker/README.md`.
+
+**Live** : ~~<https://ndashiz.be/pro/>~~ (offline, see above)
 **Repo** : `Ndashiz/pro` (renamed from `Ndashiz/lazypo` — the local clone is still `~/Documents/lazypo`)
 
 > The public path is `/pro/`, not `/lazypo/`. Everything — the Worker route, the

@@ -1,6 +1,32 @@
 # LazyPO auth gate — Cloudflare Worker
 
-Server-side gate that prevents `/pro/*.html` from being served to
+> ## ⚠ Lockdown — 2026-09-25
+>
+> **`ndashiz.be/pro/*` is dead.** Work flagged a data leak through LazyPO,
+> so the whole `/pro/` home was taken down:
+>
+> - **Edge** — the Worker answers a bare, anonymous **404** on `/pro/*` and
+>   `/pro` (`DEAD_PREFIXES` / `DEAD_EXACT` in `src/worker.js`): no origin
+>   fetch, no login redirect, `Cache-Control: no-store`.
+> - **Origin** — the GitHub Pages site of `Ndashiz/pro` is **unpublished**
+>   (`gh api -X DELETE repos/Ndashiz/pro/pages`), so the origin answers 404
+>   too, even for someone bypassing Cloudflare.
+>
+> **Step 2 — re-home under `/lazypo2/`.** The gate already lives on
+> `APP_PREFIX = '/lazypo2/'` with its own route in `wrangler.toml`, so the
+> Worker needs no second deploy. What remains is outside the Worker:
+> rename the repo to `lazypo2` and re-enable Pages, switch the app's
+> hard-coded `/pro/` paths (cookie `Path` in `auth.js`, `login.html`'s
+> `next` check, the Spotify redirect URI in `focusfm.js` /
+> `spotify-callback.html`), add `https://ndashiz.be/lazypo2/**` to the
+> Supabase Auth redirect allow-list, update the Spotify dashboard redirect
+> URI, and point the Jarvis quiz iframe at `/lazypo2/quiz.html`.
+>
+> To deploy this lockdown: `cd worker && wrangler login && wrangler deploy`.
+> To roll it back: drop `/pro/` from `DEAD_PREFIXES`, set `APP_PREFIX`
+> back to `/pro/`, redeploy, and re-enable Pages.
+
+Server-side gate that prevents `<APP_PREFIX>*.html` (today `/lazypo2/`, formerly `/pro/`) from being served to
 visitors without a valid Supabase session. Replaces the previous
 JS-only client gate (`auth-gate.js`) which could be bypassed by
 disabling JS or removing the overlay in DevTools.

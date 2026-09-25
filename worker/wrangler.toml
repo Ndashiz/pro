@@ -2,14 +2,26 @@ name = "lazypo-auth-gate"
 main = "src/worker.js"
 compatibility_date = "2025-01-01"
 
-# Don't expose the Worker on workers.dev — only via the configured route.
+# Don't expose the Worker on workers.dev — only via the configured routes.
 workers_dev = false
 
-# Match every request under /lazypo/* on the prod zone. GitHub Pages
-# (configured as the origin in your Cloudflare DNS) serves the actual
-# files; the Worker is the gate in front.
+# ⚠ LOCKDOWN (2026-09-25): /pro/* is dead. The Worker answers a bare 404
+# on it (DEAD_PREFIXES in src/worker.js) and the GitHub Pages site behind
+# it is unpublished. Keep this route: it is what turns a stale Cloudflare
+# cache entry into a 404 immediately.
 [[routes]]
 pattern = "ndashiz.be/pro/*"
+zone_name = "ndashiz.be"
+
+[[routes]]
+pattern = "ndashiz.be/pro"
+zone_name = "ndashiz.be"
+
+# New home of the app (step 2 of the incident plan). GitHub Pages
+# (configured as the origin in your Cloudflare DNS) serves the actual
+# files once the repo is renamed `lazypo2`; the Worker is the gate in front.
+[[routes]]
+pattern = "ndashiz.be/lazypo2/*"
 zone_name = "ndashiz.be"
 
 # Secrets (set via `wrangler secret put <NAME>`):

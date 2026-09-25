@@ -1,11 +1,19 @@
 /* ═════════════════════════════════════════════════════════════════════
    LazyPO — Cloudflare Worker auth gate
    ─────────────────────────────────────────────────────────────────────
+   ⚠ LOCKDOWN (2026-09-25) — /pro/* is DEAD.
+   Every request under DEAD_PREFIXES (or exactly DEAD_EXACT) is answered
+   with a bare synthetic 404 straight from the edge: no origin fetch, no
+   redirect, no cache. The GitHub Pages site behind it is unpublished as
+   well, so the origin answers 404 on its own. The app is being re-homed
+   under APP_PREFIX (/lazypo2/) — step 2 of the incident plan, see
+   worker/README.md « Lockdown ».
+
    Runs in front of GitHub Pages (the origin). Intercepts every request
-   to /pro/*.html (and /pro/) and verifies a Supabase JWT cookie
-   BEFORE serving the HTML. Static assets (.js/.css/.svg/.ico) and a few
-   explicitly-public pages (login, OAuth callback, email confirm, the
-   favicon) pass through untouched.
+   to APP_PREFIX*.html (and APP_PREFIX itself) and verifies a Supabase
+   JWT cookie BEFORE serving the HTML. Static assets (.js/.css/.svg/.ico)
+   and a few explicitly-public pages (login, OAuth callback, email
+   confirm, the favicon) pass through untouched.
 
    JWT verification supports:
      • ES256 — current Supabase default (asymmetric, verified via JWKS)
@@ -14,7 +22,7 @@
    JWKS is fetched from Supabase and cached in caches.default for 1h.
    Individual JWT verification results are cached for 60s per token.
 
-   Failure modes — all redirect to /pro/login.html with a 302:
+   Failure modes — all redirect to APP_PREFIX + login.html with a 302:
      • missing cookie
      • cookie value is not a valid JWT shape
      • JWT signature invalid (forged / wrong key)
@@ -22,30 +30,39 @@
      • Unexpected exception (fail-closed)
 ═════════════════════════════════════════════════════════════════════ */
 
-const LOGIN_PATH   = '/pro/login.html';
-const APP_PREFIX   = '/pro/';
+// ── Dead paths ──────────────────────────────────────────────────────
+// The old home of the app. Anything here no longer exists: bare 404,
+// never proxied to the origin, never redirected to a login page.
+const DEAD_PREFIXES = ['/pro/'];
+const DEAD_EXACT    = new Set(['/pro']);
+
+// ── Live app ────────────────────────────────────────────────────────
+// Where the gate lives. Must match the GitHub Pages project path
+// (repo name), the cookie Path in auth.js and the Spotify redirect URI.
+const APP_PREFIX   = '/lazypo2/';
+const LOGIN_PATH   = APP_PREFIX + 'login.html';
 const COOKIE_NAME  = 'lazypo_jwt';
 const SUPABASE_URL = 'https://hrvxhnmtvzvrsmmmmtsv.supabase.co';
 const JWKS_URL     = SUPABASE_URL + '/auth/v1/.well-known/jwks.json';
 
 // Pages that MUST stay accessible without a session
 const PUBLIC_PAGES = new Set([
-  '/pro/login.html',
-  '/pro/email_confirm.html',
-  '/pro/spotify-callback.html',
+  APP_PREFIX + 'login.html',
+  APP_PREFIX + 'email_confirm.html',
+  APP_PREFIX + 'spotify-callback.html',
   // quiz.html is framed by the Jarvis front, which may not carry the gate
   // cookie on the very first load. A 302 there would navigate the IFRAME to
   // the login page, so the HTML is served ungated and quiz.html runs its own
   // in-place login gate. Nothing sensitive ships in the markup — all data
   // comes from Supabase, where RLS is the real boundary.
-  '/pro/quiz.html',
+  APP_PREFIX + 'quiz.html',
 ]);
 
 // File extensions that are static assets — never gated
 const PUBLIC_EXTENSIONS = /\.(js|css|svg|ico|png|jpg|jpeg|gif|webp|woff2?|ttf|map|txt)$/i;
 
 // Path prefixes that are always public (well-known, etc.)
-const PUBLIC_PREFIXES = ['/pro/.well-known/'];
+const PUBLIC_PREFIXES = [APP_PREFIX + '.well-known/'];
 
 export default {
   async fetch(request, env, ctx) {
@@ -53,7 +70,12 @@ export default {
       const url  = new URL(request.url);
       const path = url.pathname;
 
-      // 1. Only gate /pro/* paths. Anything else, pass through.
+      // 0. Dead paths — the retired /pro/ home. Bare 404, nothing else.
+      if (isDeadPath(path)) {
+        return notFound();
+      }
+
+      // 1. Only gate APP_PREFIX paths. Anything else, pass through.
       if (!path.startsWith(APP_PREFIX)) {
         return fetch(request);
       }
@@ -79,12 +101,46 @@ export default {
       return addSecurityHeaders(await fetch(request));
     } catch (err) {
       console.error('[lazypo-worker] error:', err && err.stack || err);
+      // A dead path stays dead even when something above blew up.
+      try { if (isDeadPath(new URL(request.url).pathname)) return notFound(); } catch {}
       return redirectToLogin(new URL(request.url));
     }
   },
 };
 
 /* ── Routing helpers ─────────────────────────────────────────────── */
+
+function isDeadPath(path) {
+  if (DEAD_EXACT.has(path)) return true;
+  return DEAD_PREFIXES.some(p => path.startsWith(p));
+}
+
+// Deliberately anonymous: no app name, no branding, no link. A visitor
+// (or a scanner) must see a page that simply does not exist.
+const NOT_FOUND_HTML = '<!doctype html>\n'
+  + '<html lang="en"><head><meta charset="utf-8">\n'
+  + '<title>404 Not Found</title>\n'
+  + '<meta name="robots" content="noindex, nofollow">\n'
+  + '<meta name="viewport" content="width=device-width, initial-scale=1">\n'
+  + '<style>body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;'
+  + 'font:16px/1.5 system-ui,-apple-system,sans-serif;color:#333;background:#fafafa}'
+  + 'main{text-align:center;padding:24px}h1{font-size:48px;font-weight:600;margin:0 0 8px}p{margin:0;color:#666}</style>\n'
+  + '</head><body><main><h1>404</h1><p>Not Found</p></main></body></html>\n';
+
+function notFound() {
+  return new Response(NOT_FOUND_HTML, {
+    status: 404,
+    headers: {
+      'Content-Type':                'text/html; charset=utf-8',
+      'Cache-Control':               'no-store',
+      'X-Robots-Tag':                'noindex, nofollow',
+      'X-Content-Type-Options':      'nosniff',
+      'Referrer-Policy':             'strict-origin-when-cross-origin',
+      'Strict-Transport-Security':   'max-age=31536000',
+      'Content-Security-Policy':     "default-src 'none'; style-src 'unsafe-inline'; frame-ancestors 'none'",
+    },
+  });
+}
 
 function isPublicPath(path) {
   if (PUBLIC_PAGES.has(path)) return true;

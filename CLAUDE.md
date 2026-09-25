@@ -3,6 +3,31 @@
 Working notes for agent sessions on LazyPO. Read [`README.md`](README.md) for
 the tour; this file is the "don't get burned" list.
 
+## ⚠ Lockdown — 2026-09-25 — `/pro/` is dead
+
+Work flagged a data leak through LazyPO. Everything under `ndashiz.be/pro/`
+was taken down; the app is to be re-homed under `ndashiz.be/lazypo2/`
+(step 2, not done yet). Until then **prod is offline**. State of play:
+
+| Layer | Done | How to undo |
+|---|---|---|
+| GitHub Pages of `Ndashiz/pro` | **unpublished** → origin answers 404 | `gh api -X POST repos/Ndashiz/pro/pages -f 'source[branch]=main' -f 'source[path]=/'` |
+| Cloudflare Worker | code ready: bare 404 on `/pro/*` + `/pro`, gate moved to `/lazypo2/*` | `cd worker && wrangler login && wrangler deploy` (Simon) |
+| Supabase data | `sow_purge.sql` ready — SoW drafts + PI epics — **run by hand** | — |
+
+**Step 2 checklist (`/lazypo2/`)** — `gh repo rename lazypo2`, re-enable Pages,
+switch the hard-coded `/pro/` in `auth.js` (cookie `Path`), `login.html`
+(`next` check + cookie path), `focusfm.js` + `spotify-callback.html`
+(Spotify redirect URI — also in the Spotify dashboard), `email_confirm.html`;
+add `https://ndashiz.be/lazypo2/**` to the Supabase Auth redirect list; point
+the Jarvis quiz iframe (`frontend/src/quiz/QuizPage.tsx`) at
+`/lazypo2/quiz.html`; then update this file, `README.md`, `worker/README.md`
+and `docs/architecture.html`. The Worker needs **no** second deploy: it
+already gates `/lazypo2/*`.
+
+Don't re-enable Pages on `Ndashiz/pro` or move the Worker gate back to
+`/pro/` without being asked — `/pro/` must stay a 404.
+
 ## What this is
 
 Personal PO toolbox. **Vanilla JS, no build step, no bundler, no package.json
@@ -12,7 +37,7 @@ inline. Shared behaviour lives in the top-level `*.js` files (`auth.js`,
 
 Don't introduce a framework, a bundler, or a build step without being asked.
 
-- **Prod** : <https://ndashiz.be/pro/> — note `/pro/`, **not** `/lazypo/`
+- **Prod** : was <https://ndashiz.be/pro/> — **offline since 2026-09-25**, see Lockdown above; next home `/lazypo2/`
 - **Repo** : `Ndashiz/pro` (renamed; local clone is still `~/Documents/lazypo`)
 - **Backend** : Supabase (auth + Postgres + storage + realtime), RLS everywhere
 - **Edge** : Cloudflare Worker on `ndashiz.be/pro/*` — auth gate + security headers
