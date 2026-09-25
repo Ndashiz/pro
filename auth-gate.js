@@ -2,7 +2,7 @@
    LazyPO — auth-gate.js (client-side UX layer)
    ───────────────────────────────────────────────────────────────────
    THIS IS NOT A SECURITY BOUNDARY. The actual gate is a Cloudflare
-   Worker on ndashiz.be/pro/* that verifies a Supabase JWT cookie
+   Worker on ndashiz.be/lazypo2/* that verifies a Supabase JWT cookie
    before the HTML is ever served. See worker/src/worker.js.
 
    What this script does for the user:

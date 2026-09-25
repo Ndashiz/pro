@@ -15,15 +15,17 @@ was taken down; the app is to be re-homed under `ndashiz.be/lazypo2/`
 | Cloudflare Worker | code ready: bare 404 on `/pro/*` + `/pro`, gate moved to `/lazypo2/*` | `cd worker && wrangler login && wrangler deploy` (Simon) |
 | Supabase data | `sow_purge.sql` ready — SoW drafts + PI epics — **run by hand** | — |
 
-**Step 2 checklist (`/lazypo2/`)** — `gh repo rename lazypo2`, re-enable Pages,
-switch the hard-coded `/pro/` in `auth.js` (cookie `Path`), `login.html`
-(`next` check + cookie path), `focusfm.js` + `spotify-callback.html`
-(Spotify redirect URI — also in the Spotify dashboard), `email_confirm.html`;
-add `https://ndashiz.be/lazypo2/**` to the Supabase Auth redirect list; point
-the Jarvis quiz iframe (`frontend/src/quiz/QuizPage.tsx`) at
-`/lazypo2/quiz.html`; then update this file, `README.md`, `worker/README.md`
-and `docs/architecture.html`. The Worker needs **no** second deploy: it
-already gates `/lazypo2/*`.
+**Step 2 checklist (`/lazypo2/`)** — the code side is already done on `main`:
+the Worker gates `/lazypo2/*` and the app's hard-coded paths (`auth.js` cookie
+`Path`, `login.html` `next` check + cookie path, Spotify redirect URI in
+`focusfm.js` + `spotify-callback.html`, `email_confirm.html` link) all say
+`/lazypo2/`. What remains is outside git: `gh repo rename lazypo2`, re-enable
+Pages (`gh api -X POST repos/Ndashiz/lazypo2/pages -f 'source[branch]=main' -f 'source[path]=/'`),
+add `https://ndashiz.be/lazypo2/**` to the Supabase Auth redirect list, set
+the new redirect URI in the Spotify dashboard, point the Jarvis quiz iframe
+(`frontend/src/quiz/QuizPage.tsx`) at `/lazypo2/quiz.html` (+ version bump,
+VPS deploy), then refresh this file, `README.md`, `worker/README.md` and
+`docs/architecture.html` (still says `/pro/`). No second Worker deploy needed.
 
 Don't re-enable Pages on `Ndashiz/pro` or move the Worker gate back to
 `/pro/` without being asked — `/pro/` must stay a 404.

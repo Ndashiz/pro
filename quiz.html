@@ -3213,7 +3213,7 @@ tr.row-selected { background: rgba(59,130,246,.05); }
   window.__qzEmbedAuth = new Promise(function (r) { resolveAuth = r; });
 
   function markAuthed(session) {
-    // Mirror the token into the Worker-gate cookie so the rest of /pro/*
+    // Mirror the token into the Worker-gate cookie so the rest of /lazypo2/*
     // stays reachable from inside the iframe as well.
     try { window.LazyAuth.setSessionCookie(session); } catch (_) {}
     var gate = document.getElementById('qz-embed-gate');

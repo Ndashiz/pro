@@ -3,7 +3,7 @@
    ───────────────────────────────────────────────────────────────────
    SETUP (one-time, ~3 min)
    1. developer.spotify.com → Create app
-      Redirect URI: https://ndashiz.be/pro/spotify-callback.html
+      Redirect URI: https://ndashiz.be/lazypo2/spotify-callback.html
    2. Paste your Client ID below (and in spotify-callback.html)
 ═══════════════════════════════════════════════════════════════════ */
 (function () {
@@ -11,7 +11,7 @@
 
   /* ── Config ─────────────────────────────────────────────────────── */
   const CLIENT_ID    = '0dfc3d28793c44a1a33146961974c867';
-  const REDIRECT_URI = 'https://ndashiz.be/pro/spotify-callback.html';
+  const REDIRECT_URI = 'https://ndashiz.be/lazypo2/spotify-callback.html';
   const SCOPES = [
     'streaming','user-read-email','user-read-private',
     'user-read-playback-state','user-modify-playback-state',
