@@ -11,7 +11,7 @@
 | Fichier | Rôle |
 |---------|------|
 | `quiz.html` (~332 KB) | SPA complète : UI, logique, styles, état, **et les 23 chapitres de grammaire** (données inline). C'est le cœur de la feature. |
-| `worker/src/worker.js` | Worker Cloudflare — sécurité/CSP. ⚠️ `/pro/quiz.html` est **explicitement public** (voir §9). |
+| `worker/src/worker.js` | Worker Cloudflare — sécurité/CSP. ⚠️ `/lazypo2/quiz.html` est **explicitement public** (voir §9). |
 | `session.js` | Détection d'activité / déconnexion après 2h d'inactivité. |
 | `demo.js` | Génération de données de démo. |
 | `vocab_import_onboarding.js` | Flux de premier import avec détection de doublons. |
@@ -427,7 +427,7 @@ let vocabDirty = false      // mot corrigé/flaggé en review → recharger plus
 
 ## 9. Authentification & permissions
 
-> ⚠️ **`/pro/quiz.html` n'est plus gardé par le Worker.** La page est listée dans `PUBLIC_PAGES` (`worker/src/worker.js`) et servie **sans** vérification de JWT.
+> ⚠️ **`/lazypo2/quiz.html` n'est plus gardé par le Worker.** La page est listée dans `PUBLIC_PAGES` (`worker/src/worker.js`) et servie **sans** vérification de JWT.
 >
 > Raison : la page est encadrée en iframe par Jarvis, qui peut ne pas porter le cookie au premier chargement. Un 302 aurait navigué **l'iframe** vers `login.html`. Le HTML part donc ungated et `quiz.html` applique sa propre garde en place (§13).
 >
@@ -514,7 +514,7 @@ Normalisation : trim, minuscules, espaces multiples réduits, apostrophes typogr
 
 ## 13. Embed Jarvis
 
-`quiz.html` est encadré en iframe par le front Jarvis (`jarvis.ndashiz.be` → `ndashiz.be/pro/quiz.html`) : **cross-origin mais same-site**, donc les deux partagent la partition de stockage.
+`quiz.html` est encadré en iframe par le front Jarvis (`jarvis.ndashiz.be` → `ndashiz.be/lazypo2/quiz.html`) : **cross-origin mais same-site**, donc les deux partagent la partition de stockage.
 
 ### Détection
 
@@ -542,7 +542,7 @@ Le `catch` compte comme embed : un `window.top` qui throw signifie justement qu'
 
 L'isolation de session (`b83a4ac`) fait qu'on ne se logge **qu'une fois** : le refresh token de l'embed vit dans sa propre storage key et n'est plus détruit par la politique d'inactivité ni par les sign-out de LazyPO.
 
-Côté Worker : `frame-ancestors 'self' https://jarvis.ndashiz.be`, `X-Frame-Options` **supprimé** (XFO ne sait pas exprimer « ce sous-domaine-là »), et `/pro/quiz.html` dans `PUBLIC_PAGES` (§9).
+Côté Worker : `frame-ancestors 'self' https://jarvis.ndashiz.be`, `X-Frame-Options` **supprimé** (XFO ne sait pas exprimer « ce sous-domaine-là »), et `/lazypo2/quiz.html` dans `PUBLIC_PAGES` (§9).
 
 ---
 

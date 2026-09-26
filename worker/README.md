@@ -1,32 +1,13 @@
 # LazyPO auth gate — Cloudflare Worker
 
-> ## ⚠ Lockdown — 2026-09-25
->
-> **`ndashiz.be/pro/*` is dead.** Work flagged a data leak through LazyPO,
-> so the whole `/pro/` home was taken down:
->
-> - **Edge** — the Worker answers a bare, anonymous **404** on `/pro/*` and
->   `/pro` (`DEAD_PREFIXES` / `DEAD_EXACT` in `src/worker.js`): no origin
->   fetch, no login redirect, `Cache-Control: no-store`.
-> - **Origin** — the GitHub Pages site of `Ndashiz/pro` is **unpublished**
->   (`gh api -X DELETE repos/Ndashiz/pro/pages`), so the origin answers 404
->   too, even for someone bypassing Cloudflare.
->
-> **Step 2 — re-home under `/lazypo2/`.** The gate already lives on
-> `APP_PREFIX = '/lazypo2/'` with its own route in `wrangler.toml`, so the
-> Worker needs no second deploy. What remains is outside the Worker:
-> rename the repo to `lazypo2` and re-enable Pages, switch the app's
-> hard-coded `/pro/` paths (cookie `Path` in `auth.js`, `login.html`'s
-> `next` check, the Spotify redirect URI in `focusfm.js` /
-> `spotify-callback.html`), add `https://ndashiz.be/lazypo2/**` to the
-> Supabase Auth redirect allow-list, update the Spotify dashboard redirect
-> URI, and point the Jarvis quiz iframe at `/lazypo2/quiz.html`.
->
-> To deploy this lockdown: `cd worker && wrangler login && wrangler deploy`.
-> To roll it back: drop `/pro/` from `DEAD_PREFIXES`, set `APP_PREFIX`
-> back to `/pro/`, redeploy, and re-enable Pages.
+> **`/pro/*` is a dead path.** Retired on 2026-09-25 after a data-leak alert
+> at work: the Worker answers an anonymous 404 on `/pro/*` and `/pro`
+> (`DEAD_PREFIXES` / `DEAD_EXACT` in `src/worker.js`, `Cache-Control: no-store`,
+> never proxied, never redirected). The app lives at `/lazypo2/` (`APP_PREFIX`)
+> since 2026-09-26. Keep the `/pro` routes in `wrangler.toml` — they are what
+> makes the 404 immediate at the edge — and never move the gate back.
 
-Server-side gate that prevents `<APP_PREFIX>*.html` (today `/lazypo2/`, formerly `/pro/`) from being served to
+Server-side gate that prevents `<APP_PREFIX>*.html` (`/lazypo2/`) from being served to
 visitors without a valid Supabase session. Replaces the previous
 JS-only client gate (`auth-gate.js`) which could be bypassed by
 disabling JS or removing the overlay in DevTools.
@@ -37,12 +18,12 @@ can come from.
 
 ## How it works
 
-1. Every request to `ndashiz.be/pro/*` is intercepted by this Worker.
+1. Every request to `ndashiz.be/lazypo2/*` is intercepted by this Worker.
 2. Public paths pass through to the origin (GitHub Pages) untouched:
    - static assets — `.js` `.css` `.svg` `.ico` `.png` `.jpg` `.gif` `.webp` `.woff2` `.ttf` `.map` `.txt`
-   - `/pro/login.html`, `/pro/email_confirm.html`, `/pro/spotify-callback.html`
-   - `/pro/quiz.html` — **deliberately ungated**, see [Public quiz](#public-quiz)
-   - anything under `/pro/.well-known/`
+   - `/lazypo2/login.html`, `/lazypo2/email_confirm.html`, `/lazypo2/spotify-callback.html`
+   - `/lazypo2/quiz.html` — **deliberately ungated**, see [Public quiz](#public-quiz)
+   - anything under `/lazypo2/.well-known/`
 3. For everything else, the Worker reads the `lazypo_jwt` cookie, then:
    - checks the payload (`exp` in the future, `sub` present),
    - verifies the signature locally — no Supabase round-trip:
@@ -52,7 +33,7 @@ can come from.
    - on success, forwards the request to GitHub Pages.
 4. On failure — missing cookie, bad shape, bad signature, expiry, or an
    unexpected exception (fail-closed) — returns a 302 to
-   `/pro/login.html?next=<path>`.
+   `/lazypo2/login.html?next=<path>`.
 5. Every response that reaches the origin gets the security headers added
    (see below).
 
@@ -96,7 +77,7 @@ though CSP allows it. Clickjacking protection is preserved by
 
 ## Public quiz
 
-`/pro/quiz.html` is in `PUBLIC_PAGES` and is served **without** the gate.
+`/lazypo2/quiz.html` is in `PUBLIC_PAGES` and is served **without** the gate.
 
 This is intentional. The Jarvis front frames it, and on the very first
 load that iframe may not carry the gate cookie — a 302 would navigate the
@@ -132,22 +113,22 @@ wrangler deploy          # builds and uploads worker.js to the route
 Verify the deploy:
 
 ```bash
-curl -sI https://ndashiz.be/pro/jira_dashboard.html | head -5
+curl -sI https://ndashiz.be/lazypo2/jira_dashboard.html | head -5
 ```
 
 Expected:
 
 ```
 HTTP/2 302
-location: https://ndashiz.be/pro/login.html?next=/pro/jira_dashboard.html
+location: https://ndashiz.be/lazypo2/login.html?next=/lazypo2/jira_dashboard.html
 ```
 
 Public paths remain reachable:
 
 ```bash
-curl -sI https://ndashiz.be/pro/favicon.svg | head -2
-curl -sI https://ndashiz.be/pro/login.html | head -2
-curl -sI https://ndashiz.be/pro/quiz.html | head -2
+curl -sI https://ndashiz.be/lazypo2/favicon.svg | head -2
+curl -sI https://ndashiz.be/lazypo2/login.html | head -2
+curl -sI https://ndashiz.be/lazypo2/quiz.html | head -2
 ```
 
 All three should return `200`.
@@ -155,7 +136,7 @@ All three should return `200`.
 Check the headers are landing:
 
 ```bash
-curl -sI https://ndashiz.be/pro/login.html | grep -i "content-security-policy\|strict-transport\|x-frame"
+curl -sI https://ndashiz.be/lazypo2/login.html | grep -i "content-security-policy\|strict-transport\|x-frame"
 ```
 
 You should see a CSP and HSTS, and **no** `x-frame-options`.

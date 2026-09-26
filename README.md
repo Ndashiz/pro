@@ -2,23 +2,19 @@
 
 Tool to ease my life as a PO.
 
-> **⚠ Offline since 2026-09-25.** `ndashiz.be/pro/` answers 404 on purpose (GitHub
-> Pages unpublished + Worker lockdown) after a data-leak alert at work. The app is
-> to be re-homed under `ndashiz.be/lazypo2/` — see `CLAUDE.md` « Lockdown » and
-> `worker/README.md`.
+**Live** : <https://ndashiz.be/lazypo2/>
+**Repo** : `Ndashiz/lazypo2` (renamed twice, `lazypo` → `pro` → `lazypo2` — the local clone is still `~/Documents/lazypo`)
 
-**Live** : ~~<https://ndashiz.be/pro/>~~ (offline, see above)
-**Repo** : `Ndashiz/pro` (renamed from `Ndashiz/lazypo` — the local clone is still `~/Documents/lazypo`)
-
-> The public path is `/pro/`, not `/lazypo/`. Everything — the Worker route, the
-> cookie `Path`, the Spotify redirect URI — moved in `ec20e1a`. Some legacy
-> comments may still say `/lazypo/`; the code does not.
+> The public path is `/lazypo2/`. Both `/pro/` (retired on 2026-09-25 after a
+> data-leak alert at work — the Worker answers a bare 404 there, see
+> [`worker/README.md`](worker/README.md)) and the older `/lazypo/` are dead.
+> The Worker route, the cookie `Path` and the Spotify redirect URI moved with it.
 
 ## Architecture
 
 ```
 ┌──────────────────────────────────────────────────────────────────┐
-│  ndashiz.be/pro/*                                                │
+│  ndashiz.be/lazypo2/*                                                │
 │                                                                  │
 │   ┌────────────┐    ┌──────────────────┐    ┌────────────────┐   │
 │   │  Browser   │ →  │ Cloudflare Worker│ →  │  GitHub Pages  │   │
@@ -37,13 +33,13 @@ Tool to ease my life as a PO.
                               ▲
                               │ iframe (same-site, cross-origin)
                    ┌──────────┴───────────┐
-                   │  jarvis.ndashiz.be   │  embeds /pro/quiz.html
+                   │  jarvis.ndashiz.be   │  embeds /lazypo2/quiz.html
                    └──────────────────────┘
 ```
 
 - **Hosting** : GitHub Pages, auto-deploy on push to `main`
 - **CDN / edge** : Cloudflare in front of `ndashiz.be` (~10 min cache TTL)
-- **Auth gate** : Cloudflare Worker on `ndashiz.be/pro/*` — verifies a Supabase JWT cookie before HTML is served, and adds the CSP + security headers. See [`worker/`](worker/) and [`docs/architecture.html#worker-gate`](docs/architecture.html).
+- **Auth gate** : Cloudflare Worker on `ndashiz.be/lazypo2/*` — verifies a Supabase JWT cookie before HTML is served, and adds the CSP + security headers. See [`worker/`](worker/) and [`docs/architecture.html#worker-gate`](docs/architecture.html).
 - **Backend** : Supabase (auth + Postgres + storage + realtime). All tables use RLS.
 - **Frontend** : Vanilla JS, no build step, no bundler. Each feature is a single HTML file with inline JS/CSS.
 - **Third-party libs are vendored**, never loaded from a CDN — the Worker CSP is `script-src 'self'` and would block them. See [Vendored libraries](#vendored-libraries).
@@ -228,7 +224,7 @@ cross-origin but same-site. Three things make that work:
 
 1. **CSP** `frame-ancestors 'self' https://jarvis.ndashiz.be`, and the Worker
    *deletes* `X-Frame-Options` (XFO cannot express "this one other subdomain").
-2. **`/pro/quiz.html` is in the Worker's `PUBLIC_PAGES`** — it is served ungated.
+2. **`/lazypo2/quiz.html` is in the Worker's `PUBLIC_PAGES`** — it is served ungated.
    A 302 would have navigated the *iframe* to the login page. Nothing sensitive
    ships in the markup; RLS on Supabase is the real boundary.
 3. **The embed runs its own Supabase session.** When framed, `auth.js` uses the
@@ -247,7 +243,7 @@ Read [`docs/architecture.html#security`](docs/architecture.html#security) before
 Key invariants:
 
 1. **No protected HTML is served without a valid JWT cookie.** The Cloudflare Worker is the gatekeeper. Client-side JS is *never* trusted for access control — `auth-gate.js` is UX only.
-2. **`/pro/quiz.html` is a deliberate exception** and is served ungated for the Jarvis embed. Do not put anything sensitive in its markup.
+2. **`/lazypo2/quiz.html` is a deliberate exception** and is served ungated for the Jarvis embed. Do not put anything sensitive in its markup.
 3. **Module-level access (`requireModule('jira')`) is best-effort UX.** The real protection is RLS on Supabase tables — don't put sensitive data in static HTML expecting client gates to hide it.
 4. **The Worker verifies ES256 via Supabase JWKS, with HS256 as a fallback** (`SUPABASE_JWT_SECRET`). Both paths are live in [`worker/src/worker.js`](worker/src/worker.js); if you migrate the Supabase project's signing algorithm, check both.
 5. **Local dev bypass requires explicit opt-in** (`__ENABLE_LOCAL_BYPASS`). It can never trigger automatically in prod.

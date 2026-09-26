@@ -634,7 +634,7 @@
       </div>
       <div class="hero-meta-item">
         <div class="label">URL</div>
-        <div class="value">ndashiz.be/pro/</div>
+        <div class="value">ndashiz.be/lazypo2/</div>
       </div>
     </div>
   </div>
@@ -661,7 +661,7 @@ graph TB
         FM["focusfm.js\nSpotify Player"]
         DEMO["demo.js\nDonnées fictives"]
 
-        subgraph PAGES["Pages / Outils (/pro/*)"]
+        subgraph PAGES["Pages / Outils (/lazypo2/*)"]
             P1["🏠 index.html"]
             P2["✉️ lazypo_generator.html"]
             P3["📋 sprintplanner.html"]
@@ -676,7 +676,7 @@ graph TB
 
     subgraph EDGE["☁️ Cloudflare Edge"]
         direction TB
-        CFW["Worker auth-gate\nndashiz.be/pro/*\nverify JWT ES256/HS256\n+ CSP & security headers"]
+        CFW["Worker auth-gate\nndashiz.be/lazypo2/*\nverify JWT ES256/HS256\n+ CSP & security headers"]
         CFDNS["DNS proxy + HSTS\n+ Bot Fight Mode"]
     end
 
@@ -701,7 +701,7 @@ graph TB
         LIBS["supabase.min.js · xlsx · pptxgen\ncodemirror · mermaid · three/vanta"]
     end
 
-    CLIENT -->|"GET /pro/*"| EDGE
+    CLIENT -->|"GET /lazypo2/*"| EDGE
     EDGE --> ORIGIN
     SB -->|"swap HTML\n+ re-run scripts"| PAGES
     AUTH --> SBAUTH
@@ -796,7 +796,7 @@ graph TB
         <tr>
           <td>Edge / Gate</td>
           <td>Cloudflare Worker</td>
-          <td>Auth gate serveur sur <code>ndashiz.be/pro/*</code>, cache verdict 60s</td>
+          <td>Auth gate serveur sur <code>ndashiz.be/lazypo2/*</code>, cache verdict 60s</td>
           <td><span class="badge badge-green">Production</span></td>
         </tr>
         <tr>
@@ -1322,7 +1322,7 @@ flowchart TD
 
     <p>LazyPO est hébergé sur <strong>GitHub Pages</strong> (statique, pas de serveur applicatif). Avant Mai 2026, l'authentification était <em>100% côté client</em> — le HTML protégé était téléchargeable par n'importe qui via <code>curl</code>, le contrôle d'accès reposait uniquement sur du JavaScript qui s'exécutait après livraison.</p>
 
-    <p>Depuis <a href="https://github.com/Ndashiz/pro/pull/112" target="_blank">PR #112</a>, un <strong>Cloudflare Worker</strong> intercepte chaque requête à <code>ndashiz.be/pro/*</code> et valide un cookie de session <em>avant</em> que le HTML soit livré. Le contenu protégé n'est jamais servi à un visiteur non authentifié.</p>
+    <p>Depuis <a href="https://github.com/Ndashiz/lazypo2/pull/112" target="_blank">PR #112</a>, un <strong>Cloudflare Worker</strong> intercepte chaque requête à <code>ndashiz.be/lazypo2/*</code> et valide un cookie de session <em>avant</em> que le HTML soit livré. Le contenu protégé n'est jamais servi à un visiteur non authentifié.</p>
 
     <h3>Vue d'ensemble — defense in depth</h3>
 
@@ -1363,7 +1363,7 @@ flowchart TB
         A2[RLS Supabase sur la DB]:::client
     end
 
-    Attacker[🎭 Visiteur non authentifié]:::threat -->|GET /pro/jira_dashboard.html| L1
+    Attacker[🎭 Visiteur non authentifié]:::threat -->|GET /lazypo2/jira_dashboard.html| L1
     L1 -.->|invalide → 302 login| Block[🚫 HTML JAMAIS servi]:::threat
     L1 -->|valide| L4
     L2 -->|alimente cookie| L1
@@ -1424,8 +1424,8 @@ sequenceDiagram
     participant DB as Supabase (RLS)
 
     Note over Attacker,GH: AVANT — pas de gate côté serveur
-    Attacker->>Browser: curl ndashiz.be/pro/jira_dashboard.html
-    Browser->>GH: GET /pro/jira_dashboard.html
+    Attacker->>Browser: curl ndashiz.be/lazypo2/jira_dashboard.html
+    Browser->>GH: GET /lazypo2/jira_dashboard.html
     GH-->>Browser: 200 + HTML COMPLET (sans auth check)
     Note right of Browser: Contenu protégé déjà téléchargé.<br>auth-gate.js / requireModule()<br>n'arrivent qu'APRÈS, et ne sont<br>que du JS bypassable.
     Browser-->>Attacker: ✅ HTML lisible (DevTools, curl, view-source)
@@ -1456,7 +1456,7 @@ sequenceDiagram
       <div class="mermaid">
 stateDiagram-v2
     [*] --> NoCookie
-    NoCookie --> Login: Visite /pro/* sans cookie
+    NoCookie --> Login: Visite /lazypo2/* sans cookie
     Login --> Login: signInWithPassword
     Login --> CookieSet: Succès (Supabase session)
     CookieSet --> CookieSet: TOKEN_REFRESHED auto (~hourly)
@@ -1494,13 +1494,13 @@ sequenceDiagram
     participant Supa as Supabase Auth
     participant DB as PostgreSQL
 
-    User->>CF: GET /pro/jira_dashboard.html
+    User->>CF: GET /lazypo2/jira_dashboard.html
     CF->>CF: Pas de cookie lazypo_jwt
-    CF-->>User: 302 → /pro/login.html?next=...
+    CF-->>User: 302 → /lazypo2/login.html?next=...
 
-    User->>CF: GET /pro/login.html
+    User->>CF: GET /lazypo2/login.html
     Note right of CF: Page publique, pass-through
-    CF->>GH: GET /pro/login.html
+    CF->>GH: GET /lazypo2/login.html
     GH-->>CF: 200 HTML
     CF-->>User: 200 HTML login
 
@@ -1513,9 +1513,9 @@ sequenceDiagram
     Note right of User: login.html appelle<br>_setLazypoCookie(session)<br>AVANT le redirect
     User->>User: document.cookie = lazypo_jwt=...
 
-    User->>CF: GET /pro/jira_dashboard.html (avec cookie)
+    User->>CF: GET /lazypo2/jira_dashboard.html (avec cookie)
     CF->>CF: Lit cookie, vérifie ES256 vs JWKS
-    CF->>GH: GET /pro/jira_dashboard.html (forward)
+    CF->>GH: GET /lazypo2/jira_dashboard.html (forward)
     GH-->>CF: 200 HTML
     CF-->>User: 200 HTML ✅
       </div>
@@ -1545,7 +1545,7 @@ sequenceDiagram
       <h2>Cloudflare Worker — gate serveur</h2>
     </div>
 
-    <p>Le Worker (<a href="https://github.com/Ndashiz/pro/blob/main/worker/src/worker.js" target="_blank"><code>worker/src/worker.js</code></a>) est déployé sur la route <code>ndashiz.be/pro/*</code>. Pour chaque requête, il décide en quelques ms si la requête passe au cache Cloudflare/origine ou si elle est rejetée vers <code>login.html</code>.</p>
+    <p>Le Worker (<a href="https://github.com/Ndashiz/lazypo2/blob/main/worker/src/worker.js" target="_blank"><code>worker/src/worker.js</code></a>) est déployé sur la route <code>ndashiz.be/lazypo2/*</code>. Pour chaque requête, il décide en quelques ms si la requête passe au cache Cloudflare/origine ou si elle est rejetée vers <code>login.html</code>.</p>
 
     <h3>Logique de décision</h3>
 
@@ -1557,7 +1557,7 @@ flowchart TD
     classDef step fill:#1a1a1a,stroke:#374151,color:#e8e8e8
     classDef decision fill:#1e3a5f,stroke:#3b82f6,color:#e8e8e8
 
-    A[Requête sur ndashiz.be/pro/*]:::step --> B{Path public ?<br>login.html, favicon,<br>.js, .css, .svg, etc.}:::decision
+    A[Requête sur ndashiz.be/lazypo2/*]:::step --> B{Path public ?<br>login.html, favicon,<br>.js, .css, .svg, etc.}:::decision
     B -- Oui --> PASS1[fetch origine GitHub Pages]:::ok
     B -- Non --> C{Cookie lazypo_jwt<br>présent ?}:::decision
     C -- Non --> R1[302 → login.html<br>?next=...]:::bad
@@ -1597,13 +1597,13 @@ flowchart TD
 
     <ul style="padding-left:24px; margin-bottom:14px;">
       <li><strong>Assets statiques</strong> — <code>.js</code> <code>.css</code> <code>.svg</code> <code>.ico</code> <code>.png</code> <code>.jpg</code> <code>.jpeg</code> <code>.gif</code> <code>.webp</code> <code>.woff/.woff2</code> <code>.ttf</code> <code>.map</code> <code>.txt</code></li>
-      <li><strong>Pages publiques</strong> — <code>/pro/login.html</code>, <code>/pro/email_confirm.html</code>, <code>/pro/spotify-callback.html</code></li>
-      <li><strong><code>/pro/quiz.html</code></strong> — voir l'encadré ci-dessous</li>
-      <li><strong>Préfixes</strong> — <code>/pro/.well-known/</code></li>
+      <li><strong>Pages publiques</strong> — <code>/lazypo2/login.html</code>, <code>/lazypo2/email_confirm.html</code>, <code>/lazypo2/spotify-callback.html</code></li>
+      <li><strong><code>/lazypo2/quiz.html</code></strong> — voir l'encadré ci-dessous</li>
+      <li><strong>Préfixes</strong> — <code>/lazypo2/.well-known/</code></li>
     </ul>
 
     <div class="warn-box">
-      <strong>⚠️ <code>/pro/quiz.html</code> est volontairement non gardé.</strong>
+      <strong>⚠️ <code>/lazypo2/quiz.html</code> est volontairement non gardé.</strong>
       La page est encadrée en iframe par le front Jarvis, qui peut ne pas porter le cookie au tout premier chargement — un 302 aurait navigué <em>l'iframe elle-même</em> vers la page de login, remplaçant le module embarqué par le LazyPO complet. Le HTML part donc ungated et <code>quiz.html</code> applique sa propre garde en place (voir <a href="#embed">§8D</a>).
       <br><br>
       Corollaire à ne jamais oublier : <strong>rien de sensible ne doit vivre dans le markup de <code>quiz.html</code></strong>. Toutes les données viennent de Supabase, où la <strong>RLS est la vraie frontière</strong>.
@@ -1649,7 +1649,7 @@ flowchart TD
 
     <h3>Déploiement</h3>
 
-    <p>Voir <a href="https://github.com/Ndashiz/pro/blob/main/worker/README.md" target="_blank"><code>worker/README.md</code></a>. Commandes en bref :</p>
+    <p>Voir <a href="https://github.com/Ndashiz/lazypo2/blob/main/worker/README.md" target="_blank"><code>worker/README.md</code></a>. Commandes en bref :</p>
 
     <pre style="background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:14px; overflow-x:auto; font-family:'DM Mono',monospace; font-size:13px;"><code>cd worker
 npm install -g wrangler   # une fois
@@ -1737,7 +1737,7 @@ wrangler deploy           # après chaque changement de worker.js</code></pre>
       <h2>Embed Jarvis — quiz.html en iframe</h2>
     </div>
 
-    <p>Le Knowledge Quiz est un <strong>composant partagé</strong> : la même page <code>ndashiz.be/pro/quiz.html</code> sert d'onglet LazyPO <em>et</em> de module natif dans le front Jarvis (<code>jarvis.ndashiz.be</code>), encadrée en iframe.</p>
+    <p>Le Knowledge Quiz est un <strong>composant partagé</strong> : la même page <code>ndashiz.be/lazypo2/quiz.html</code> sert d'onglet LazyPO <em>et</em> de module natif dans le front Jarvis (<code>jarvis.ndashiz.be</code>), encadrée en iframe.</p>
 
     <p>Les deux domaines sont <strong>cross-origin mais same-site</strong> (sous-domaines de <code>ndashiz.be</code>) : ils partagent donc la même partition de stockage, ce qui rend l'authentification dans l'iframe possible.</p>
 
@@ -1748,7 +1748,7 @@ flowchart LR
     classDef step fill:#1a1a1a,stroke:#374151,color:#e8e8e8
     classDef decision fill:#1e3a5f,stroke:#3b82f6,color:#e8e8e8
 
-    A[jarvis.ndashiz.be<br>front Jarvis]:::step -->|iframe src| B[ndashiz.be/pro/quiz.html]:::step
+    A[jarvis.ndashiz.be<br>front Jarvis]:::step -->|iframe src| B[ndashiz.be/lazypo2/quiz.html]:::step
     B --> C{Worker : path public ?}:::decision
     C -->|quiz.html ∈ PUBLIC_PAGES| D[200 HTML ungated<br>+ CSP frame-ancestors]:::ok
     D --> E{window.top !== window.self ?}:::decision
@@ -1765,7 +1765,7 @@ flowchart LR
 
     <ul style="padding-left:24px; margin-bottom:14px;">
       <li><strong>CSP</strong> — <code>frame-ancestors 'self' https://jarvis.ndashiz.be</code>, et le Worker <em>supprime</em> <code>X-Frame-Options</code> (XFO ne sait pas exprimer « ce sous-domaine-là »). Voir <a href="#worker-gate">§8B</a>.</li>
-      <li><strong><code>/pro/quiz.html</code> dans <code>PUBLIC_PAGES</code></strong> — sinon le 302 du gate ferait sortir l'iframe vers <code>login.html</code>.</li>
+      <li><strong><code>/lazypo2/quiz.html</code> dans <code>PUBLIC_PAGES</code></strong> — sinon le 302 du gate ferait sortir l'iframe vers <code>login.html</code>.</li>
       <li><strong>Session Supabase dédiée</strong> — quand la page est encadrée, <code>auth.js</code> instancie le client avec <code>storageKey: 'sb-lazypo-embed-auth-token'</code>.</li>
     </ul>
 
@@ -1792,7 +1792,7 @@ flowchart LR
 
     <p>L'isolation de session (<code>b83a4ac</code>) fait qu'on ne se logge <strong>qu'une seule fois</strong> : le refresh token de l'embed vit dans sa propre storage key, et n'est plus détruit ni par la politique d'inactivité de LazyPO ni par ses sign-out.</p>
 
-    <p>Détail complet du module : <a href="https://github.com/Ndashiz/pro/blob/main/KNOWLEDGE_QUIZ.md" target="_blank"><code>KNOWLEDGE_QUIZ.md</code></a> §13.</p>
+    <p>Détail complet du module : <a href="https://github.com/Ndashiz/lazypo2/blob/main/KNOWLEDGE_QUIZ.md" target="_blank"><code>KNOWLEDGE_QUIZ.md</code></a> §13.</p>
   </section>
 
   <!-- ══════════════════════════════════════════
@@ -2329,7 +2329,7 @@ graph TB
         <tr>
           <td>Cloudflare Edge</td>
           <td><code>ndashiz.be</code> (proxy + Worker)</td>
-          <td>Auth gate sur <code>/pro/*</code>, DNS, HSTS, Bot Fight Mode, cache ~10 min</td>
+          <td>Auth gate sur <code>/lazypo2/*</code>, DNS, HSTS, Bot Fight Mode, cache ~10 min</td>
           <td><span class="badge badge-green">Free tier</span></td>
         </tr>
         <tr>
@@ -2340,14 +2340,14 @@ graph TB
         </tr>
         <tr>
           <td>Fonts (DM Sans, DM Mono)</td>
-          <td><code>/pro/fonts/</code></td>
+          <td><code>/lazypo2/fonts/</code></td>
           <td>Self-hosted depuis juin 2026 (suppression dépendance Google Fonts CDN)</td>
           <td><span class="badge badge-purple">Self-hosted</span></td>
         </tr>
         <tr>
           <td>Librairies front-end</td>
           <td><code>supabase.min.js</code> · <code>xlsx.min.js</code> · <code>pptxgen.min.js</code> · <code>codemirror.min.js</code> · <code>html2pdf.min.js</code> · <code>three.min.js</code> · <code>vanta.net.min.js</code> · <code>papaparse.min.js</code></td>
-          <td>Self-hosted depuis juin 2026 (PR <a href="https://github.com/Ndashiz/pro/commit/c823105" target="_blank">c823105</a> + <a href="https://github.com/Ndashiz/pro/commit/1294cbc" target="_blank">1294cbc</a>) — supprime dépendance jsDelivr/cdnjs/Cloudflare CDN, élimine risque supply-chain CDN tiers</td>
+          <td>Self-hosted depuis juin 2026 (PR <a href="https://github.com/Ndashiz/lazypo2/commit/c823105" target="_blank">c823105</a> + <a href="https://github.com/Ndashiz/lazypo2/commit/1294cbc" target="_blank">1294cbc</a>) — supprime dépendance jsDelivr/cdnjs/Cloudflare CDN, élimine risque supply-chain CDN tiers</td>
           <td><span class="badge badge-purple">Self-hosted</span></td>
         </tr>
         <tr>
@@ -2406,6 +2406,20 @@ graph TB
     </div>
 
     <p>Changements significatifs des dernières releases — pour le détail complet voir <code>git log</code> ou les PR mergées sur <code>main</code>.</p>
+
+    <h3>Septembre 2026 — 🚨 <code>/pro/</code> retiré, l'app vit sur <code>/lazypo2/</code></h3>
+    <ul style="padding-left: 24px; margin-bottom: 18px;">
+      <li>Le 25/09, une alerte « fuite de données » côté employeur a visé <code>ndashiz.be/pro/</code>.
+          Tout le chemin a été retiré le jour même : le Worker répond un 404 anonyme sur
+          <code>/pro/*</code> et <code>/pro</code> (<code>DEAD_PREFIXES</code>, <code>no-store</code>, jamais
+          proxifié) et le site GitHub Pages a été dépublié. <code>sow_purge.sql</code> vide côté serveur
+          les brouillons Scope of Work et les epics Jira du PI (<code>profiles.pi.features</code>).</li>
+      <li>Le 26/09, le repo est renommé <code>Ndashiz/pro</code> → <code>Ndashiz/lazypo2</code> et Pages
+          réactivé : l'app est servie sur <strong><code>ndashiz.be/lazypo2/</code></strong>. Le gate
+          (<code>APP_PREFIX</code>), le <code>Path</code> du cookie <code>lazypo_jwt</code>, le contrôle du
+          <code>next</code> de <code>login.html</code>, l'URI de redirection Spotify et l'iframe du quiz
+          dans Jarvis suivent. <code>/pro/</code> ne doit jamais revenir.</li>
+    </ul>
 
     <h3>Septembre 2026 — 🧹 Jira File Cleaner : export HTML → Excel propre</h3>
     <ul style="padding-left: 24px; margin-bottom: 18px;">
@@ -2753,7 +2767,7 @@ graph TB
     <ul style="padding-left: 24px; margin-bottom: 18px;">
       <li><strong><code>quiz.html</code> devient un composant partagé</strong> : la même page sert d'onglet LazyPO et de module natif dans le front Jarvis (<code>jarvis.ndashiz.be</code>), en iframe cross-origin mais same-site. Détail : <a href="#embed">§8D</a>.</li>
       <li><strong>CSP</strong> <code>frame-ancestors 'self' https://jarvis.ndashiz.be</code> et <strong>suppression de <code>X-Frame-Options</code></strong> — XFO ne sait pas autoriser un sous-domaine précis (<code>e7729b2</code>).</li>
-      <li><strong><code>/pro/quiz.html</code> passe dans <code>PUBLIC_PAGES</code></strong> : un 302 du gate aurait navigué l'iframe vers <code>login.html</code>. La RLS Supabase reste la vraie frontière.</li>
+      <li><strong><code>/lazypo2/quiz.html</code> passe dans <code>PUBLIC_PAGES</code></strong> : un 302 du gate aurait navigué l'iframe vers <code>login.html</code>. La RLS Supabase reste la vraie frontière.</li>
       <li><strong>Garde d'auth en place</strong> (<code>cef5166</code>, <code>3eba74b</code>) : carte de login rendue <em>dans</em> l'iframe. Tout appel à <code>LazyAuth.requireAuth()</code> doit <code>await window.__qzEmbedAuth</code>, sinon il fait sortir l'iframe.</li>
       <li><strong>Isolation de session</strong> (<code>b83a4ac</code>) : en embed, <code>auth.js</code> utilise le <code>storageKey</code> <code>sb-lazypo-embed-auth-token</code>, n'écrit pas le cookie de gate et saute le timeout d'inactivité. On ne se logge plus qu'une fois.</li>
       <li><strong>Régression CDN</strong> (<code>629f154</code>, <code>8abda52</code>) : des merges ont réintroduit des libs en CDN sur <code>login.html</code> et <code>quiz.html</code> — bloquées par <code>script-src 'self'</code>. Les libs vendorisées ont dû être restaurées deux fois.</li>
@@ -2770,8 +2784,8 @@ graph TB
 
     <h3>Juin 2026 · <code>1294cbc</code> + <code>c823105</code> — 🛡️ Self-host de tous les assets CDN</h3>
     <ul style="padding-left: 24px; margin-bottom: 18px;">
-      <li><strong>Suppression jsDelivr / cdnjs / Cloudflare CDN</strong> : <code>supabase.min.js</code>, <code>xlsx</code>, <code>pptxgen</code>, <code>codemirror</code>, <code>html2pdf</code>, <code>three</code>, <code>vanta.net</code>, <code>papaparse</code> sont désormais dans le repo et servis depuis <code>/pro/*.js</code>.</li>
-      <li><strong>Suppression Google Fonts CDN</strong> : DM Sans + DM Mono téléchargés dans <code>/pro/fonts/</code>, déclarés via <code>fonts.css</code> avec <code>font-display: swap</code>.</li>
+      <li><strong>Suppression jsDelivr / cdnjs / Cloudflare CDN</strong> : <code>supabase.min.js</code>, <code>xlsx</code>, <code>pptxgen</code>, <code>codemirror</code>, <code>html2pdf</code>, <code>three</code>, <code>vanta.net</code>, <code>papaparse</code> sont désormais dans le repo et servis depuis <code>/lazypo2/*.js</code>.</li>
+      <li><strong>Suppression Google Fonts CDN</strong> : DM Sans + DM Mono téléchargés dans <code>/lazypo2/fonts/</code>, déclarés via <code>fonts.css</code> avec <code>font-display: swap</code>.</li>
       <li><strong>Pourquoi</strong> : élimine le risque supply-chain CDN tiers (compromission d'un CDN = injection de JS sur LazyPO) et améliore les perfs (toutes les ressources passent par le cache Cloudflare en front de GitHub Pages).</li>
       <li><strong>Reste sur CDN</strong> : Mermaid (uniquement sur cette page de doc, pas sur l'app), Spotify SDK (forcément externe).</li>
     </ul>
@@ -2784,7 +2798,7 @@ graph TB
 
     <h3>Juin 2026 · <code>ec20e1a</code> — 🚚 Migration <code>/lazypo</code> → <code>/pro</code></h3>
     <ul style="padding-left: 24px; margin-bottom: 18px;">
-      <li>Tous les paths URL hardcodés <code>/lazypo/...</code> migrent vers <code>/pro/...</code> : route du Worker, <code>Path</code> du cookie <code>lazypo_jwt</code>, redirect URI Spotify, liens du footer, callbacks.</li>
+      <li>Tous les paths URL hardcodés <code>/lazypo/...</code> migrent vers <code>/lazypo2/...</code> : route du Worker, <code>Path</code> du cookie <code>lazypo_jwt</code>, redirect URI Spotify, liens du footer, callbacks.</li>
       <li>Le repo GitHub a depuis été renommé <code>Ndashiz/lazypo</code> → <code>Ndashiz/pro</code>. Le clone local reste <code>~/Documents/lazypo</code>.</li>
       <li>Fichiers touchés : <code>auth.js</code>, <code>email_confirm.html</code>, <code>focusfm.js</code>, <code>login.html</code>, <code>spotify-callback.html</code>, <code>sprintplanner.html</code>, <code>worker/src/worker.js</code>, <code>worker/wrangler.toml</code>.</li>
     </ul>
@@ -2805,7 +2819,7 @@ graph TB
     <h3>Mai 2026 · PR #112 — 🔒 Server-side auth gate (Cloudflare Worker)</h3>
     <ul style="padding-left: 24px; margin-bottom: 18px;">
       <li><strong>Incident</strong> : login bypass récurrent (3ème fois). Root cause = site statique + auth 100% côté client = HTML protégé téléchargeable par tout visiteur.</li>
-      <li><strong>Fix architectural</strong> : nouveau Cloudflare Worker (<code>worker/src/worker.js</code>) sur la route <code>ndashiz.be/pro/*</code> qui valide un cookie <code>lazypo_jwt</code> en <strong>ES256 via JWKS</strong> AVANT que le HTML soit servi.</li>
+      <li><strong>Fix architectural</strong> : nouveau Cloudflare Worker (<code>worker/src/worker.js</code>) sur la route <code>ndashiz.be/lazypo2/*</code> qui valide un cookie <code>lazypo_jwt</code> en <strong>ES256 via JWKS</strong> AVANT que le HTML soit servi.</li>
       <li><strong>Cookie sync</strong> : <code>auth.js</code> mirror automatique du <code>access_token</code> Supabase sur les events <code>SIGNED_IN</code> / <code>TOKEN_REFRESHED</code> / <code>USER_UPDATED</code> / <code>INITIAL_SESSION</code>, clear sur <code>SIGNED_OUT</code>. <code>login.html</code> pose le cookie inline synchroneusement avant le redirect (anti-race).</li>
       <li><strong>Durcissement</strong> : <code>auth-gate.js</code> retire le "reveal after 3s no matter what" (fail-closed, redirige vers login). <code>DEV_SESSION</code> bypass nécessite désormais opt-in explicite (plus d'activation auto sur localhost).</li>
       <li><strong>Diagrammes</strong> : voir section <a href="#security">★ Architecture de sécurité</a>, <a href="#worker-gate">Cloudflare Worker</a> et <a href="#threat-model">Threat model</a>.</li>
@@ -2862,16 +2876,16 @@ graph TB
         <tr><th>Commit</th><th>Description</th><th>Auteur</th><th>Date</th></tr>
       </thead>
       <tbody>
-        <tr><td class="cl-sha"><a href="https://github.com/Ndashiz/pro/commit/a468603462f5c1d119d9bfe02ab2e711e544f477" target="_blank" rel="noopener">a468603</a></td><td class="cl-msg">chore(lazypo2): chemins /pro/ → /lazypo2/ dans l&#x27;app — préparation de l&#x27;étape 2, rien n&#x27;est servi</td><td class="cl-author">ndashiz</td><td class="cl-date">9 seconds ago</td></tr>
-        <tr><td class="cl-sha"><a href="https://github.com/Ndashiz/pro/commit/fb467f622afb92803ac66afea1792d0580fc7cc6" target="_blank" rel="noopener">fb467f6</a></td><td class="cl-msg">docs: auto-update architecture.html [skip ci]</td><td class="cl-author">github-actions[bot]</td><td class="cl-date">75 seconds ago</td></tr>
-        <tr><td class="cl-sha"><a href="https://github.com/Ndashiz/pro/commit/47893d1e7eb02c9f6282e6b55d96ad8a074c0a0f" target="_blank" rel="noopener">47893d1</a></td><td class="cl-msg">fix(security): lockdown /pro/ — Pages dépublié, Worker 404 sur /pro/*, purge SoW, gate déplacé sur /lazypo2/</td><td class="cl-author">ndashiz</td><td class="cl-date">86 seconds ago</td></tr>
-        <tr><td class="cl-sha"><a href="https://github.com/Ndashiz/pro/commit/b9bc698ab4b428863f61ef9aff6518d61a25f0a4" target="_blank" rel="noopener">b9bc698</a></td><td class="cl-msg">docs: auto-update architecture.html [skip ci]</td><td class="cl-author">github-actions[bot]</td><td class="cl-date">22 hours ago</td></tr>
-        <tr><td class="cl-sha"><a href="https://github.com/Ndashiz/pro/commit/10a0f70da6f17ee9dead5b9d1164492ce35dcd9c" target="_blank" rel="noopener">10a0f70</a></td><td class="cl-msg">feat(jira): File Cleaner — export Jira « Excel (HTML) » → classeur .xlsx propre (features / items / releases / rapport / brut)</td><td class="cl-author">ndashiz</td><td class="cl-date">22 hours ago</td></tr>
-        <tr><td class="cl-sha"><a href="https://github.com/Ndashiz/pro/commit/b6cab024b475549ce73f3a1773beb975911b56ca" target="_blank" rel="noopener">b6cab02</a></td><td class="cl-msg">docs: auto-update architecture.html [skip ci]</td><td class="cl-author">github-actions[bot]</td><td class="cl-date">2 days ago</td></tr>
-        <tr><td class="cl-sha"><a href="https://github.com/Ndashiz/pro/commit/068ce2c2cafa32efc0c2d276030a1e3ddb949d16" target="_blank" rel="noopener">068ce2c</a></td><td class="cl-msg">feat(scope): texte du bloc objectifs modifiable — titre du bloc et phrase sous le titre, repris dans le .eml texte et les brouillons</td><td class="cl-author">ndashiz</td><td class="cl-date">2 days ago</td></tr>
-        <tr><td class="cl-sha"><a href="https://github.com/Ndashiz/pro/commit/83270489eced768e3ed8666f3661fab4ca3f1094" target="_blank" rel="noopener">8327048</a></td><td class="cl-msg">docs: auto-update architecture.html [skip ci]</td><td class="cl-author">github-actions[bot]</td><td class="cl-date">2 days ago</td></tr>
-        <tr><td class="cl-sha"><a href="https://github.com/Ndashiz/pro/commit/d6b17e57def8f9284f911e979254bbd939b14c2f" target="_blank" rel="noopener">d6b17e5</a></td><td class="cl-msg">feat(scope): changer la priorité d&#x27;un epic par son numéro — le badge devient une liste 1…N qui déplace l&#x27;epic à la position choisie</td><td class="cl-author">ndashiz</td><td class="cl-date">2 days ago</td></tr>
-        <tr><td class="cl-sha"><a href="https://github.com/Ndashiz/pro/commit/11ffb8a15bef2ca17a7a87fef9e919089c0a12ac" target="_blank" rel="noopener">11ffb8a</a></td><td class="cl-msg">docs: auto-update architecture.html [skip ci]</td><td class="cl-author">github-actions[bot]</td><td class="cl-date">2 days ago</td></tr>
+        <tr><td class="cl-sha"><a href="https://github.com/Ndashiz/lazypo2/commit/a468603462f5c1d119d9bfe02ab2e711e544f477" target="_blank" rel="noopener">a468603</a></td><td class="cl-msg">chore(lazypo2): chemins /lazypo2/ → /lazypo2/ dans l&#x27;app — préparation de l&#x27;étape 2, rien n&#x27;est servi</td><td class="cl-author">ndashiz</td><td class="cl-date">9 seconds ago</td></tr>
+        <tr><td class="cl-sha"><a href="https://github.com/Ndashiz/lazypo2/commit/fb467f622afb92803ac66afea1792d0580fc7cc6" target="_blank" rel="noopener">fb467f6</a></td><td class="cl-msg">docs: auto-update architecture.html [skip ci]</td><td class="cl-author">github-actions[bot]</td><td class="cl-date">75 seconds ago</td></tr>
+        <tr><td class="cl-sha"><a href="https://github.com/Ndashiz/lazypo2/commit/47893d1e7eb02c9f6282e6b55d96ad8a074c0a0f" target="_blank" rel="noopener">47893d1</a></td><td class="cl-msg">fix(security): lockdown /lazypo2/ — Pages dépublié, Worker 404 sur /lazypo2/*, purge SoW, gate déplacé sur /lazypo2/</td><td class="cl-author">ndashiz</td><td class="cl-date">86 seconds ago</td></tr>
+        <tr><td class="cl-sha"><a href="https://github.com/Ndashiz/lazypo2/commit/b9bc698ab4b428863f61ef9aff6518d61a25f0a4" target="_blank" rel="noopener">b9bc698</a></td><td class="cl-msg">docs: auto-update architecture.html [skip ci]</td><td class="cl-author">github-actions[bot]</td><td class="cl-date">22 hours ago</td></tr>
+        <tr><td class="cl-sha"><a href="https://github.com/Ndashiz/lazypo2/commit/10a0f70da6f17ee9dead5b9d1164492ce35dcd9c" target="_blank" rel="noopener">10a0f70</a></td><td class="cl-msg">feat(jira): File Cleaner — export Jira « Excel (HTML) » → classeur .xlsx propre (features / items / releases / rapport / brut)</td><td class="cl-author">ndashiz</td><td class="cl-date">22 hours ago</td></tr>
+        <tr><td class="cl-sha"><a href="https://github.com/Ndashiz/lazypo2/commit/b6cab024b475549ce73f3a1773beb975911b56ca" target="_blank" rel="noopener">b6cab02</a></td><td class="cl-msg">docs: auto-update architecture.html [skip ci]</td><td class="cl-author">github-actions[bot]</td><td class="cl-date">2 days ago</td></tr>
+        <tr><td class="cl-sha"><a href="https://github.com/Ndashiz/lazypo2/commit/068ce2c2cafa32efc0c2d276030a1e3ddb949d16" target="_blank" rel="noopener">068ce2c</a></td><td class="cl-msg">feat(scope): texte du bloc objectifs modifiable — titre du bloc et phrase sous le titre, repris dans le .eml texte et les brouillons</td><td class="cl-author">ndashiz</td><td class="cl-date">2 days ago</td></tr>
+        <tr><td class="cl-sha"><a href="https://github.com/Ndashiz/lazypo2/commit/83270489eced768e3ed8666f3661fab4ca3f1094" target="_blank" rel="noopener">8327048</a></td><td class="cl-msg">docs: auto-update architecture.html [skip ci]</td><td class="cl-author">github-actions[bot]</td><td class="cl-date">2 days ago</td></tr>
+        <tr><td class="cl-sha"><a href="https://github.com/Ndashiz/lazypo2/commit/d6b17e57def8f9284f911e979254bbd939b14c2f" target="_blank" rel="noopener">d6b17e5</a></td><td class="cl-msg">feat(scope): changer la priorité d&#x27;un epic par son numéro — le badge devient une liste 1…N qui déplace l&#x27;epic à la position choisie</td><td class="cl-author">ndashiz</td><td class="cl-date">2 days ago</td></tr>
+        <tr><td class="cl-sha"><a href="https://github.com/Ndashiz/lazypo2/commit/11ffb8a15bef2ca17a7a87fef9e919089c0a12ac" target="_blank" rel="noopener">11ffb8a</a></td><td class="cl-msg">docs: auto-update architecture.html [skip ci]</td><td class="cl-author">github-actions[bot]</td><td class="cl-date">2 days ago</td></tr>
       </tbody>
     </table>
   </section>

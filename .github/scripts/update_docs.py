@@ -21,7 +21,7 @@ from datetime import datetime, timezone
 DOC = "docs/architecture.html"
 START = "<!-- AUTOCOMMITS_START -->"
 END = "<!-- AUTOCOMMITS_END -->"
-REPO = os.environ.get("REPO", "Ndashiz/pro")
+REPO = os.environ.get("REPO", "Ndashiz/lazypo2")
 
 CSS = """.cl-sha { font-family:"DM Mono",monospace; font-size:12px; }
   .cl-sha a { color:var(--accent2); text-decoration:none; }

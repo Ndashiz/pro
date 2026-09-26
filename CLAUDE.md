@@ -3,32 +3,22 @@
 Working notes for agent sessions on LazyPO. Read [`README.md`](README.md) for
 the tour; this file is the "don't get burned" list.
 
-## ⚠ Lockdown — 2026-09-25 — `/pro/` is dead
+## `/pro/` is dead — don't bring it back
 
-Work flagged a data leak through LazyPO. Everything under `ndashiz.be/pro/`
-was taken down; the app is to be re-homed under `ndashiz.be/lazypo2/`
-(step 2, not done yet). Until then **prod is offline**. State of play:
+On 2026-09-25 work flagged a data leak through LazyPO and the whole
+`ndashiz.be/pro/` home was retired the same day: the Worker answers an
+anonymous 404 on `/pro/*` and `/pro` (`DEAD_PREFIXES` in
+`worker/src/worker.js`, `no-store`, never proxied) and GitHub Pages was
+unpublished. On 2026-09-26 the repo was renamed `Ndashiz/pro` →
+`Ndashiz/lazypo2` and Pages re-enabled, so the app lives at
+**`ndashiz.be/lazypo2/`**. `sow_purge.sql` is the server-side purge of the
+Scope of Work data (drafts + PI epics) that went with it — run by hand, like
+every `.sql` here.
 
-| Layer | Done | How to undo |
-|---|---|---|
-| GitHub Pages of `Ndashiz/pro` | **unpublished** → origin answers 404 | `gh api -X POST repos/Ndashiz/pro/pages -f 'source[branch]=main' -f 'source[path]=/'` |
-| Cloudflare Worker | code ready: bare 404 on `/pro/*` + `/pro`, gate moved to `/lazypo2/*` | `cd worker && wrangler login && wrangler deploy` (Simon) |
-| Supabase data | `sow_purge.sql` ready — SoW drafts + PI epics — **run by hand** | — |
+Never re-add a `/pro/` Worker route, and never point the gate (`APP_PREFIX`),
+the cookie `Path` in `auth.js`, the `next` check in `login.html`, the Spotify
+redirect URI or the Jarvis quiz iframe back at `/pro/`.
 
-**Step 2 checklist (`/lazypo2/`)** — the code side is already done on `main`:
-the Worker gates `/lazypo2/*` and the app's hard-coded paths (`auth.js` cookie
-`Path`, `login.html` `next` check + cookie path, Spotify redirect URI in
-`focusfm.js` + `spotify-callback.html`, `email_confirm.html` link) all say
-`/lazypo2/`. What remains is outside git: `gh repo rename lazypo2`, re-enable
-Pages (`gh api -X POST repos/Ndashiz/lazypo2/pages -f 'source[branch]=main' -f 'source[path]=/'`),
-add `https://ndashiz.be/lazypo2/**` to the Supabase Auth redirect list, set
-the new redirect URI in the Spotify dashboard, point the Jarvis quiz iframe
-(`frontend/src/quiz/QuizPage.tsx`) at `/lazypo2/quiz.html` (+ version bump,
-VPS deploy), then refresh this file, `README.md`, `worker/README.md` and
-`docs/architecture.html` (still says `/pro/`). No second Worker deploy needed.
-
-Don't re-enable Pages on `Ndashiz/pro` or move the Worker gate back to
-`/pro/` without being asked — `/pro/` must stay a 404.
 
 ## What this is
 
@@ -39,10 +29,10 @@ inline. Shared behaviour lives in the top-level `*.js` files (`auth.js`,
 
 Don't introduce a framework, a bundler, or a build step without being asked.
 
-- **Prod** : was <https://ndashiz.be/pro/> — **offline since 2026-09-25**, see Lockdown above; next home `/lazypo2/`
-- **Repo** : `Ndashiz/pro` (renamed; local clone is still `~/Documents/lazypo`)
+- **Prod** : <https://ndashiz.be/lazypo2/> — note `/lazypo2/`; `/pro/` (retired 2026-09-25, see above) and `/lazypo/` are dead paths
+- **Repo** : `Ndashiz/lazypo2` (renamed twice, `lazypo` → `pro` → `lazypo2`; local clone is still `~/Documents/lazypo`)
 - **Backend** : Supabase (auth + Postgres + storage + realtime), RLS everywhere
-- **Edge** : Cloudflare Worker on `ndashiz.be/pro/*` — auth gate + security headers
+- **Edge** : Cloudflare Worker on `ndashiz.be/lazypo2/*` — auth gate + security headers, plus a bare 404 on `/pro/*`
 
 ## The three things that break prod
 
@@ -71,7 +61,7 @@ LazyPO login page.
   (`storageKey: 'sb-lazypo-embed-auth-token'`), writes **no** gate cookie, and
   `session.js` inactivity handling is skipped. Don't "unify" these sessions —
   the isolation is the fix (`b83a4ac`), not an accident.
-- `/pro/quiz.html` is in the Worker's `PUBLIC_PAGES` and is served **ungated**.
+- `/lazypo2/quiz.html` is in the Worker's `PUBLIC_PAGES` and is served **ungated**.
   Never put anything sensitive in its markup; RLS is the real boundary.
 
 ### 3. Pushing to `main` does not deploy the Worker
