@@ -368,6 +368,8 @@
     /* Pending requests : slightly less dimmed than locked, yellow icon */
     .sb-item.sb-pending .sb-icon { opacity: 0.65; }
     .sb-item.sb-pending .sb-item-link { color: #6a6a4a; }
+    /* Switched off for everyone (app_settings) — gone, not locked */
+    .sb-item.sb-disabled { display: none; }
     /* Lock span is rendered for every gated module but hidden until the
        sb-locked OR sb-pending class is applied. */
     .sb-item .sb-lock { display: none; }
@@ -449,6 +451,18 @@
       if (icon) icon.textContent = isPending ? '⏳' : '🔒';
     });
   });
+
+  /* Global switches (auth.js → lazypo:flags): a module turned off for
+     everyone disappears from the sidebar — no lock, no access request. */
+  const FLAG_MODULES = { livenote: 'livenote_disabled' };
+  function _applyFlags(flags) {
+    Object.keys(FLAG_MODULES).forEach(id => {
+      const el = document.querySelector(`[data-sb-id="${id}"]`);
+      if (el) el.classList.toggle('sb-disabled', !!flags[FLAG_MODULES[id]]);
+    });
+  }
+  document.addEventListener('lazypo:flags', e => _applyFlags(e.detail || {}));
+  if (window.LazyAuth && window.LazyAuth.flags) _applyFlags(window.LazyAuth.flags);
 
   /* Admin notification count → red badge on Admin item */
   document.addEventListener('lazypo:admin-notifs', function (e) {

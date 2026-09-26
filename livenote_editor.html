@@ -1080,6 +1080,7 @@ function insertHtmlAtCursor(html) {
 }
 
 async function uploadPasteImage(file) {
+  if (filesDisabled) throw new Error('Transfert de fichiers désactivé par l\'administrateur');
   const ext  = (file.type.split('/')[1] || 'png').replace('jpeg','jpg');
   const path = `${docShortId}/paste-${Date.now()}.${ext}`;
   const { error } = await sb.storage.from(FILE_BUCKET).upload(path, file, { upsert: true });
@@ -1128,6 +1129,7 @@ async function processWordHtml(html) {
 }
 
 let dropZoneDisabled = false;
+let filesDisabled    = false;   // app_settings.livenote_files_disabled — coupé depuis Jarvis
 
 function disableDropZone() {
   dropZoneDisabled = true;
@@ -1138,6 +1140,7 @@ function disableDropZone() {
 }
 
 async function uploadTempFile(file) {
+  if (filesDisabled) { toast('Transfert de fichiers désactivé par l\'administrateur'); return; }
   if (file.size > 50 * 1024 * 1024) { toast('Fichier trop lourd — max 50 MB'); return; }
   // Génère un faux nom pizzeria — utilisé partout (path Supabase, nom affiché,
   // attribut download). Aucune trace du nom original côté serveur ni UI.
@@ -1202,6 +1205,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   const session = await LazyAuth.requireModule('livenote');
   if (!session) return;
+
+  /* Transfert de fichiers coupé depuis Jarvis (app_settings.livenote_files_disabled) :
+     plus de drop, plus d'upload des images collées. Le bucket est aussi
+     verrouillé côté Storage (policy) — ceci n'est que l'UI. */
+  await LazyAuth.flagsReady;
+  if (LazyAuth.flag('livenote_files_disabled')) { filesDisabled = true; disableDropZone(); }
+
   const user = session.user;
   const profile = await LazyAuth.getProfile(user.id);
   myUserId   = user.id;
@@ -1521,7 +1531,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           const url = await uploadPasteImage(file, file.type);
           insertHtmlAtCursor(`<img src="${url}" style="max-width:100%">`);
           scheduleSave(); scheduleBroadcastContent();
-        } catch(err) { toast('Image upload failed'); }
+        } catch(err) { toast(filesDisabled ? 'Transfert de fichiers désactivé par l\'administrateur' : 'Image upload failed'); }
       }
       return;
     }

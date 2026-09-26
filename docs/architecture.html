@@ -2407,6 +2407,20 @@ graph TB
 
     <p>Changements significatifs des dernières releases — pour le détail complet voir <code>git log</code> ou les PR mergées sur <code>main</code>.</p>
 
+    <h3>Septembre 2026 — 🎛️ Interrupteurs globaux pilotés depuis Jarvis</h3>
+    <ul style="padding-left: 24px; margin-bottom: 18px;">
+      <li>Nouvelle table <code>app_settings</code> (<code>app_settings_schema.sql</code>) avec trois
+          interrupteurs : <code>site_disabled</code> (tout <code>/lazypo2/*</code> répond 404),
+          <code>livenote_disabled</code> (module caché, pages en 404, table verrouillée) et
+          <code>livenote_files_disabled</code> (plus de drop ni d'images collées dans LiveNote, bucket
+          verrouillé). Lecture publique ; écriture depuis Jarvis (Réglages → LazyPO) par la RPC
+          <code>set_app_setting</code> avec un secret partagé rangé dans une table sans policy.</li>
+      <li>Trois couches indépendantes : le Worker (<code>getFlags</code>, cache 30 s, fail-open),
+          <code>auth.js</code> (<code>LazyAuth.flags</code>, événement <code>lazypo:flags</code>, overlay
+          « module désactivé » dans <code>requireModule()</code>, sidebar) et des policies RLS
+          <em>restrictives</em> sur <code>livenote_docs</code> et <code>storage.objects</code>.</li>
+    </ul>
+
     <h3>Septembre 2026 — 🚨 <code>/pro/</code> retiré, l'app vit sur <code>/lazypo2/</code></h3>
     <ul style="padding-left: 24px; margin-bottom: 18px;">
       <li>Le 25/09, une alerte « fuite de données » côté employeur a visé <code>ndashiz.be/pro/</code>.

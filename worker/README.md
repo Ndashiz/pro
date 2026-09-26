@@ -47,6 +47,24 @@ Caching:
 - **Per-token verification results** are cached for 60s, keyed on the last
   24 chars of the signature, so repeat hits are free.
 
+## Remote switches
+
+Before the gate runs, the Worker reads `public.app_settings` from Supabase
+(`GET /rest/v1/app_settings?select=key,value`, publishable key, public-read
+policy) and applies two switches written from Jarvis:
+
+- `site_disabled` → every path under `APP_PREFIX` gets the same bare 404 as
+  `/pro/` (assets, login and the quiz embed included).
+- `livenote_disabled` → `livenote.html` and `livenote_editor.html` get the 404
+  (`FLAG_PAGES`); everything else is untouched.
+
+The copy is cached 30 s in `caches.default` (`FLAGS_TTL`), with a 24 h stale
+copy (`FLAGS_STALE`) used only when Supabase cannot be reached. **Fail-open**:
+no copy at all means "all off" — a Supabase outage must never take the site
+down. Paths outside `APP_PREFIX` never trigger the fetch. The third switch,
+`livenote_files_disabled`, is not the Worker's business: `auth.js` and a
+storage policy handle it. Schema and RPC: `app_settings_schema.sql`.
+
 ## Headers injected
 
 Applied to every proxied response:

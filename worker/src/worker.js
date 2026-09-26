@@ -9,6 +9,11 @@
    under APP_PREFIX (/lazypo2/) — step 2 of the incident plan, see
    worker/README.md « Lockdown ».
 
+   Remote switches: public.app_settings in Supabase (written from Jarvis)
+   can turn the whole site into a 404 (site_disabled) or make a module's
+   pages vanish (livenote_disabled). Read with the public key, cached 30 s,
+   fail-open. See app_settings_schema.sql.
+
    Runs in front of GitHub Pages (the origin). Intercepts every request
    to APP_PREFIX*.html (and APP_PREFIX itself) and verifies a Supabase
    JWT cookie BEFORE serving the HTML. Static assets (.js/.css/.svg/.ico)
@@ -64,6 +69,20 @@ const PUBLIC_EXTENSIONS = /\.(js|css|svg|ico|png|jpg|jpeg|gif|webp|woff2?|ttf|ma
 // Path prefixes that are always public (well-known, etc.)
 const PUBLIC_PREFIXES = [APP_PREFIX + '.well-known/'];
 
+// ── Remote switches (Supabase public.app_settings, written from Jarvis) ──
+// Read with the publishable key (public-read policy), cached FLAGS_TTL s.
+// Fail-open: when Supabase cannot be reached the last value seen within
+// FLAGS_STALE s applies, else "all off" — a Supabase hiccup must never take
+// the site down. See app_settings_schema.sql.
+const SUPABASE_ANON = 'sb_publishable_Mj-FuPZcN_oTeLQ0ME84yQ_uulPdJ4c'; // same public key as auth.js
+const FLAGS_URL     = SUPABASE_URL + '/rest/v1/app_settings?select=key,value';
+const FLAGS_TTL     = 30;      // seconds a fresh copy is reused
+const FLAGS_STALE   = 86400;   // seconds the fallback copy is kept
+// Pages that disappear (404) when a switch is on.
+const FLAG_PAGES = {
+  livenote_disabled: new Set([APP_PREFIX + 'livenote.html', APP_PREFIX + 'livenote_editor.html']),
+};
+
 export default {
   async fetch(request, env, ctx) {
     try {
@@ -78,6 +97,15 @@ export default {
       // 1. Only gate APP_PREFIX paths. Anything else, pass through.
       if (!path.startsWith(APP_PREFIX)) {
         return fetch(request);
+      }
+
+      // 1b. Remote switches: whole site off, or a module's pages off.
+      const flags = await getFlags(ctx);
+      if (flags.site_disabled) {
+        return notFound();
+      }
+      for (const key in FLAG_PAGES) {
+        if (flags[key] && FLAG_PAGES[key].has(path)) return notFound();
       }
 
       // 2. Static assets and public pages — pass through with security headers.
@@ -140,6 +168,57 @@ function notFound() {
       'Content-Security-Policy':     "default-src 'none'; style-src 'unsafe-inline'; frame-ancestors 'none'",
     },
   });
+}
+
+/* ── Remote switches ─────────────────────────────────────────────── */
+
+async function getFlags(ctx) {
+  const cache    = (typeof caches !== 'undefined') ? caches.default : null;
+  const freshReq = new Request('https://lazypo-flags-cache/fresh');
+  const staleReq = new Request('https://lazypo-flags-cache/stale');
+
+  if (cache) {
+    try {
+      const fresh = await cache.match(freshReq);
+      if (fresh) return await fresh.json();
+    } catch {}
+  }
+
+  let flags = null;
+  try {
+    const res = await fetch(FLAGS_URL, {
+      headers: { 'apikey': SUPABASE_ANON, 'Authorization': 'Bearer ' + SUPABASE_ANON },
+    });
+    if (res.ok) {
+      const rows = await res.json();
+      flags = {};
+      for (const r of (Array.isArray(rows) ? rows : [])) flags[r.key] = r.value === true;
+    } else {
+      console.warn('[lazypo-worker] flags fetch failed:', res.status);
+    }
+  } catch (err) {
+    console.warn('[lazypo-worker] flags fetch error:', err && err.message);
+  }
+
+  if (!flags) {
+    // Supabase unreachable: reuse the last copy if we still have one.
+    if (cache) {
+      try {
+        const stale = await cache.match(staleReq);
+        if (stale) return await stale.json();
+      } catch {}
+    }
+    return {};
+  }
+
+  if (cache) {
+    const body = JSON.stringify(flags);
+    const put = (req, ttl) => cache.put(req, new Response(body, {
+      headers: { 'Content-Type': 'application/json', 'Cache-Control': 'max-age=' + ttl },
+    }));
+    ctx.waitUntil(Promise.all([put(freshReq, FLAGS_TTL), put(staleReq, FLAGS_STALE)]));
+  }
+  return flags;
 }
 
 function isPublicPath(path) {

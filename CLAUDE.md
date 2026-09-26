@@ -20,6 +20,27 @@ the cookie `Path` in `auth.js`, the `next` check in `login.html`, the Spotify
 redirect URI or the Jarvis quiz iframe back at `/pro/`.
 
 
+## Global switches (`app_settings`) — driven from Jarvis
+
+Three kill switches live in Supabase `public.app_settings` (`app_settings_schema.sql`,
+run by hand): `site_disabled`, `livenote_disabled`, `livenote_files_disabled`.
+Jarvis flips them (Settings → LazyPO) through the RPC `set_app_setting(key, value,
+secret)` — publishable key + a shared secret kept in `app_settings_secret`, a table
+with no policy at all, so it is invisible to the API. Reads are public: they are flags.
+
+Enforced in three layers, each on its own:
+
+| Layer | What it does | Note |
+|---|---|---|
+| Worker (`getFlags`) | `site_disabled` → bare 404 on all of `/lazypo2/*`; `livenote_disabled` → 404 on `livenote*.html` (`FLAG_PAGES`) | cached 30 s, **fail-open** (stale copy 24 h, else all off) |
+| `auth.js` | `LazyAuth.flags` / `flag(k)` / `flagsReady`, event `lazypo:flags`; `requireModule()` shows a « module désactivé » overlay when the module's switch is on (`FLAG_MODULES`); sidebar hides the item | UI only |
+| RLS | restrictive policies: `livenote_docs` locked when `livenote_disabled`, no insert in bucket `livenote-temp` when `livenote_files_disabled` | the real boundary |
+
+Adding a switch means touching all of: the allow-list in `set_app_setting` (SQL),
+`FLAG_KEYS` (+ `FLAG_MODULES` if it hides a module) in `auth.js` and `sidebar.js`,
+`FLAG_PAGES` in the Worker, and `LAZYPO_SWITCHES` in Jarvis
+(`backend/src/services/lazypo/service.ts`). A switch nobody enforces is a lie.
+
 ## What this is
 
 Personal PO toolbox. **Vanilla JS, no build step, no bundler, no package.json

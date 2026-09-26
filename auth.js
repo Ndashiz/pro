@@ -110,6 +110,29 @@
   window.sb = createClient(SUPABASE_URL, SUPABASE_ANON,
     IS_EMBED ? { auth: { storageKey: 'sb-lazypo-embed-auth-token' } } : undefined);
 
+  /* ── Global switches (public.app_settings, written from Jarvis) ─────
+     Three kill switches — site_disabled, livenote_disabled,
+     livenote_files_disabled — see app_settings_schema.sql. Public read, so
+     they load in parallel with the session check, before any page gate.
+     Missing table or network error → everything stays ON: the switches are
+     enforced for real by the Worker (edge) and by RLS (base); this copy
+     only drives the UI. */
+  const FLAG_KEYS    = ['site_disabled', 'livenote_disabled', 'livenote_files_disabled'];
+  const FLAG_MODULES = { livenote: 'livenote_disabled' };   // module id → its OFF switch
+  const FLAGS = {};
+  FLAG_KEYS.forEach(k => { FLAGS[k] = false; });
+  const flagsReady = (async () => {
+    try {
+      const { data, error } = await window.sb
+        .from('app_settings').select('key,value').in('key', FLAG_KEYS);
+      if (!error && Array.isArray(data)) {
+        data.forEach(r => { if (r.key in FLAGS) FLAGS[r.key] = r.value === true; });
+      }
+    } catch (_) {}
+    document.dispatchEvent(new CustomEvent('lazypo:flags', { detail: Object.assign({}, FLAGS) }));
+    return FLAGS;
+  })();
+
   /* ── Inject widget CSS once ──────────────────────────────────── */
   const css = document.createElement('style');
   css.textContent = `
@@ -857,6 +880,24 @@
     });
   }
 
+  /** Module switched off for everyone (app_settings) — no request button. */
+  function _showModuleDisabledOverlay(moduleId) {
+    _injectLockStyles();
+    if (document.getElementById('moduleLockOverlay')) return;
+    const label = MODULE_LABELS[moduleId] || moduleId;
+    const overlay = document.createElement('div');
+    overlay.id = 'moduleLockOverlay';
+    overlay.innerHTML = `
+      <div id="moduleLockCard">
+        <div class="ml-icon">⛔</div>
+        <h2>Module désactivé — ${esc(label)}</h2>
+        <p>Ce module est coupé pour tout le monde par l'administrateur. Il reviendra dès qu'il sera réactivé.</p>
+        <a href="index.html" class="ml-btn-back">← Retour à l'accueil</a>
+      </div>`;
+    document.body.appendChild(overlay);
+    document.body.style.overflow = 'hidden';
+  }
+
   function _setLockStatus(kind, text) {
     const el = document.getElementById('mlStatus');
     if (!el) return;
@@ -870,6 +911,13 @@
     const liveSession = session || (IS_LOCAL ? DEV_SESSION : null);
     if (!liveSession) { window.location.href = LOGIN_PAGE; return null; }
 
+    /* A switch turned off from Jarvis wins over per-user access. */
+    await flagsReady;
+    if (FLAG_MODULES[moduleId] && FLAGS[FLAG_MODULES[moduleId]]) {
+      _showModuleDisabledOverlay(moduleId);
+      return null;
+    }
+
     const allowed = await _fetchAllowedModules(liveSession.user.id);
     if (allowed.includes(moduleId)) return liveSession;
 
@@ -881,6 +929,8 @@
     const { data: { session } } = await window.sb.auth.getSession();
     const liveSession = session || (IS_LOCAL ? DEV_SESSION : null);
     if (!liveSession) return false;
+    await flagsReady;
+    if (FLAG_MODULES[moduleId] && FLAGS[FLAG_MODULES[moduleId]]) return false;
     const allowed = await _fetchAllowedModules(liveSession.user.id);
     return allowed.includes(moduleId);
   };
@@ -888,6 +938,11 @@
   /** Expose flags for other modules / debugging */
   window.LazyAuth.isLocal    = IS_LOCAL;
   window.LazyAuth.devSession = DEV_SESSION;
+
+  /** Global switches (see app_settings_schema.sql) — resolved by flagsReady */
+  window.LazyAuth.flags      = FLAGS;
+  window.LazyAuth.flag       = k => !!FLAGS[k];
+  window.LazyAuth.flagsReady = flagsReady;
 
   /** Public helpers — call after a successful signIn / signOut to make
       sure the Worker-gate cookie is in sync without waiting for the

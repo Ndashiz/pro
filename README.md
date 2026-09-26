@@ -40,6 +40,7 @@ Tool to ease my life as a PO.
 - **Hosting** : GitHub Pages, auto-deploy on push to `main`
 - **CDN / edge** : Cloudflare in front of `ndashiz.be` (~10 min cache TTL)
 - **Auth gate** : Cloudflare Worker on `ndashiz.be/lazypo2/*` — verifies a Supabase JWT cookie before HTML is served, and adds the CSP + security headers. See [`worker/`](worker/) and [`docs/architecture.html#worker-gate`](docs/architecture.html).
+- **Remote switches** : three kill switches in Supabase `app_settings` (`site_disabled`, `livenote_disabled`, `livenote_files_disabled`), flipped from Jarvis (Settings → LazyPO). The Worker turns the site or the LiveNote pages into a 404, `auth.js` hides the module and blocks file transfers, RLS locks the table and the bucket. See `app_settings_schema.sql` and `CLAUDE.md`.
 - **Backend** : Supabase (auth + Postgres + storage + realtime). All tables use RLS.
 - **Frontend** : Vanilla JS, no build step, no bundler. Each feature is a single HTML file with inline JS/CSS.
 - **Third-party libs are vendored**, never loaded from a CDN — the Worker CSP is `script-src 'self'` and would block them. See [Vendored libraries](#vendored-libraries).
